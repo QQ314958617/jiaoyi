@@ -236,7 +236,7 @@
         .signal-hold { background: #faad1433; color: #faad14; }
         
         /* 刷新动画 */
-        .refreshing { animation: spin 1s linear infinite; }
+        .btn .refresh-icon.refreshing { animation: spin 1s linear infinite; display: inline-block; }
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
         
         /* 响应式 */
@@ -252,7 +252,7 @@
         <h1>🥚 蛋蛋模拟炒股系统</h1>
         <div>
             <span class="time" id="clock">--:--:--</span>
-            <button class="btn btn-primary" onclick="refreshAll()" style="margin-left:15px">🔄 刷新</button>
+            <button class="btn btn-primary" onclick="refreshAll()" style="margin-left:15px"><span class="refresh-icon">🔄</span> 刷新</button>
         </div>
     </div>
     
@@ -679,9 +679,9 @@
         // 刷新
         async function refreshAll() {
             const btn = document.querySelector('.header .btn');
-            btn.classList.add('refreshing');
+            btn.querySelector('.refresh-icon').classList.add('refreshing');
             await Promise.all([loadPortfolio(), loadTrades(), loadReviews()]);
-            setTimeout(() => btn.classList.remove('refreshing'), 500);
+            setTimeout(() => btn.querySelector('.refresh-icon').classList.remove('refreshing'), 500);
         }
         
         // 格式化
@@ -802,7 +802,8 @@
                         try {
                             const q = await fetch(`/api/quote/${code}`).then(r => r.json());
                             const profitRate = ((q.price / pos.avg_cost - 1) * 100).toFixed(2);
-                            analysis += `- ${q.name}(${code}): 现价${q.price}元, 成本${pos.avg_cost}元, 盈亏${profitRate}%\                        } catch(e) {}
+                            analysis += `- ${q.name}(${code}): 现价${q.price}元, 成本${pos.avg_cost}元, 盈亏${profitRate}%`;
+                        } catch(e) {}
                     }
                 }
                 

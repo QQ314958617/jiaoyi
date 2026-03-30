@@ -4,16 +4,99 @@
 import os
 import json
 from datetime import datetime, date
-from flask import Flask, render_template, jsonify, request
+from flask import Flask, render_template, jsonify, request, make_response
 
 import akshare as ak
 import database as db
 from trading.strategies import StrategyManager
+import time
+import threading
+import requests
+
+# 腾讯实时行情API
+def get_tencent_quote(codes):
+    """从腾讯获取实时行情"""
+    if not codes:
+        return {}
+    
+    # 腾讯行情URL
+    code_str = ','.join([f"sh{c}" if c.startswith(('6', '5')) else f"sz{c}" for c in codes])
+    url = f"https://qt.gtimg.cn/q={code_str}"
+    
+    try:
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            'Referer': 'https://gu.qq.com/'
+        }
+        r = requests.get(url, headers=headers, timeout=5)
+        result = {}
+        for line in r.text.strip().split('\n'):
+            if '=' in line:
+                key = line.split('=')[0].replace('v_', '')
+                fields = line.split('="')[1].strip('"').split('~')
+                if len(fields) > 10:
+                    result[key.upper().replace('SH', '').replace('SZ', '')] = {
+                        'name': fields[1],
+                        'price': float(fields[3]) if fields[3] != '-' else 0,
+                        'close': float(fields[4]) if fields[4] != '-' else 0,
+                        'open': float(fields[5]) if fields[5] != '-' else 0,
+                        'volume': float(fields[6]) if fields[6] != '-' else 0,
+                        'amount': float(fields[37]) if len(fields) > 37 and fields[37] != '-' else 0,
+                        'high': float(fields[33]) if len(fields) > 33 and fields[33] != '-' else 0,
+                        'low': float(fields[34]) if len(fields) > 34 and fields[34] != '-' else 0,
+                        'change': float(fields[31]) if len(fields) > 31 and fields[31] != '-' else 0,
+                        'change_pct': float(fields[32]) if len(fields) > 32 and fields[32] != '-' else 0,
+                        'time': fields[30] if len(fields) > 30 else '',
+                    }
+        return result
+    except Exception as e:
+        print(f"腾讯行情错误: {e}")
+        return {}
 
 app = Flask(__name__)
 app.config['JSON_AS_ASCII'] = False
 
 strategy_mgr = StrategyManager()
+
+# 简单缓存
+_cache = {
+    'market_top': {'data': None, 'time': 0},
+    'quote': {}
+}
+_CACHE_TTL = 300  # 缓存5分钟
+
+# 后台预加载市场数据
+def preload_market_data():
+    def _load():
+        print("🔄 预加载市场数据...")
+        try:
+            hot_codes = [
+                '600036', '000001', '601318', '600519', '000858',
+                '300750', '002475', '688525', '002428', '600276',
+                '601888', '600009', '000333', '002594', '300059',
+                '300274', '002466', '600900', '601012', '300015',
+            ]
+            quotes = get_tencent_quote(hot_codes)
+            result = []
+            for code, data in quotes.items():
+                if data.get('price', 0) > 0:
+                    result.append({
+                        "code": code,
+                        "name": data['name'],
+                        "price": data['price'],
+                        "change_pct": data['change_pct'],
+                        "volume": data.get('amount', 0),
+                    })
+            result.sort(key=lambda x: x['volume'], reverse=True)
+            _cache['market_top'] = {'data': result[:20], 'time': time.time()}
+            print(f"✅ 市场数据加载完成: {len(result)} 只股票")
+        except Exception as e:
+            print(f"❌ 市场数据加载失败: {e}")
+    
+    t = threading.Thread(target=_load, daemon=True)
+    t.start()
+
+preload_market_data()
 
 # ========== 初始化 ==========
 
@@ -28,7 +111,9 @@ def before_first_request():
 
 @app.route('/')
 def index():
-    return render_template('index.html')
+    response = make_response(render_template('index.html'))
+    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    return response
 
 @app.route('/api/portfolio')
 def get_portfolio():
@@ -77,75 +162,135 @@ def get_equity():
 
 @app.route('/api/quote/<stock_code>')
 def get_quote(stock_code):
-    """获取实时行情"""
+    """获取实时行情（腾讯API）"""
+    now = time.time()
+    cache_key = f'quote_{stock_code}'
+    
+    if cache_key in _cache['quote'] and (now - _cache['quote'][cache_key]['time']) < _CACHE_TTL:
+        return jsonify(_cache['quote'][cache_key]['data'])
+    
     try:
-        df = ak.stock_zh_a_spot_em()
-        row = df[df['代码'] == stock_code]
-        if row.empty:
+        quotes = get_tencent_quote([stock_code])
+        if stock_code not in quotes:
             return jsonify({"error": "股票代码不存在"}), 404
-        row = row.iloc[0]
-        return jsonify({
+        
+        data = quotes[stock_code]
+        result = {
             "code": stock_code,
-            "name": row['名称'],
-            "price": float(row['最新价']),
-            "change": float(row['涨跌额']),
-            "change_pct": float(row['涨跌幅']),
-            "volume": float(row['成交量']),
-            "amount": float(row['成交额']),
-            "high": float(row['最高']),
-            "low": float(row['最低']),
-            "open": float(row['今开']),
-            "close": float(row['昨收']),
-            "time": datetime.now().strftime("%H:%M:%S")
-        })
+            "name": data['name'],
+            "price": data['price'],
+            "change": data['change'],
+            "change_pct": data['change_pct'],
+            "volume": data['volume'],
+            "amount": data.get('amount', 0),
+            "high": data.get('high', 0),
+            "low": data.get('low', 0),
+            "open": data.get('open', 0),
+            "close": data.get('close', 0),
+            "time": data.get('time', datetime.now().strftime("%H:%M:%S"))
+        }
+        _cache['quote'][cache_key] = {'data': result, 'time': now}
+        return jsonify(result)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/quotes/batch')
 def get_quotes_batch():
-    """批量获取持仓股行情"""
+    """批量获取持仓股行情（腾讯API）"""
     positions = db.get_positions()
     codes = [p['stock_code'] for p in positions]
     
     if not codes:
         return jsonify([])
     
-    try:
-        df = ak.stock_zh_a_spot_em()
-        rows = df[df['代码'].isin(codes)]
-        result = []
-        for _, row in rows.iterrows():
-            result.append({
-                "code": row['代码'],
-                "name": row['名称'],
-                "price": float(row['最新价']),
-                "change": float(row['涨跌额']),
-                "change_pct": float(row['涨跌幅']),
-                "volume": float(row['成交量']),
-                "high": float(row['最高']),
-                "low": float(row['最低']),
-                "time": datetime.now().strftime("%H:%M:%S")
-            })
-        return jsonify(result)
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    now = time.time()
+    # 检查缓存
+    cached = []
+    uncached = []
+    for code in codes:
+        cache_key = f'quote_{code}'
+        if cache_key in _cache['quote'] and (now - _cache['quote'][cache_key]['time']) < _CACHE_TTL:
+            cached.append(_cache['quote'][cache_key]['data'])
+        else:
+            uncached.append(code)
+    
+    result = list(cached)
+    
+    if uncached:
+        try:
+            quotes = get_tencent_quote(uncached)
+            for code, data in quotes.items():
+                q = {
+                    "code": code,
+                    "name": data['name'],
+                    "price": data['price'],
+                    "change": data['change'],
+                    "change_pct": data['change_pct'],
+                    "volume": data['volume'],
+                    "high": data.get('high', 0),
+                    "low": data.get('low', 0),
+                    "time": data.get('time', datetime.now().strftime("%H:%M:%S"))
+                }
+                _cache['quote'][f'quote_{code}'] = {'data': q, 'time': now}
+                result.append(q)
+        except:
+            pass
+    
+    return jsonify(result)
 
 @app.route('/api/market/top')
 def get_market_top():
-    """获取市场热门股票"""
+    """获取市场热门股票（使用腾讯API）"""
+    now = time.time()
+    
+    # 常用热门股票列表
+    hot_codes = [
+        '600036', '000001', '601318', '600519', '000858',  # 银行保险白酒
+        '300750', '002475', '688525', '002428', '600276',  # 宁德时代/立讯/佰维/云南锗业/恒瑞
+        '601888', '600009', '000333', '002594', '300059',  # 中免/上海机场/美的/比亚迪/东方财富
+        '300274', '002466', '600900', '601012', '300015',  # 阳光电源/天齐/长江电力/隆基/爱尔
+        '688041', '300033', '002352', '601166', '600030',  # 海光/同花顺/顺丰/兴业/中信
+    ]
+    
+    # 如果有缓存，直接返回（即使过期也先用旧数据）
+    if _cache['market_top']['data']:
+        if (now - _cache['market_top']['time']) >= _CACHE_TTL:
+            def _refresh():
+                try:
+                    quotes = get_tencent_quote(hot_codes)
+                    result = []
+                    for code, data in quotes.items():
+                        if data.get('price', 0) > 0:
+                            result.append({
+                                "code": code,
+                                "name": data['name'],
+                                "price": data['price'],
+                                "change_pct": data['change_pct'],
+                                "volume": data.get('amount', 0),
+                            })
+                    result.sort(key=lambda x: x['volume'], reverse=True)
+                    _cache['market_top'] = {'data': result[:20], 'time': time.time()}
+                except:
+                    pass
+            threading.Thread(target=_refresh, daemon=True).start()
+        return jsonify(_cache['market_top']['data'])
+    
+    # 完全没有缓存
     try:
-        df = ak.stock_zh_a_spot_em()
-        df = df.head(20)
+        quotes = get_tencent_quote(hot_codes)
         result = []
-        for _, row in df.iterrows():
-            result.append({
-                "code": row['代码'],
-                "name": row['名称'],
-                "price": float(row['最新价']),
-                "change_pct": float(row['涨跌幅']),
-                "volume": float(row['成交额']),
-            })
-        return jsonify(result)
+        for code, data in quotes.items():
+            if data.get('price', 0) > 0:
+                result.append({
+                    "code": code,
+                    "name": data['name'],
+                    "price": data['price'],
+                    "change_pct": data['change_pct'],
+                    "volume": data.get('amount', 0),
+                })
+        result.sort(key=lambda x: x['volume'], reverse=True)
+        _cache['market_top'] = {'data': result[:20], 'time': time.time()}
+        return jsonify(result[:20])
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -159,14 +304,13 @@ def execute_trade():
     
     account = db.get_account()
     
-    # 获取当前价
+    # 获取当前价（腾讯API）
     try:
-        df = ak.stock_zh_a_spot_em()
-        row = df[df['代码'] == stock_code]
-        if row.empty:
-            return jsonify({"error": "股票不存在"}), 400
-        price = float(row.iloc[0]['最新价'])
-        name = row.iloc[0]['名称']
+        quotes = get_tencent_quote([stock_code])
+        if stock_code not in quotes or quotes[stock_code]['price'] == 0:
+            return jsonify({"error": "股票不存在或停牌"}), 400
+        price = quotes[stock_code]['price']
+        name = quotes[stock_code]['name']
     except Exception as e:
         return jsonify({"error": f"获取行情失败: {str(e)}"}), 500
     
@@ -215,12 +359,17 @@ def execute_trade():
     # 更新账户
     positions = db.get_positions()
     total_value = new_cash
-    for pos in positions:
-        try:
-            qdf = ak.stock_zh_a_spot_em()
-            curr_price = float(qdf[qdf['代码'] == pos['stock_code']].iloc[0]['最新价'])
-            total_value += curr_price * pos['shares']
-        except:
+    try:
+        codes = [p['stock_code'] for p in positions]
+        quotes = get_tencent_quote(codes) if codes else {}
+        for pos in positions:
+            code = pos['stock_code']
+            if code in quotes and quotes[code]['price'] > 0:
+                total_value += quotes[code]['price'] * pos['shares']
+            else:
+                total_value += pos['avg_cost'] * pos['shares']
+    except:
+        for pos in positions:
             total_value += pos['avg_cost'] * pos['shares']
     
     total_profit = total_value - 1000000.0
@@ -305,4 +454,4 @@ def reset_account():
 
 if __name__ == '__main__':
     db.init_database()
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    app.run(host='0.0.0.0', port=80, debug=False, threaded=True)
