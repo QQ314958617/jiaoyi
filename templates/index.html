@@ -23,25 +23,25 @@
         .header .time { color: #ccc; font-size: 14px; }
         .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
         
-        /* 账户概览卡片 */
+        /* 概览卡片 */
         .overview {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
             gap: 15px;
             margin-bottom: 20px;
         }
         .card {
             background: #16213e;
             border-radius: 12px;
-            padding: 20px;
+            padding: 18px;
             box-shadow: 0 4px 15px rgba(0,0,0,0.2);
         }
-        .card-title { color: #888; font-size: 13px; margin-bottom: 8px; }
-        .card-value { font-size: 28px; font-weight: bold; }
+        .card-title { color: #888; font-size: 12px; margin-bottom: 6px; }
+        .card-value { font-size: 26px; font-weight: bold; }
         .card-value.red { color: #ff4d4f; }
         .card-value.green { color: #52c41a; }
         .card-value.blue { color: #1890ff; }
-        .card-sub { font-size: 12px; color: #666; margin-top: 5px; }
+        .card-sub { font-size: 11px; color: #666; margin-top: 4px; }
         
         /* 标签页 */
         .tabs {
@@ -51,9 +51,10 @@
             background: #16213e;
             padding: 5px;
             border-radius: 10px;
+            flex-wrap: wrap;
         }
         .tab {
-            padding: 10px 20px;
+            padding: 10px 18px;
             cursor: pointer;
             border-radius: 8px;
             transition: all 0.3s;
@@ -65,7 +66,7 @@
         .panel { display: none; }
         .panel.active { display: block; }
         
-        /* 持仓表格 */
+        /* 表格 */
         .positions-table {
             width: 100%;
             border-collapse: collapse;
@@ -102,11 +103,11 @@
         .trade-type.buy { background: #ff4d4f33; color: #ff4d4f; }
         .trade-type.sell { background: #52c41a33; color: #52c41a; }
         
-        /* K线图 */
+        /* K线图容器 */
         .chart-container { background: #16213e; border-radius: 12px; padding: 15px; margin-bottom: 20px; }
-        .chart { height: 400px; }
+        .chart { height: 350px; }
         
-        /* 搜索股 */
+        /* 搜索 */
         .search-bar {
             display: flex;
             gap: 10px;
@@ -135,6 +136,7 @@
         .btn-primary:hover { background: #5a6fd4; }
         .btn-success { background: #52c41a; color: #fff; }
         .btn-danger { background: #ff4d4f; color: #fff; }
+        .btn-warning { background: #faad14; color: #fff; }
         
         /* 弹窗 */
         .modal {
@@ -167,7 +169,7 @@
         .modal textarea { height: 100px; resize: vertical; }
         .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 15px; }
         
-        /* 涨跌榜 */
+        /* 市场列表 */
         .market-list { background: #16213e; border-radius: 12px; overflow: hidden; }
         .market-item {
             padding: 12px 15px;
@@ -186,7 +188,7 @@
             padding: 20px;
             margin-bottom: 15px;
         }
-        .review-date { color: #667eea; font-size: 13px; margin-bottom: 10px; }
+        .review-date { color: #667eea; font-size: 13px; margin-bottom: 8px; }
         .review-content { line-height: 1.8; color: #ccc; }
         .review-tags { margin-top: 10px; }
         .review-tag {
@@ -199,6 +201,40 @@
             margin-right: 5px;
         }
         
+        /* 统计面板 */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .stat-card {
+            background: #16213e;
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+        }
+        .stat-value { font-size: 28px; font-weight: bold; }
+        .stat-label { color: #888; font-size: 13px; margin-top: 5px; }
+        
+        /* 分析结果 */
+        .analysis-result {
+            background: #16213e;
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 15px;
+        }
+        .signal-badge {
+            display: inline-block;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: bold;
+        }
+        .signal-buy { background: #ff4d4f33; color: #ff4d4f; }
+        .signal-sell { background: #52c41a33; color: #52c41a; }
+        .signal-hold { background: #faad1433; color: #faad14; }
+        
         /* 刷新动画 */
         .refreshing { animation: spin 1s linear infinite; }
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
@@ -206,7 +242,7 @@
         /* 响应式 */
         @media (max-width: 768px) {
             .header h1 { font-size: 18px; }
-            .card-value { font-size: 22px; }
+            .card-value { font-size: 20px; }
             .overview { grid-template-columns: repeat(2, 1fr); }
         }
     </style>
@@ -221,7 +257,7 @@
     </div>
     
     <div class="container">
-        <!-- 账户概览 -->
+        <!-- 概览 -->
         <div class="overview" id="overview">
             <div class="card">
                 <div class="card-title">总资产</div>
@@ -241,7 +277,7 @@
             <div class="card">
                 <div class="card-title">可用资金</div>
                 <div class="card-value blue" id="cash">--</div>
-                <div class="card-sub">今日操作次数: <span id="today-trades">0</span></div>
+                <div class="card-sub">今日操作: <span id="today-trades">0</span>次</div>
             </div>
         </div>
         
@@ -251,14 +287,14 @@
             <div class="tab" onclick="switchTab('trades')">📜 交易记录</div>
             <div class="tab" onclick="switchTab('market')">🔥 市场</div>
             <div class="tab" onclick="switchTab('review')">📝 复盘</div>
-            <div class="tab" onclick="switchTab('trade')">💹 交易</div>
+            <div class="tab" onclick="switchTab('ai')">🤖 AI交易</div>
         </div>
         
         <!-- 持仓面板 -->
         <div class="panel active" id="panel-positions">
             <div class="search-bar">
-                <input type="text" id="search-stock" placeholder="输入股票代码或名称搜索">
-                <button class="btn btn-success" onclick="showBuyModal()">➕ 买入</button>
+                <input type="text" id="search-stock" placeholder="输入股票代码">
+                <button class="btn btn-success" onclick="showBuyModal()">🟢 买入</button>
             </div>
             <table class="positions-table">
                 <thead>
@@ -278,14 +314,14 @@
             </table>
         </div>
         
-        <!-- 交易记录面板 -->
+        <!-- 交易记录 -->
         <div class="panel" id="panel-trades">
             <div class="trade-list" id="trades-list">
                 <div style="text-align:center;padding:30px;color:#666">暂无交易记录</div>
             </div>
         </div>
         
-        <!-- 市场面板 -->
+        <!-- 市场 -->
         <div class="panel" id="panel-market">
             <h3 style="margin-bottom:15px">📈 热门股票</h3>
             <div class="market-list" id="market-list">
@@ -293,7 +329,7 @@
             </div>
         </div>
         
-        <!-- 复盘面板 -->
+        <!-- 复盘 -->
         <div class="panel" id="panel-review">
             <div style="margin-bottom:20px">
                 <button class="btn btn-primary" onclick="showReviewModal()">✍️ 写复盘</button>
@@ -303,8 +339,32 @@
             </div>
         </div>
         
-        <!-- 交易面板 -->
-        <div class="panel" id="panel-trade">
+        <!-- AI交易 -->
+        <div class="panel" id="panel-ai">
+            <div class="stats-grid" id="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-value blue" id="stat-total">0</div>
+                    <div class="stat-label">总交易次数</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="stat-win">0</div>
+                    <div class="stat-label">盈利次数</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="stat-rate">0%</div>
+                    <div class="stat-label">胜率</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value green" id="stat-net">0</div>
+                    <div class="stat-label">净收益</div>
+                </div>
+            </div>
+            
+            <div class="chart-container">
+                <h3 style="margin-bottom:15px">📈 账户净值曲线</h3>
+                <div id="equity-chart" class="chart"></div>
+            </div>
+            
             <div class="card" style="margin-bottom:20px">
                 <h3 style="margin-bottom:15px">🤖 蛋蛋的交易决策</h3>
                 <div id="ai-decision" style="color:#ccc;line-height:1.8">
@@ -315,11 +375,6 @@
                     <button class="btn btn-primary" onclick="aiAutoTrade()">⚡ AI自动交易</button>
                 </div>
             </div>
-            
-            <div class="card">
-                <h3 style="margin-bottom:15px">📊 账户净值曲线</h3>
-                <div id="profit-chart" class="chart"></div>
-            </div>
         </div>
     </div>
     
@@ -328,7 +383,7 @@
         <div class="modal-content">
             <h3>🟢 买入股票</h3>
             <input type="text" id="buy-code" placeholder="股票代码，如 300750">
-            <input type="number" id="buy-shares" placeholder="买入数量(手)，如 1手=100股" value="1">
+            <input type="number" id="buy-shares" placeholder="买入数量(手)，1手=100股" value="1">
             <input type="text" id="buy-reason" placeholder="买入理由(可选)">
             <div class="modal-actions">
                 <button class="btn" onclick="closeModal('buy-modal')">取消</button>
@@ -357,7 +412,7 @@
         <div class="modal-content">
             <h3>✍️ 写复盘</h3>
             <textarea id="review-content" placeholder="今日复盘内容..."></textarea>
-            <input type="text" id="review-tags" placeholder="标签，用逗号分隔，如：止损,龙头股,仓位管理">
+            <input type="text" id="review-tags" placeholder="标签，用逗号分隔，如：止损,龙头股">
             <div class="modal-actions">
                 <button class="btn" onclick="closeModal('review-modal')">取消</button>
                 <button class="btn btn-primary" onclick="executeReview()">保存</button>
@@ -366,6 +421,8 @@
     </div>
 
     <script>
+        let equityChart = null;
+        
         // 时钟
         function updateClock() {
             document.getElementById('clock').textContent = new Date().toLocaleString('zh-CN', {hour12: false});
@@ -373,23 +430,26 @@
         setInterval(updateClock, 1000);
         updateClock();
         
-        // 标签页切换
+        // 标签页
         function switchTab(tab) {
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
             document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-            document.querySelector(`.tab:nth-child(${['positions','trades','market','review','trade'].indexOf(tab)+1})`).classList.add('active');
+            event.target.classList.add('active');
             document.getElementById(`panel-${tab}`).classList.add('active');
+            if (tab === 'ai') {
+                loadStats();
+                loadEquityChart();
+            }
         }
         
-        // 加载数据
+        // 加载账户
         async function loadPortfolio() {
             try {
                 const res = await fetch('/api/portfolio');
                 const data = await res.json();
                 
-                // 更新概览
                 document.getElementById('total-value').textContent = formatMoney(data.total_value);
-                const profit = data.total_profit;
+                const profit = data.total_profit || 0;
                 const profitEl = document.getElementById('total-profit');
                 profitEl.textContent = (profit >= 0 ? '+' : '') + formatMoney(profit);
                 profitEl.className = 'card-value ' + (profit >= 0 ? 'red' : 'green');
@@ -398,12 +458,12 @@
                 document.getElementById('profit-rate').textContent = (profit >= 0 ? '+' : '') + rate + '%';
                 document.getElementById('cash').textContent = formatMoney(data.cash);
                 
-                const posCount = Object.keys(data.positions || {}).length;
+                const positions = data.positions || {};
+                const posCount = Object.keys(positions).length;
                 document.getElementById('position-count').textContent = posCount + '只股票';
                 
-                // 计算持仓市值
                 let posValue = 0;
-                for (const [code, pos] of Object.entries(data.positions || {})) {
+                for (const [code, pos] of Object.entries(positions)) {
                     try {
                         const q = await fetch(`/api/quote/${code}`);
                         const qd = await q.json();
@@ -414,25 +474,26 @@
                 }
                 document.getElementById('position-value').textContent = formatMoney(posValue);
                 
-                // 更新持仓表格
-                await updatePositionsTable(data.positions);
+                await updatePositionsTable(positions);
             } catch(e) {
-                console.error('加载持仓失败:', e);
+                console.error('加载失败:', e);
             }
         }
         
         async function updatePositionsTable(positions) {
             const tbody = document.getElementById('positions-body');
-            if (!positions || Object.keys(positions).length === 0) {
+            const entries = Object.entries(positions);
+            
+            if (entries.length === 0) {
                 tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:30px;color:#666">暂无持仓</td></tr>';
                 return;
             }
             
             let html = '';
-            for (const [code, pos] of Object.entries(positions)) {
+            for (const [code, pos] of entries) {
                 try {
-                    const res = await fetch(`/api/quote/${code}`);
-                    const q = await res.json();
+                    const q = await fetch(`/api/quote/${code}`);
+                    const qd = await q.json();
                     const profit = (q.price - pos.avg_cost) * pos.shares;
                     const profitRate = ((q.price / pos.avg_cost - 1) * 100).toFixed(2);
                     const upDown = q.change >= 0 ? 'up' : 'down';
@@ -447,12 +508,13 @@
                         <td><button class="btn btn-danger" style="padding:5px 10px;font-size:12px" onclick="showSellModal('${code}', '${q.name}', ${pos.shares})">卖出</button></td>
                     </tr>`;
                 } catch(e) {
-                    html += `<tr><td>${pos.name || code}</td><td>${code}</td><td>${pos.shares}股</td><td colspan="4">加载失败</td></tr>`;
+                    html += `<tr><td>${pos.stock_name || code}</td><td>${code}</td><td>${pos.shares}股</td><td colspan="4">加载失败</td></tr>`;
                 }
             }
             tbody.innerHTML = html;
         }
         
+        // 加载交易记录
         async function loadTrades() {
             try {
                 const res = await fetch('/api/trades');
@@ -465,22 +527,24 @@
                 }
                 
                 let html = '';
-                trades.slice().reverse().forEach(t => {
-                    const date = new Date(t.timestamp).toLocaleString('zh-CN', {hour12: false});
-                    const profitStr = t.profit !== undefined ? `<span class="${t.profit >= 0 ? 'up' : 'down'}">${t.profit >= 0 ? '+' : ''}${t.profit.toFixed(2)}</span>` : '';
+                trades.forEach(t => {
+                    const ts = new Date(t.timestamp).toLocaleString('zh-CN', {hour12: false});
+                    const profitStr = t.profit != 0 ? `<span class="${t.profit >= 0 ? 'up' : 'down'}">${t.profit >= 0 ? '+' : ''}${Number(t.profit).toFixed(2)}</span>` : '';
                     html += `<div class="trade-item">
                         <div>
                             <span class="trade-type ${t.action}">${t.action === 'buy' ? '买入' : '卖出'}</span>
                             <strong>${t.stock_name}</strong> ${t.stock_code}
-                            <span style="margin-left:10px">${t.shares}股 × ${t.price.toFixed(2)}</span>
+                            <span style="margin-left:10px">${t.shares}股 × ${Number(t.price).toFixed(2)}</span>
                             ${profitStr}
                         </div>
-                        <div style="color:#666;font-size:12px">${date}<br>${t.reason || ''}</div>
+                        <div style="color:#666;font-size:12px;text-align:right">
+                            ${ts}<br>${t.reason || ''}
+                        </div>
                     </div>`;
                 });
                 list.innerHTML = html;
                 
-                // 今日交易次数
+                // 今日交易
                 const today = new Date().toDateString();
                 const todayCount = trades.filter(t => new Date(t.timestamp).toDateString() === today).length;
                 document.getElementById('today-trades').textContent = todayCount;
@@ -489,6 +553,7 @@
             }
         }
         
+        // 加载市场
         async function loadMarket() {
             try {
                 const res = await fetch('/api/market/top');
@@ -520,6 +585,7 @@
             }
         }
         
+        // 加载复盘
         async function loadReviews() {
             try {
                 const res = await fetch('/api/daily');
@@ -532,19 +598,81 @@
                 }
                 
                 let html = '';
-                reviews.slice().reverse().forEach(r => {
-                    const date = new Date(r.timestamp).toLocaleString('zh-CN', {hour12: false});
-                    const tags = r.tags ? r.tags.map(t => `<span class="review-tag">${t}</span>`).join('') : '';
-                    const profitStr = r.profit !== 0 ? `<span class="${r.profit >= 0 ? 'up' : 'down'}" style="float:right">${r.profit >= 0 ? '+' : ''}${r.profit.toFixed(2)}</span>` : '';
+                reviews.forEach(r => {
+                    const ts = new Date(r.timestamp).toLocaleString('zh-CN', {hour12: false});
+                    const tags = r.tags || [];
+                    const tagHtml = tags.map(t => `<span class="review-tag">${t}</span>`).join('');
+                    const profitStr = r.profit != 0 ? `<span class="${r.profit >= 0 ? 'up' : 'down'}" style="float:right">${r.profit >= 0 ? '+' : ''}${Number(r.profit).toFixed(2)}</span>` : '';
                     html += `<div class="review-item">
-                        <div class="review-date">${date} ${profitStr}</div>
+                        <div class="review-date">${ts} ${profitStr}</div>
                         <div class="review-content">${r.content}</div>
-                        ${tags ? `<div class="review-tags">${tags}</div>` : ''}
+                        ${tagHtml ? `<div class="review-tags">${tagHtml}</div>` : ''}
                     </div>`;
                 });
                 list.innerHTML = html;
             } catch(e) {
                 console.error('加载复盘失败:', e);
+            }
+        }
+        
+        // 加载统计
+        async function loadStats() {
+            try {
+                const res = await fetch('/api/stats');
+                const stats = await res.json();
+                
+                document.getElementById('stat-total').textContent = stats.total_trades || 0;
+                document.getElementById('stat-win').textContent = stats.win_trades || 0;
+                document.getElementById('stat-rate').textContent = (stats.win_rate || 0) + '%';
+                const netEl = document.getElementById('stat-net');
+                netEl.textContent = (stats.net_profit >= 0 ? '+' : '') + formatMoney(stats.net_profit || 0);
+                netEl.className = 'stat-value ' + (stats.net_profit >= 0 ? 'green' : 'red');
+            } catch(e) {
+                console.error('加载统计失败:', e);
+            }
+        }
+        
+        // 加载净值曲线
+        async function loadEquityChart() {
+            try {
+                const res = await fetch('/api/equity');
+                const data = await res.json();
+                
+                if (!equityChart) {
+                    equityChart = echarts.init(document.getElementById('equity-chart'));
+                }
+                
+                const dates = data.map(d => d.date).reverse();
+                const values = data.map(d => d.total_value).reverse();
+                
+                equityChart.setOption({
+                    tooltip: { trigger: 'axis' },
+                    xAxis: { type: 'category', data: dates, axisLabel: { color: '#888' } },
+                    yAxis: { 
+                        type: 'value', 
+                        axisLabel: { color: '#888', formatter: v => (v/10000).toFixed(0) + '万' },
+                        splitLine: { lineStyle: { color: '#2a3a5a' } }
+                    },
+                    series: [{
+                        data: values,
+                        type: 'line',
+                        smooth: true,
+                        lineStyle: { color: '#667eea', width: 2 },
+                        areaStyle: { 
+                            color: {
+                                type: 'linear',
+                                x: 0, y: 0, x2: 0, y2: 1,
+                                colorStops: [
+                                    { offset: 0, color: 'rgba(102,126,234,0.3)' },
+                                    { offset: 1, color: 'rgba(102,126,234,0.05)' }
+                                ]
+                            }
+                        }
+                    }],
+                    grid: { left: 60, right: 20, top: 20, bottom: 40 }
+                });
+            } catch(e) {
+                console.error('加载净值曲线失败:', e);
             }
         }
         
@@ -558,7 +686,7 @@
         
         // 格式化
         function formatMoney(n) {
-            return '¥' + n.toLocaleString('zh-CN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            return '¥' + Math.abs(n).toLocaleString('zh-CN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
         }
         
         // 买入
@@ -639,7 +767,6 @@
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({content, tags})
                 });
-                const data = await res.json();
                 closeModal('review-modal');
                 document.getElementById('review-content').value = '';
                 document.getElementById('review-tags').value = '';
@@ -653,20 +780,21 @@
         // AI分析
         async function aiAnalyze() {
             const decision = document.getElementById('ai-decision');
-            decision.innerHTML = '🧠 蛋蛋正在分析市场行情...';
+            decision.innerHTML = '🧠 蛋蛋正在分析市场...';
             
             try {
-                const [portfolio, trades] = await Promise.all([
+                const [portfolio, trades, stats] = await Promise.all([
                     fetch('/api/portfolio').then(r => r.json()),
-                    fetch('/api/trades').then(r => r.json())
+                    fetch('/api/trades').then(r => r.json()),
+                    fetch('/api/stats').then(r => r.json())
                 ]);
                 
-                // 获取持仓股票行情
                 const positions = Object.entries(portfolio.positions || {});
-                let analysis = `📊 当前账户状态\n`;
+                let analysis = `📊 当前状态\n`;
                 analysis += `总资产: ${formatMoney(portfolio.total_value)}\n`;
                 analysis += `可用资金: ${formatMoney(portfolio.cash)}\n`;
-                analysis += `持仓: ${positions.length}只股票\n\n`;
+                analysis += `持仓: ${positions.length}只\n`;
+                analysis += `胜率: ${stats.win_rate || 0}%\n\n`;
                 
                 if (positions.length > 0) {
                     analysis += `📋 持仓分析:\n`;
@@ -674,21 +802,19 @@
                         try {
                             const q = await fetch(`/api/quote/${code}`).then(r => r.json());
                             const profitRate = ((q.price / pos.avg_cost - 1) * 100).toFixed(2);
-                            analysis += `- ${q.name}(${code}): 现价${q.price}元, 成本${pos.avg_cost}元, 盈亏${profitRate}%\n`;
-                        } catch(e) {}
+                            analysis += `- ${q.name}(${code}): 现价${q.price}元, 成本${pos.avg_cost}元, 盈亏${profitRate}%\                        } catch(e) {}
                     }
                 }
                 
-                // 简单策略建议
-                analysis += `\n💡 蛋蛋的建议:\n`;
-                if (portfolio.cash > 500000) {
-                    analysis += `- 资金充裕，可以考虑加仓\n`;
+                analysis += `\n💡 建议:\n`;
+                if (portfolio.cash > 800000) {
+                    analysis += `- 资金充裕，可考虑建仓\n`;
                 }
                 if (positions.length < 3) {
-                    analysis += `- 持仓较少，可以考虑分散投资\n`;
+                    analysis += `- 持仓偏少，建议分散投资\n`;
                 }
-                analysis += `- 建议关注市场热点板块轮动\n`;
                 analysis += `- 严格执行止损纪律\n`;
+                analysis += `- 关注市场热点轮动\n`;
                 
                 decision.innerHTML = analysis.replace(/\n/g, '<br>');
             } catch(e) {
@@ -702,42 +828,41 @@
             decision.innerHTML = '⚡ 蛋蛋正在执行自动交易...';
             
             try {
-                // 简单策略：随机选择市场热门股买入
+                const portfolio = await fetch('/api/portfolio').then(r => r.json());
                 const marketRes = await fetch('/api/market/top');
                 const marketData = await marketRes.json();
                 
-                const portfolio = await fetch('/api/portfolio').then(r => r.json());
+                let action = '';
                 
-                let action = '分析完成，暂无自动交易触发\n\n';
-                
-                // 如果资金充足且持仓少，随机买一只
-                if (portfolio.cash > 800000 && Object.keys(portfolio.positions).length < 3) {
-                    const randomStock = marketData[Math.floor(Math.random() * Math.min(5, marketData.length))];
-                    if (randomStock && randomStock.change_pct < 5) {  // 不追涨
-                        const buyShares = Math.floor(portfolio.cash * 0.1 / randomStock.price / 100) * 100;
+                // 策略1: 如果持仓少且资金充裕，买入
+                if (portfolio.cash > 800000 && Object.keys(portfolio.positions || {}).length < 3) {
+                    const candidates = marketData.filter(s => s.change_pct < 5 && s.change_pct > -3);
+                    if (candidates.length > 0) {
+                        const stock = candidates[Math.floor(Math.random() * Math.min(3, candidates.length))];
+                        const buyShares = Math.floor(portfolio.cash * 0.15 / stock.price / 100) * 100;
                         if (buyShares >= 100) {
                             const res = await fetch('/api/trade', {
                                 method: 'POST',
                                 headers: {'Content-Type': 'application/json'},
                                 body: JSON.stringify({
                                     action: 'buy',
-                                    stock_code: randomStock.code,
+                                    stock_code: stock.code,
                                     shares: buyShares,
                                     reason: 'AI自动建仓 - 分散投资'
                                 })
                             });
                             const data = await res.json();
                             if (data.success) {
-                                action = `✅ AI自动买入成功!\n`;
-                                action += `${randomStock.name}(${randomStock.code}) ${buyShares}股 @ ${randomStock.price.toFixed(2)}\n`;
-                                action += `花费: ${(buyShares * randomStock.price).toFixed(2)}元`;
+                                action = `✅ AI买入成功!\n`;
+                                action += `${stock.name}(${stock.code}) ${buyShares}股 @ ${stock.price.toFixed(2)}\n`;
+                                action += `花费: ${(buyShares * stock.price).toFixed(2)}元`;
                             }
                         }
                     }
                 } else {
-                    action = `📊 当前仓位已满或资金不足，暂无自动交易\n`;
-                    action += `持仓: ${Object.keys(portfolio.positions).length}只\n`;
-                    action += `可用资金: ${formatMoney(portfolio.cash)}`;
+                    action = `📊 当前仓位已满或资金不足\n`;
+                    action += `持仓: ${Object.keys(portfolio.positions || {}).length}只\n`;
+                    action += `可用: ${formatMoney(portfolio.cash)}`;
                 }
                 
                 decision.innerHTML = action.replace(/\n/g, '<br>');
@@ -758,8 +883,11 @@
         loadMarket();
         loadReviews();
         
-        // 每30秒自动刷新
         setInterval(refreshAll, 30000);
+        
+        window.addEventListener('resize', () => {
+            if (equityChart) equityChart.resize();
+        });
     </script>
 </body>
 </html>

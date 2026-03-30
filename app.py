@@ -1,45 +1,28 @@
 """
-蛋蛋模拟交易系统 - Flask后端
+蛋蛋模拟交易系统 - Flask后端 + SQLite数据库
 """
 import os
 import json
-import random
 from datetime import datetime, date
 from flask import Flask, render_template, jsonify, request
 
 import akshare as ak
+import database as db
 from trading.strategies import StrategyManager
+
+app = Flask(__name__)
+app.config['JSON_AS_ASCII'] = False
 
 strategy_mgr = StrategyManager()
 
-app = Flask(__name__)
-DATA_DIR = os.path.join(os.path.dirname(__file__), 'data')
+# ========== 初始化 ==========
 
-# 初始化数据文件
-os.makedirs(DATA_DIR, exist_ok=True)
-PORTFOLIO_FILE = os.path.join(DATA_DIR, 'portfolio.json')
-TRADES_FILE = os.path.join(DATA_DIR, 'trades.json')
-DAILY_FILE = os.path.join(DATA_DIR, 'daily_review.json')
-
-def load_json(path, default):
-    if os.path.exists(path):
-        with open(path, 'r', encoding='utf-8') as f:
-            return json.load(f)
-    return default
-
-def save_json(path, data):
-    with open(path, 'w', encoding='utf-8') as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
-
-# ========== 模拟账户初始化 ==========
-def init_account():
-    return {
-        "cash": 1000000.0,  # 初始本金100万
-        "total_value": 1000000.0,
-        "total_profit": 0.0,
-        "positions": {},   # {stock_code: {shares, avg_cost, name}}
-        "created_at": datetime.now().isoformat()
-    }
+@app.before_request
+def before_first_request():
+    """首次请求前初始化数据库"""
+    if not hasattr(app, '_db_initialized'):
+        db.init_database()
+        app._db_initialized = True
 
 # ========== 路由 ==========
 
@@ -50,20 +33,47 @@ def index():
 @app.route('/api/portfolio')
 def get_portfolio():
     """获取当前持仓"""
-    portfolio = load_json(PORTFOLIO_FILE, init_account())
-    return jsonify(portfolio)
+    account = db.get_account()
+    positions = db.get_positions()
+    return jsonify({
+        **account,
+        'positions': {p['stock_code']: p for p in positions}
+    })
 
 @app.route('/api/trades')
 def get_trades():
     """获取历史交易记录"""
-    trades = load_json(TRADES_FILE, [])
+    trades = db.get_trades(limit=100)
     return jsonify(trades)
 
 @app.route('/api/daily')
 def get_daily():
     """获取每日复盘"""
-    daily = load_json(DAILY_FILE, [])
-    return jsonify(daily)
+    reviews = db.get_reviews(limit=50)
+    # 解析 JSON 字段
+    for r in reviews:
+        if r.get('strategies'):
+            try:
+                r['strategies'] = json.loads(r['strategies'])
+            except:
+                pass
+        if r.get('tags'):
+            try:
+                r['tags'] = json.loads(r['tags'])
+            except:
+                r['tags'] = r['tags'].split(',') if r['tags'] else []
+    return jsonify(reviews)
+
+@app.route('/api/stats')
+def get_stats():
+    """获取交易统计"""
+    return jsonify(db.get_trade_stats())
+
+@app.route('/api/equity')
+def get_equity():
+    """获取净值曲线"""
+    curve = db.get_equity_curve(days=60)
+    return jsonify(curve)
 
 @app.route('/api/quote/<stock_code>')
 def get_quote(stock_code):
@@ -93,12 +103,11 @@ def get_quote(stock_code):
 
 @app.route('/api/quotes/batch')
 def get_quotes_batch():
-    """批量获取行情"""
-    portfolio = load_json(PORTFOLIO_FILE, init_account())
-    codes = list(portfolio.get('positions', {}).keys())
-    codes_str = ','.join(codes)
+    """批量获取持仓股行情"""
+    positions = db.get_positions()
+    codes = [p['stock_code'] for p in positions]
     
-    if not codes_str:
+    if not codes:
         return jsonify([])
     
     try:
@@ -123,10 +132,10 @@ def get_quotes_batch():
 
 @app.route('/api/market/top')
 def get_market_top():
-    """获取市场涨跌榜"""
+    """获取市场热门股票"""
     try:
         df = ak.stock_zh_a_spot_em()
-        df = df.head(20)  # 取前20只
+        df = df.head(20)
         result = []
         for _, row in df.iterrows():
             result.append({
@@ -144,12 +153,11 @@ def get_market_top():
 def execute_trade():
     """执行交易"""
     data = request.json
-    action = data.get('action')  # buy or sell
+    action = data.get('action')
     stock_code = data.get('stock_code')
-    shares = int(data.get('shares', 100))  # 默认100股
+    shares = int(data.get('shares', 100))
     
-    portfolio = load_json(PORTFOLIO_FILE, init_account())
-    trades = load_json(TRADES_FILE, [])
+    account = db.get_account()
     
     # 获取当前价
     try:
@@ -162,81 +170,122 @@ def execute_trade():
     except Exception as e:
         return jsonify({"error": f"获取行情失败: {str(e)}"}), 500
     
-    trade_record = {
-        "id": len(trades) + 1,
-        "timestamp": datetime.now().isoformat(),
-        "action": action,
-        "stock_code": stock_code,
-        "stock_name": name,
-        "price": price,
-        "shares": shares,
-        "amount": price * shares,
-        "reason": data.get('reason', '')
-    }
+    commission = 0
+    profit = 0
     
     if action == 'buy':
         cost = price * shares * 1.0003  # 手续费+印花税
-        if cost > portfolio['cash']:
+        if cost > account['cash']:
             return jsonify({"error": "资金不足"}), 400
-        portfolio['cash'] -= cost
-        if stock_code in portfolio['positions']:
-            old = portfolio['positions'][stock_code]
-            total_shares = old['shares'] + shares
-            total_cost = old['avg_cost'] * old['shares'] + price * shares
-            old['avg_cost'] = total_cost / total_shares
-            old['shares'] = total_shares
+        
+        new_cash = account['cash'] - cost
+        position = db.get_position(stock_code)
+        
+        if position:
+            # 追加买入
+            total_shares = position['shares'] + shares
+            total_cost = position['avg_cost'] * position['shares'] + price * shares
+            new_avg_cost = total_cost / total_shares
+            db.upsert_position(stock_code, name, total_shares, new_avg_cost)
         else:
-            portfolio['positions'][stock_code] = {
-                "name": name,
-                "shares": shares,
-                "avg_cost": price,
-                "buy_date": date.today().isoformat()
-            }
-        trade_record['commission'] = cost - price * shares
-        portfolio['cash'] -= trade_record['commission']
+            # 新买入
+            db.upsert_position(stock_code, name, shares, price)
+        
+        commission = cost - price * shares
+        new_cash -= commission
         
     elif action == 'sell':
-        if stock_code not in portfolio['positions']:
+        position = db.get_position(stock_code)
+        if not position:
             return jsonify({"error": "没有持仓"}), 400
-        pos = portfolio['positions'][stock_code]
-        if pos['shares'] < shares:
+        if position['shares'] < shares:
             return jsonify({"error": "持仓不足"}), 400
-        revenue = price * shares * 0.9997  # 手续费+印花税
-        profit = (price - pos['avg_cost']) * shares * 0.9997
-        portfolio['cash'] += revenue
-        pos['shares'] -= shares
-        if pos['shares'] == 0:
-            del portfolio['positions'][stock_code]
-        trade_record['profit'] = profit
-        trade_record['commission'] = price * shares - revenue
+        
+        revenue = price * shares * 0.9997  # 扣除手续费
+        profit = (price - position['avg_cost']) * shares * 0.9997
+        new_cash = account['cash'] + revenue
+        commission = price * shares - revenue
+        
+        remaining = position['shares'] - shares
+        if remaining == 0:
+            db.delete_position(stock_code)
+        else:
+            db.upsert_position(stock_code, name, remaining, position['avg_cost'])
     
-    # 更新总市值
-    total_value = portfolio['cash']
-    for code, pos in portfolio['positions'].items():
+    # 更新账户
+    positions = db.get_positions()
+    total_value = new_cash
+    for pos in positions:
         try:
             qdf = ak.stock_zh_a_spot_em()
-            curr_price = float(qdf[qdf['代码'] == code].iloc[0]['最新价'])
+            curr_price = float(qdf[qdf['代码'] == pos['stock_code']].iloc[0]['最新价'])
             total_value += curr_price * pos['shares']
         except:
             total_value += pos['avg_cost'] * pos['shares']
-    portfolio['total_value'] = total_value
-    portfolio['total_profit'] = total_value - 1000000.0
     
-    trades.append(trade_record)
-    save_json(PORTFOLIO_FILE, portfolio)
-    save_json(TRADES_FILE, trades)
+    total_profit = total_value - 1000000.0
+    db.update_account(new_cash, total_value, total_profit)
+    
+    # 记录交易
+    trade_id = db.add_trade(
+        action, stock_code, name, price, shares,
+        price * shares, commission, profit, data.get('reason', '')
+    )
+    
+    # 记录净值
+    position_value = total_value - new_cash
+    db.add_equity_record(date.today().isoformat(), total_value, new_cash, position_value)
     
     return jsonify({
         "success": True,
-        "trade": trade_record,
-        "portfolio": portfolio
+        "trade_id": trade_id,
+        "trade": {
+            "id": trade_id,
+            "timestamp": datetime.now().isoformat(),
+            "action": action,
+            "stock_code": stock_code,
+            "stock_name": name,
+            "price": price,
+            "shares": shares,
+            "amount": price * shares,
+            "commission": commission,
+            "profit": profit
+        },
+        "portfolio": {
+            "cash": new_cash,
+            "total_value": total_value,
+            "total_profit": total_profit
+        }
+    })
+
+@app.route('/api/review', methods=['POST'])
+def add_review():
+    """添加复盘记录"""
+    data = request.json
+    content = data.get('content', '')
+    tags = data.get('tags', [])
+    strategies = data.get('strategies', [])
+    
+    # 获取今日收益
+    account = db.get_account()
+    
+    review_id = db.add_review(
+        date=date.today().isoformat(),
+        content=content,
+        strategies=json.dumps(strategies, ensure_ascii=False),
+        profit=account.get('total_profit', 0),
+        tags=json.dumps(tags, ensure_ascii=False)
+    )
+    
+    return jsonify({
+        "success": True,
+        "review_id": review_id
     })
 
 @app.route('/api/analyze/<stock_code>')
 def analyze_stock(stock_code):
     """AI策略分析单只股票"""
-    portfolio = load_json(PORTFOLIO_FILE, init_account())
-    position = portfolio.get('positions', {}).get(stock_code)
+    position = db.get_position(stock_code)
     signal = strategy_mgr.get_best_signal(stock_code, position)
     return jsonify({
         "code": stock_code,
@@ -244,39 +293,16 @@ def analyze_stock(stock_code):
         "strategies": strategy_mgr.analyze_all(stock_code, position)
     })
 
-@app.route('/api/review', methods=['POST'])
-def add_review():
-    """添加复盘记录"""
-    data = request.json
-    daily = load_json(DAILY_FILE, [])
-    
-    review = {
-        "id": len(daily) + 1,
-        "date": date.today().isoformat(),
-        "timestamp": datetime.now().isoformat(),
-        "content": data.get('content', ''),
-        "strategies": data.get('strategies', []),
-        "profit": data.get('profit', 0),
-        "tags": data.get('tags', [])
-    }
-    daily.append(review)
-    save_json(DAILY_FILE, daily)
-    return jsonify({"success": True, "review": review})
-
 @app.route('/api/init', methods=['POST'])
-def init_portfolio():
-    """初始化/重置账户"""
-    portfolio = init_account()
-    # 默认放入几只候选股
-    default_stocks = ['300750', '002475', '688525']  # 宁德时代、立讯精密、佰维存储
-    save_json(PORTFOLIO_FILE, portfolio)
-    save_json(TRADES_FILE, [])
-    save_json(DAILY_FILE, [])
-    return jsonify({"success": True, "portfolio": portfolio})
+def reset_account():
+    """重置账户"""
+    import shutil
+    db_path = db.get_db_path()
+    if os.path.exists(db_path):
+        os.remove(db_path)
+    db.init_database()
+    return jsonify({"success": True})
 
 if __name__ == '__main__':
-    with app.app_context():
-        # 初始化账户
-        if not os.path.exists(PORTFOLIO_FILE):
-            save_json(PORTFOLIO_FILE, init_account())
+    db.init_database()
     app.run(host='0.0.0.0', port=5000, debug=True)
