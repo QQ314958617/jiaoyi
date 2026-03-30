@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🏠 工作室 - 蛋蛋爱挣钱</title>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <style>
+        :root {
+            --bg-primary: #0a0e17;
+            --bg-card: #111827;
+            --bg-card-hover: #1a2235;
+            --border: #1e293b;
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --text-muted: #94a3b8;
+            --accent-blue: #3b82f6;
+            --accent-purple: #8b5cf6;
+            --accent-green: #10b981;
+            --accent-red: #ef4444;
+            --accent-orange: #f59e0b;
+            --gradient-primary: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+        }
+
+        .app-header {
+            background: linear-gradient(180deg, #0f172a 0%, var(--bg-primary) 100%);
+            border-bottom: 1px solid var(--border);
+            padding: 1rem 2rem;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        
+        .header-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .header-brand {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+        
+        .header-brand h1 {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: white;
+        }
+        
+        .header-actions {
+            display: flex;
+            gap: 0.75rem;
+        }
+        
+        .btn-back {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            font-size: 0.875rem;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+        .btn-back:hover { background: var(--bg-card-hover); border-color: var(--accent-blue); }
+
+        .main-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .card-title {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .deploy-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1rem;
+        }
+        
+        .deploy-step {
+            background: var(--bg-card-hover);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.25rem;
+        }
+        
+        .step-number {
+            display: inline-block;
+            background: var(--accent-purple);
+            color: white;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            text-align: center;
+            line-height: 24px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            margin-right: 0.5rem;
+        }
+        
+        .step-title {
+            font-weight: 600;
+            font-size: 0.9rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .step-desc {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+        
+        .code-block {
+            background: #000;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1rem;
+            margin: 0.75rem 0;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 0.8rem;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+        
+        .btn-deploy {
+            background: var(--gradient-primary);
+            color: white;
+            border: none;
+            padding: 0.6rem 1.25rem;
+            border-radius: 8px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-top: 0.5rem;
+        }
+        .btn-deploy:hover { opacity: 0.9; transform: translateY(-1px); }
+        .btn-deploy:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .status-badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        .status-badge.success { background: rgba(16, 185, 129, 0.2); color: var(--accent-green); }
+        .status-badge.running { background: rgba(59, 130, 246, 0.2); color: var(--accent-blue); }
+        .status-badge.error { background: rgba(239, 68, 68, 0.2); color: var(--accent-red); }
+        .status-badge.pending { background: rgba(245, 158, 11, 0.2); color: var(--accent-orange); }
+
+        .output-box {
+            background: #000;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1rem;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            max-height: 200px;
+            overflow-y: auto;
+            margin-top: 1rem;
+        }
+        
+        .output-box .success { color: var(--accent-green); }
+        .output-box .error { color: var(--accent-red); }
+        .output-box .info { color: var(--accent-blue); }
+
+        .info-box {
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(59, 130, 246, 0.1) 100%);
+            border: 1px solid rgba(139, 92, 246, 0.2);
+            border-radius: 12px;
+            padding: 1rem;
+            font-size: 0.875rem;
+            line-height: 1.7;
+            margin-bottom: 1.5rem;
+        }
+        
+        .info-box strong { color: var(--accent-purple); }
+
+        .studio-url {
+            background: var(--bg-card-hover);
+            border: 1px solid var(--accent-purple);
+            border-radius: 8px;
+            padding: 0.75rem 1rem;
+            font-family: monospace;
+            font-size: 0.9rem;
+            color: var(--accent-purple);
+            margin-top: 0.5rem;
+            word-break: break-all;
+        }
+    </style>
+</head>
+<body>
+    <header class="app-header">
+        <div class="header-content">
+            <div class="header-brand">
+                <span style="font-size:1.5rem">🥚</span>
+                <h1>🏠 工作室 - 蛋蛋爱挣钱</h1>
+            </div>
+            <div class="header-actions">
+                <a href="/" class="btn-back">← 返回交易系统</a>
+            </div>
+        </div>
+    </header>
+
+    <main class="main-container">
+        <div class="info-box">
+            <strong>🏠 像素办公室看板</strong><br>
+            这是一个多人协作的像素办公室仪表盘，AI 助手会根据状态自动走到不同位置，还能看到昨天的工作小记！
+        </div>
+
+        <div class="card">
+            <div class="card-title">
+                <span>🚀 一键部署 Star Office UI</span>
+                <span class="status-badge" id="deploy-status">待部署</span>
+            </div>
+            
+            <div class="deploy-grid">
+                <div class="deploy-step">
+                    <div class="step-title"><span class="step-number">1</span>下载仓库</div>
+                    <div class="step-desc">从 GitHub 克隆 Star Office UI 仓库</div>
+                    <button class="btn-deploy" onclick="runStep(1)">执行</button>
+                    <div class="output-box" id="output-1"></div>
+                </div>
+                
+                <div class="deploy-step">
+                    <div class="step-title"><span class="step-number">2</span>安装依赖</div>
+                    <div class="step-desc">安装 Python 依赖包</div>
+                    <button class="btn-deploy" onclick="runStep(2)" id="btn-2">执行</button>
+                    <div class="output-box" id="output-2"></div>
+                </div>
+                
+                <div class="deploy-step">
+                    <div class="step-title"><span class="step-number">3</span>准备状态文件</div>
+                    <div class="step-desc">复制状态配置文件</div>
+                    <button class="btn-deploy" onclick="runStep(3)" id="btn-3">执行</button>
+                    <div class="output-box" id="output-3"></div>
+                </div>
+                
+                <div class="deploy-step">
+                    <div class="step-title"><span class="step-number">4</span>启动服务</div>
+                    <div class="step-desc">在 19000 端口启动后端服务</div>
+                    <button class="btn-deploy" onclick="runStep(4)" id="btn-4">执行</button>
+                    <div class="output-box" id="output-4"></div>
+                </div>
+            </div>
+            
+            <div id="final-result" style="margin-top:1.5rem; display:none">
+                <div class="studio-url" id="studio-url"></div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-title">💡 部署完成后的操作</div>
+            <div class="deploy-grid">
+                <div class="deploy-step">
+                    <div class="step-title">🎨 状态体验</div>
+                    <div class="step-desc">在终端执行以下命令体验不同状态：</div>
+                    <div class="code-block">cd /root/Star-Office-UI
+python3 set_state.py writing "正在整理文档"
+python3 set_state.py idle "待命中"
+python3 set_state.py error "发现问题"</div>
+                </div>
+                
+                <div class="deploy-step">
+                    <div class="step-title">🔐 安全提醒</div>
+                    <div class="step-desc">
+                        默认验证码是 <code style="color:var(--accent-orange)">1234</code><br><br>
+                        建议修改为强密码防止他人误改布局
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        let currentStep = 0;
+        const steps = [
+            { cmd: 'git clone https://github.com/ringhyacinth/Star-Office-UI.git /root/Star-Office-UI 2>&1', btn: 1 },
+            { cmd: 'cd /root/Star-Office-UI && pip install -r backend/requirements.txt -q 2>&1', btn: 2 },
+            { cmd: 'cd /root/Star-Office-UI && cp state.sample.json state.json 2>&1', btn: 3 },
+            { cmd: 'cd /root/Star-Office-UI/backend && nohup python3 app.py > /root/studio.log 2>&1 &', btn: 4 }
+        ];
+        
+        async function runStep(step) {
+            if (step <= currentStep) return;
+            
+            const btn = document.getElementById(`btn-${step}`);
+            const output = document.getElementById(`output-${step}`);
+            btn.disabled = true;
+            btn.textContent = '执行中...';
+            output.innerHTML = '<span class="info">⏳ 正在执行...</span>\n';
+            
+            try {
+                const res = await fetch('/api/run_command', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ command: steps[step-1].cmd, step: step })
+                });
+                const data = await res.json();
+                
+                if (data.success) {
+                    output.innerHTML = `<span class="success">✅ ${data.output}</span>`;
+                    btn.textContent = '已完成';
+                    currentStep = step;
+                    
+                    if (step === 4) {
+                        // Check if service is up
+                        setTimeout(() => {
+                            checkStudio();
+                        }, 3000);
+                    }
+                } else {
+                    output.innerHTML = `<span class="error">❌ ${data.error}</span>`;
+                    btn.disabled = false;
+                    btn.textContent = '重试';
+                }
+            } catch(e) {
+                output.innerHTML = `<span class="error">❌ 执行失败: ${e}</span>`;
+                btn.disabled = false;
+                btn.textContent = '重试';
+            }
+        }
+        
+        async function checkStudio() {
+            try {
+                const res = await fetch('http://127.0.0.1:19000', { mode: 'no-cors' });
+                showSuccess();
+            } catch(e) {
+                setTimeout(checkStudio, 2000);
+            }
+        }
+        
+        function showSuccess() {
+            document.getElementById('deploy-status').className = 'status-badge success';
+            document.getElementById('deploy-status').textContent = '已部署';
+            
+            const result = document.getElementById('final-result');
+            result.style.display = 'block';
+            result.innerHTML = `
+                <div style="margin-bottom:0.5rem;font-weight:600">✨ 部署成功！</div>
+                <div>本地访问：<span class="studio-url">http://127.0.0.1:19000</span></div>
+                <div style="margin-top:0.75rem">
+                    <button class="btn-deploy" onclick="startTunnel()">🌐 创建公网链接</button>
+                </div>
+                <div id="tunnel-result" style="margin-top:1rem"></div>
+            `;
+        }
+        
+        async function startTunnel() {
+            const result = document.getElementById('tunnel-result');
+            result.innerHTML = '<span class="info">⏳ 正在创建公网链接...</span>';
+            
+            try {
+                const res = await fetch('/api/start_tunnel', { method: 'POST' });
+                const data = await res.json();
+                if (data.url) {
+                    result.innerHTML = `🌐 公网访问：<span class="studio-url">${data.url}</span>`;
+                } else {
+                    result.innerHTML = `<span class="error">❌ ${data.error || '启动失败'}</span>`;
+                }
+            } catch(e) {
+                result.innerHTML = `<span class="error">❌ ${e}</span>`;
+            }
+        }
+    </script>
+</body>
+</html>

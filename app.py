@@ -452,6 +452,61 @@ def reset_account():
     db.init_database()
     return jsonify({"success": True})
 
+
+
+# ========== 工作室页面 ==========
+
+@app.route('/studio')
+def studio_page():
+    return render_template('studio.html')
+
+@app.route('/api/run_command', methods=['POST'])
+def run_command():
+    import subprocess
+    data = request.json
+    cmd = data.get('command', '')
+    try:
+        result = subprocess.run(
+            cmd, shell=True, capture_output=True, text=True, timeout=120
+        )
+        output = result.stdout.strip() or result.stderr.strip() or '执行完成'
+        return jsonify({'success': True, 'output': output[:500]})
+    except subprocess.TimeoutExpired:
+        return jsonify({'success': False, 'error': '执行超时'})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/start_tunnel', methods=['POST'])
+def start_tunnel():
+    import subprocess
+    try:
+        subprocess.run('pkill -f cloudflared', shell=True)
+        subprocess.run('sleep 1')
+        proc = subprocess.Popen(
+            'cloudflared tunnel --url http://127.0.0.1:19000',
+            shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
+        )
+        import time
+        url = None
+        for _ in range(30):
+            time.sleep(2)
+            try:
+                with open('/tmp/tunnel_url', 'r') as f:
+                    url = f.read().strip()
+                    if url:
+                        break
+            except:
+                pass
+            if proc.poll() is not None:
+                break
+        if url:
+            return jsonify({'url': url})
+        else:
+            return jsonify({'error': '创建链接超时'})
+    except Exception as e:
+        return jsonify({'error': str(e)})
+
+
 if __name__ == '__main__':
     db.init_database()
     app.run(host='0.0.0.0', port=80, debug=False, threaded=True)
