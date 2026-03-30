@@ -15,7 +15,7 @@
             --border: #1e293b;
             --text-primary: #f1f5f9;
             --text-secondary: #94a3b8;
-            --text-muted: #64748b;
+            --text-muted: #94a3b8;
             --accent-blue: #3b82f6;
             --accent-purple: #8b5cf6;
             --accent-green: #10b981;
@@ -239,8 +239,8 @@
         .data-table tr:last-child td { border-bottom: none; }
         .data-table tbody tr:hover { background: var(--bg-card-hover); }
 
-        .stock-name { font-weight: 600; }
-        .stock-code { font-size: 0.75rem; color: var(--text-muted); }
+        .stock-name { font-weight: 600; color: var(--text-primary); }
+        .stock-code { font-size: 0.75rem; color: var(--text-secondary); }
 
         /* Buttons */
         .btn-buy {
@@ -390,10 +390,10 @@
         .market-item:last-child { border-bottom: none; }
         .market-item:hover { background: var(--bg-card-hover); margin: 0 -1.5rem; padding: 0.875rem 1.5rem; cursor: pointer; border-radius: 8px; }
         
-        .market-name { font-weight: 600; font-size: 0.875rem; }
+        .market-name { font-weight: 600; font-size: 0.875rem; color: var(--text-primary); }
         .market-code { font-size: 0.75rem; color: var(--text-muted); }
         
-        .market-price { font-weight: 600; font-size: 0.875rem; }
+        .market-price { font-weight: 600; font-size: 0.875rem; color: var(--text-primary); }
         .market-change { font-size: 0.75rem; font-weight: 600; text-align: right; }
 
         /* Review */
@@ -571,7 +571,7 @@
                         </tr>
                     </thead>
                     <tbody id="positions-body">
-                        <tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text-muted)">暂无持仓，点击上方买入按钮建仓</td></tr>
+                        <tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text-muted)">暂无持仓 · 点击上方买入按钮建仓</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -742,7 +742,7 @@
             const entries = Object.entries(positions);
             
             if (entries.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text-muted)">暂无持仓，点击上方买入按钮建仓</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text-muted)">暂无持仓 · 点击上方买入按钮建仓</td></tr>';
                 return;
             }
             
