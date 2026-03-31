@@ -102,6 +102,36 @@
         }
         .btn-studio:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(139, 92, 246, 0.4); }
         
+        /* 工作室悬浮按钮 - 右侧 */
+        .studio-float-btn {
+            position: fixed;
+            right: 0;
+            top: 50%;
+            transform: translateY(-50%) translateX(70%);
+            z-index: 9999;
+            background: linear-gradient(135deg, #8b5cf6 0%, #a855f7 100%);
+            border: none;
+            border-radius: 12px 0 0 12px;
+            padding: 20px 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: -4px 0 20px rgba(139, 92, 246, 0.4);
+            writing-mode: vertical-rl;
+            text-orientation: mixed;
+            font-size: 14px;
+            font-weight: 600;
+            color: white;
+            letter-spacing: 2px;
+        }
+        .studio-float-btn:hover {
+            transform: translateY(-50%) translateX(0);
+            box-shadow: -6px 0 25px rgba(139, 92, 246, 0.5);
+        }
+        .studio-float-btn .icon {
+            font-size: 20px;
+            margin-bottom: 8px;
+        }
+        
         .btn-refresh .icon { transition: transform 0.5s ease; }
         .btn-refresh .icon.spinning { animation: spin 0.8s linear infinite; }
         
@@ -524,9 +554,6 @@
                 <h1>🥚 蛋蛋爱挣钱</h1>
                 <span class="header-time" id="clock">--:--:--</span>
             </div>
-            <button class="btn-studio" onclick="window.open('/studio', '_blank')">
-                🏠 工作室
-            </button>
             <button class="btn-refresh" onclick="refreshAll()">
                 <span class="icon" id="refresh-icon">🔄</span>
                 <span>刷新数据</span>
@@ -1105,5 +1132,10 @@
         setInterval(refreshAll, 30000);
         window.addEventListener('resize', () => { if (equityChart) equityChart.resize(); });
     </script>
+    <!-- 工作室悬浮按钮 -->
+    <button class="studio-float-btn" onclick="window.open('/studio', '_blank')">
+        <span class="icon">🏠</span>
+        <span>工作室</span>
+    </button>
 </body>
 </html>

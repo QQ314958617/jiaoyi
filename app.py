@@ -53,7 +53,7 @@ def get_tencent_quote(codes):
         print(f"腾讯行情错误: {e}")
         return {}
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder=None)  # Disable default static, we use custom routes
 app.config['JSON_AS_ASCII'] = False
 
 strategy_mgr = StrategyManager()
@@ -460,6 +460,56 @@ def reset_account():
 def studio_page():
     return render_template('studio.html')
 
+@app.route('/studio-ui')
+@app.route('/studio-ui/')
+def studio_ui_index():
+    """反向代理 Star Office UI 首页"""
+    try:
+        resp = requests.get(f'http://127.0.0.1:19000/', timeout=10)
+        content = resp.content.decode('utf-8')
+        # 重写静态资源路径
+        content = content.replace('href="/', 'href="/studio-ui/')
+        content = content.replace('src="/', 'src="/studio-ui/')
+        return make_response(content, resp.status_code)
+    except Exception as e:
+        return make_response(f'Proxy error: {e}', 502)
+
+@app.route('/studio-ui/<path:path>')
+def studio_ui_proxy(path):
+    """反向代理 Star Office UI 静态资源"""
+    try:
+        resp = requests.get(f'http://127.0.0.1:19000/{path}', timeout=10)
+        response = make_response(resp.content, resp.status_code)
+        # Pass through CORS headers
+        response.headers['Access-Control-Allow-Origin'] = '*'
+        return response
+    except Exception as e:
+        return make_response(f'Proxy error: {e}', 502)
+
+@app.route('/studio-api/<path:path>', methods=['GET', 'POST', 'PUT', 'DELETE'])
+def studio_api_proxy(path):
+    """反向代理 Star Office UI API"""
+    try:
+        url = f'http://127.0.0.1:19000/{path}'
+        if request.method == 'GET':
+            resp = requests.get(url, params=request.args, timeout=10)
+        elif request.method == 'POST':
+            resp = requests.post(url, json=request.json, timeout=10)
+        elif request.method == 'PUT':
+            resp = requests.put(url, json=request.json, timeout=10)
+        elif request.method == 'DELETE':
+            resp = requests.delete(url, timeout=10)
+        else:
+            return make_response('Method not allowed', 405)
+        
+        response = make_response(resp.content, resp.status_code)
+        for key, value in resp.headers.items():
+            if key not in ('Content-Length', 'Content-Encoding', 'Transfer-Encoding'):
+                response.headers[key] = value
+        return response
+    except Exception as e:
+        return make_response(f'Proxy error: {e}', 502)
+
 @app.route('/api/run_command', methods=['POST'])
 def run_command():
     import subprocess
@@ -510,3 +560,103 @@ def start_tunnel():
 if __name__ == '__main__':
     db.init_database()
     app.run(host='0.0.0.0', port=80, debug=False, threaded=True)
+
+# ==================== Star Office UI 集成路由 ====================
+
+@app.route('/star-api/<path:path>', methods=['GET', 'POST', 'PUT', 'DELETE'])
+def star_api_proxy(path):
+    """反向代理 Star Office UI 所有请求"""
+    try:
+        url = f'http://127.0.0.1:19000/{path}'
+        headers = {'Origin': request.headers.get('Origin', '*')}
+        
+        if request.method == 'GET':
+            resp = requests.get(url, params=request.args, headers=headers, timeout=10)
+        elif request.method == 'POST':
+            resp = requests.post(url, json=request.json, headers=headers, timeout=10)
+        elif request.method == 'PUT':
+            resp = requests.put(url, json=request.json, headers=headers, timeout=10)
+        elif request.method == 'DELETE':
+            resp = requests.delete(url, headers=headers, timeout=10)
+        else:
+            return make_response('Method not allowed', 405)
+        
+        response = make_response(resp.content)
+        response.status_code = resp.status_code
+        content_type = resp.headers.get('Content-Type', 'application/json')
+        response.content_type = content_type
+        for key, value in resp.headers.items():
+            if key not in ('Content-Length', 'Content-Encoding', 'Transfer-Encoding', 'Host', 'Content-Type'):
+                response.headers[key] = value
+        response.headers['Access-Control-Allow-Origin'] = '*'
+        return response
+    except Exception as e:
+        return make_response(f'Proxy error: {e}', 502)
+
+@app.route('/static/<path:filename>')
+def star_static_catchall(filename):
+    """反向代理 Star Office UI 静态文件"""
+    import sys
+    print(f"DEBUG star_static_catchall called: filename={filename}", flush=True)
+    try:
+        resp = requests.get(f'http://127.0.0.1:19000/static/{filename}', timeout=10)
+        response = make_response(resp.content)
+        response.status_code = resp.status_code
+        content_type = resp.headers.get('Content-Type', 'application/octet-stream')
+        response.content_type = content_type
+        response.headers['Access-Control-Allow-Origin'] = '*'
+        return response
+    except Exception as e:
+        print(f"DEBUG star_static_catchall error: {e}", flush=True)
+        return make_response(f'Proxy error: {e}', 502)
+
+@app.route('/star-assets/<path:filename>')
+def star_assets_proxy(filename):
+    """反向代理 Star Office UI 静态文件"""
+    try:
+        resp = requests.get(f'http://127.0.0.1:19000/static/{filename}', timeout=10)
+        response = make_response(resp.content)
+        response.status_code = resp.status_code
+        content_type = resp.headers.get('Content-Type', 'application/octet-stream')
+        response.content_type = content_type
+        response.headers['Access-Control-Allow-Origin'] = '*'
+        return response
+    except Exception as e:
+        return make_response(f'Proxy error: {e}', 502)
+
+@app.route('/star-static/<path:filename>')
+def star_static_proxy(filename):
+    """反向代理 Star Office UI 静态文件"""
+    try:
+        resp = requests.get(f'http://127.0.0.1:19000/static/{filename}', timeout=10)
+        response = make_response(resp.content)
+        response.status_code = resp.status_code
+        content_type = resp.headers.get('Content-Type', 'application/octet-stream')
+        response.content_type = content_type
+        response.headers['Access-Control-Allow-Origin'] = '*'
+        return response
+    except Exception as e:
+        return make_response(f'Proxy error: {e}', 502)
+
+@app.route('/star-index')
+def star_index():
+    """获取 Star Office UI 首页并重写静态资源路径"""
+    try:
+        resp = requests.get(f'http://127.0.0.1:19000/', timeout=10)
+        content = resp.content.decode('utf-8')
+        # 重写静态资源路径
+        content = content.replace('href="/static/', 'href="/static/')
+        content = content.replace('src="/static/', 'src="/static/')
+        # 重写API路径
+        content = content.replace("fetch('/", "fetch('/star-api/")
+        content = content.replace('fetch("/', 'fetch("/star-api/')
+        return make_response(content, resp.status_code)
+    except Exception as e:
+        return make_response(f'Proxy error: {e}', 502)
+
+@app.route('/star/')
+@app.route('/star')
+def star_home():
+    """重定向到重写后的首页"""
+    return redirect('/star-index')
+
