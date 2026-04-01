@@ -1,0 +1,93 @@
+{
+  "version": 1,
+  "skills": {
+    "openclaw-tavily-search": {
+      "version": "0.1.0",
+      "installedAt": 1774109334571
+    },
+    "summarize": {
+      "version": "1.0.0",
+      "installedAt": 1774109335951
+    },
+    "agent-browser": {
+      "version": "0.2.0",
+      "installedAt": 1774109337362
+    },
+    "github": {
+      "version": "1.0.0",
+      "installedAt": 1774109338802
+    },
+    "obsidian": {
+      "version": "1.0.0",
+      "installedAt": 1774109340566
+    },
+    "weather": {
+      "version": "1.0.0",
+      "installedAt": 1774109342048
+    },
+    "tencentcloud-lighthouse-skill": {
+      "version": "1.0.0",
+      "installedAt": 1774109344093
+    },
+    "tencent-docs": {
+      "version": "1.0.18",
+      "installedAt": 1774109347404
+    },
+    "tencent-cos-skill": {
+      "version": "1.0.6",
+      "installedAt": 1774109349848
+    },
+    "openai-whisper": {
+      "version": "1.0.0",
+      "installedAt": 1774231900985
+    },
+    "skill-vetter": {
+      "version": "1.0.0",
+      "installedAt": 1774232073623
+    },
+    "proactive-agent": {
+      "version": "3.1.0",
+      "installedAt": 1774232154982
+    },
+    "self-improving-agent": {
+      "version": "1.0.11",
+      "installedAt": 1774232191193
+    },
+    "ontology": {
+      "version": "0.1.2",
+      "installedAt": 1774232226462
+    },
+    "clawddocs": {
+      "version": "1.2.2",
+      "installedAt": 1774232255491
+    },
+    "cloudbase": {
+      "version": "1.18.0",
+      "installedAt": 1774840827645
+    },
+    "playwright-cli-openclaw": {
+      "version": "1.0.0",
+      "installedAt": 1774840828987
+    },
+    "akshare-stock": {
+      "version": "1.0.1",
+      "installedAt": 1774859323069
+    },
+    "market-analysis-cn": {
+      "version": "1.0.0",
+      "installedAt": 1774859324458
+    },
+    "china-stock-analysis": {
+      "version": "1.0.0",
+      "installedAt": 1774859325815
+    },
+    "stock-monitor-skill": {
+      "version": "0.1.0",
+      "installedAt": 1774859327027
+    },
+    "stock-watcher": {
+      "version": "1.0.0",
+      "installedAt": 1774859328306
+    }
+  }
+}
