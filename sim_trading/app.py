@@ -193,7 +193,14 @@ def execute_trade():
             # 新买入
             db.upsert_position(stock_code, name, shares, price)
         
+        # 记录今日买入（用于T+1校验）
+        db.record_today_buy(stock_code, shares)
+        
     elif action == 'sell':
+        # T+1检查：今天买的不能卖
+        if not db.can_sell_today(stock_code):
+            return jsonify({"error": "T+1制度：今日买入的股票不能当日卖出"}), 400
+        
         position = db.get_position(stock_code)
         if not position:
             return jsonify({"error": "没有持仓"}), 400

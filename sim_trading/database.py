@@ -57,6 +57,17 @@ def init_database():
             )
         ''')
         
+        # 持仓今日买入标记（用于T+1校验）
+        c.execute('''
+            CREATE TABLE IF NOT EXISTS today_buys (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                stock_code TEXT NOT NULL,
+                buy_date TEXT NOT NULL,
+                shares INTEGER,
+                UNIQUE(stock_code, buy_date)
+            )
+        ''')
+        
         # 交易记录表
         c.execute('''
             CREATE TABLE IF NOT EXISTS trades (
@@ -165,6 +176,29 @@ def delete_position(stock_code):
     with get_connection() as conn:
         c = conn.cursor()
         c.execute('DELETE FROM positions WHERE stock_code = ?', (stock_code,))
+        conn.commit()
+
+def can_sell_today(stock_code):
+    """检查股票是否可以今天卖出（T+1限制）"""
+    today = date.today().isoformat()
+    with get_connection() as conn:
+        c = conn.cursor()
+        c.execute('SELECT shares FROM today_buys WHERE stock_code = ? AND buy_date = ?', 
+                   (stock_code, today))
+        row = c.fetchone()
+        return row is None  # 如果今天没买过，就可以卖
+
+def record_today_buy(stock_code, shares):
+    """记录今日买入（用于T+1校验）"""
+    today = date.today().isoformat()
+    with get_connection() as conn:
+        c = conn.cursor()
+        c.execute('''
+            INSERT INTO today_buys (stock_code, buy_date, shares)
+            VALUES (?, ?, ?)
+            ON CONFLICT(stock_code, buy_date) DO UPDATE SET
+                shares = shares + excluded.shares
+        ''', (stock_code, today, shares))
         conn.commit()
 
 # ========== 交易记录 ==========
