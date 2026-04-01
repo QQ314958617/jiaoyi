@@ -174,7 +174,9 @@ def execute_trade():
     profit = 0
     
     if action == 'buy':
-        cost = price * shares * 1.0003  # 手续费+印花税
+        # 买入：券商佣金约0.03%（最低5元，但模拟账户忽略最低限制）
+        commission = price * shares * 0.0003
+        cost = price * shares + commission
         if cost > account['cash']:
             return jsonify({"error": "资金不足"}), 400
         
@@ -191,9 +193,6 @@ def execute_trade():
             # 新买入
             db.upsert_position(stock_code, name, shares, price)
         
-        commission = cost - price * shares
-        new_cash -= commission
-        
     elif action == 'sell':
         position = db.get_position(stock_code)
         if not position:
@@ -201,10 +200,11 @@ def execute_trade():
         if position['shares'] < shares:
             return jsonify({"error": "持仓不足"}), 400
         
-        revenue = price * shares * 0.9997  # 扣除手续费
-        profit = (price - position['avg_cost']) * shares * 0.9997
+        # 卖出：券商佣金0.03% + 印花税0.05% = 0.08%
+        commission = price * shares * 0.0008
+        revenue = price * shares - commission
+        profit = (price - position['avg_cost']) * shares - commission
         new_cash = account['cash'] + revenue
-        commission = price * shares - revenue
         
         remaining = position['shares'] - shares
         if remaining == 0:
