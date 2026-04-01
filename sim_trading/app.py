@@ -3,6 +3,7 @@
 """
 import os
 import json
+import requests
 from datetime import datetime, date
 from flask import Flask, render_template, jsonify, request
 
@@ -148,6 +149,42 @@ def get_market_top():
         return jsonify(result)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+@app.route('/api/index')
+def get_index():
+    """获取大盘指数及均线数据"""
+    try:
+        # 获取上证指数和创业板指数实时数据
+        url = 'https://push2.eastmoney.com/api/qt/stock/get?secid=1.000001&fields=f43,f169,f170,f57,f58'
+        r = requests.get(url, timeout=5)
+        data = r.json()['data']
+        
+        # 获取历史数据计算均线
+        hist_url = 'https://push2his.eastmoney.com/api/qt/stock/kline/get?secid=1.000001&fields1=f1,f2,f3,f4,f5,f6&fields2=f51,f52,f53,f54,f55,f56&klt=101&fqt=0&beg=20260320&end=20260401'
+        hr = requests.get(hist_url, timeout=5)
+        hist_data = hr.json()['data']['klines']
+        
+        # 计算MA5和MA10
+        closes = [float(d.split(',')[2]) for d in hist_data]
+        ma5 = sum(closes[-5:]) / 5
+        ma10 = sum(closes[-10:]) / 10
+        
+        current_price = data['f43'] / 100
+        
+        return jsonify({
+            "index": "上证指数",
+            "code": "000001",
+            "price": current_price,
+            "change_pct": data['f170'] / 100,
+            "ma5": round(ma5, 2),
+            "ma10": round(ma10, 2),
+            "above_ma5": current_price > ma5,
+            "above_ma10": current_price > ma10,
+            "ma5_above_ma10": ma5 > ma10,  # 多头排列
+            "time": datetime.now().strftime("%H:%M:%S")
+        })
+    except Exception as e:
+        return jsonify({"error": f"获取指数失败: {str(e)}"}), 500
 
 @app.route('/api/trade', methods=['POST'])
 def execute_trade():
