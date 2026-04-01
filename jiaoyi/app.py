@@ -1,142 +1,296 @@
 """
-蛋蛋模拟交易系统 - Flask后端
+蛋蛋模拟交易系统 - Flask后端 + SQLite数据库
 """
 import os
 import json
-import random
 from datetime import datetime, date
-from flask import Flask, render_template, jsonify, request
+from flask import Flask, render_template, jsonify, request, make_response
 
 import akshare as ak
+import database as db
 from trading.strategies import StrategyManager
+import time
+import threading
+import requests
+
+# 腾讯实时行情API
+def get_tencent_quote(codes):
+    """从腾讯获取实时行情"""
+    if not codes:
+        return {}
+    
+    # 腾讯行情URL
+    code_str = ','.join([f"sh{c}" if c.startswith(('6', '5')) else f"sz{c}" for c in codes])
+    url = f"https://qt.gtimg.cn/q={code_str}"
+    
+    try:
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            'Referer': 'https://gu.qq.com/'
+        }
+        r = requests.get(url, headers=headers, timeout=5)
+        result = {}
+        for line in r.text.strip().split('\n'):
+            if '=' in line:
+                key = line.split('=')[0].replace('v_', '')
+                fields = line.split('="')[1].strip('"').split('~')
+                if len(fields) > 10:
+                    result[key.upper().replace('SH', '').replace('SZ', '')] = {
+                        'name': fields[1],
+                        'price': float(fields[3]) if fields[3] != '-' else 0,
+                        'close': float(fields[4]) if fields[4] != '-' else 0,
+                        'open': float(fields[5]) if fields[5] != '-' else 0,
+                        'volume': float(fields[6]) if fields[6] != '-' else 0,
+                        'amount': float(fields[37]) if len(fields) > 37 and fields[37] != '-' else 0,
+                        'high': float(fields[33]) if len(fields) > 33 and fields[33] != '-' else 0,
+                        'low': float(fields[34]) if len(fields) > 34 and fields[34] != '-' else 0,
+                        'change': float(fields[31]) if len(fields) > 31 and fields[31] != '-' else 0,
+                        'change_pct': float(fields[32]) if len(fields) > 32 and fields[32] != '-' else 0,
+                        'time': fields[30] if len(fields) > 30 else '',
+                    }
+        return result
+    except Exception as e:
+        print(f"腾讯行情错误: {e}")
+        return {}
+
+app = Flask(__name__, static_folder=None)  # Disable default static, we use custom routes
+app.config['JSON_AS_ASCII'] = False
 
 strategy_mgr = StrategyManager()
 
-app = Flask(__name__)
-DATA_DIR = os.path.join(os.path.dirname(__file__), 'data')
+# 简单缓存
+_cache = {
+    'market_top': {'data': None, 'time': 0},
+    'quote': {}
+}
+_CACHE_TTL = 300  # 缓存5分钟
 
-# 初始化数据文件
-os.makedirs(DATA_DIR, exist_ok=True)
-PORTFOLIO_FILE = os.path.join(DATA_DIR, 'portfolio.json')
-TRADES_FILE = os.path.join(DATA_DIR, 'trades.json')
-DAILY_FILE = os.path.join(DATA_DIR, 'daily_review.json')
+# 后台预加载市场数据
+def preload_market_data():
+    def _load():
+        print("🔄 预加载市场数据...")
+        try:
+            hot_codes = [
+                '600036', '000001', '601318', '600519', '000858',
+                '300750', '002475', '688525', '002428', '600276',
+                '601888', '600009', '000333', '002594', '300059',
+                '300274', '002466', '600900', '601012', '300015',
+            ]
+            quotes = get_tencent_quote(hot_codes)
+            result = []
+            for code, data in quotes.items():
+                if data.get('price', 0) > 0:
+                    result.append({
+                        "code": code,
+                        "name": data['name'],
+                        "price": data['price'],
+                        "change_pct": data['change_pct'],
+                        "volume": data.get('amount', 0),
+                    })
+            result.sort(key=lambda x: x['volume'], reverse=True)
+            _cache['market_top'] = {'data': result[:20], 'time': time.time()}
+            print(f"✅ 市场数据加载完成: {len(result)} 只股票")
+        except Exception as e:
+            print(f"❌ 市场数据加载失败: {e}")
+    
+    t = threading.Thread(target=_load, daemon=True)
+    t.start()
 
-def load_json(path, default):
-    if os.path.exists(path):
-        with open(path, 'r', encoding='utf-8') as f:
-            return json.load(f)
-    return default
+preload_market_data()
 
-def save_json(path, data):
-    with open(path, 'w', encoding='utf-8') as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
+# ========== 初始化 ==========
 
-# ========== 模拟账户初始化 ==========
-def init_account():
-    return {
-        "cash": 1000000.0,  # 初始本金100万
-        "total_value": 1000000.0,
-        "total_profit": 0.0,
-        "positions": {},   # {stock_code: {shares, avg_cost, name}}
-        "created_at": datetime.now().isoformat()
-    }
+@app.before_request
+def before_first_request():
+    """首次请求前初始化数据库"""
+    if not hasattr(app, '_db_initialized'):
+        db.init_database()
+        app._db_initialized = True
 
 # ========== 路由 ==========
 
 @app.route('/')
 def index():
-    return render_template('index.html')
+    response = make_response(render_template('index.html'))
+    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    return response
 
 @app.route('/api/portfolio')
 def get_portfolio():
     """获取当前持仓"""
-    portfolio = load_json(PORTFOLIO_FILE, init_account())
-    return jsonify(portfolio)
+    account = db.get_account()
+    positions = db.get_positions()
+    return jsonify({
+        **account,
+        'positions': {p['stock_code']: p for p in positions}
+    })
 
 @app.route('/api/trades')
 def get_trades():
     """获取历史交易记录"""
-    trades = load_json(TRADES_FILE, [])
+    trades = db.get_trades(limit=100)
     return jsonify(trades)
 
 @app.route('/api/daily')
 def get_daily():
     """获取每日复盘"""
-    daily = load_json(DAILY_FILE, [])
-    return jsonify(daily)
+    reviews = db.get_reviews(limit=50)
+    # 解析 JSON 字段
+    for r in reviews:
+        if r.get('strategies'):
+            try:
+                r['strategies'] = json.loads(r['strategies'])
+            except:
+                pass
+        if r.get('tags'):
+            try:
+                r['tags'] = json.loads(r['tags'])
+            except:
+                r['tags'] = r['tags'].split(',') if r['tags'] else []
+    return jsonify(reviews)
+
+@app.route('/api/stats')
+def get_stats():
+    """获取交易统计"""
+    return jsonify(db.get_trade_stats())
+
+@app.route('/api/equity')
+def get_equity():
+    """获取净值曲线"""
+    curve = db.get_equity_curve(days=60)
+    return jsonify(curve)
 
 @app.route('/api/quote/<stock_code>')
 def get_quote(stock_code):
-    """获取实时行情"""
+    """获取实时行情（腾讯API）"""
+    now = time.time()
+    cache_key = f'quote_{stock_code}'
+    
+    if cache_key in _cache['quote'] and (now - _cache['quote'][cache_key]['time']) < _CACHE_TTL:
+        return jsonify(_cache['quote'][cache_key]['data'])
+    
     try:
-        df = ak.stock_zh_a_spot_em()
-        row = df[df['代码'] == stock_code]
-        if row.empty:
+        quotes = get_tencent_quote([stock_code])
+        if stock_code not in quotes:
             return jsonify({"error": "股票代码不存在"}), 404
-        row = row.iloc[0]
-        return jsonify({
+        
+        data = quotes[stock_code]
+        result = {
             "code": stock_code,
-            "name": row['名称'],
-            "price": float(row['最新价']),
-            "change": float(row['涨跌额']),
-            "change_pct": float(row['涨跌幅']),
-            "volume": float(row['成交量']),
-            "amount": float(row['成交额']),
-            "high": float(row['最高']),
-            "low": float(row['最低']),
-            "open": float(row['今开']),
-            "close": float(row['昨收']),
-            "time": datetime.now().strftime("%H:%M:%S")
-        })
+            "name": data['name'],
+            "price": data['price'],
+            "change": data['change'],
+            "change_pct": data['change_pct'],
+            "volume": data['volume'],
+            "amount": data.get('amount', 0),
+            "high": data.get('high', 0),
+            "low": data.get('low', 0),
+            "open": data.get('open', 0),
+            "close": data.get('close', 0),
+            "time": data.get('time', datetime.now().strftime("%H:%M:%S"))
+        }
+        _cache['quote'][cache_key] = {'data': result, 'time': now}
+        return jsonify(result)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/quotes/batch')
 def get_quotes_batch():
-    """批量获取行情"""
-    portfolio = load_json(PORTFOLIO_FILE, init_account())
-    codes = list(portfolio.get('positions', {}).keys())
-    codes_str = ','.join(codes)
+    """批量获取持仓股行情（腾讯API）"""
+    positions = db.get_positions()
+    codes = [p['stock_code'] for p in positions]
     
-    if not codes_str:
+    if not codes:
         return jsonify([])
     
-    try:
-        df = ak.stock_zh_a_spot_em()
-        rows = df[df['代码'].isin(codes)]
-        result = []
-        for _, row in rows.iterrows():
-            result.append({
-                "code": row['代码'],
-                "name": row['名称'],
-                "price": float(row['最新价']),
-                "change": float(row['涨跌额']),
-                "change_pct": float(row['涨跌幅']),
-                "volume": float(row['成交量']),
-                "high": float(row['最高']),
-                "low": float(row['最低']),
-                "time": datetime.now().strftime("%H:%M:%S")
-            })
-        return jsonify(result)
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    now = time.time()
+    # 检查缓存
+    cached = []
+    uncached = []
+    for code in codes:
+        cache_key = f'quote_{code}'
+        if cache_key in _cache['quote'] and (now - _cache['quote'][cache_key]['time']) < _CACHE_TTL:
+            cached.append(_cache['quote'][cache_key]['data'])
+        else:
+            uncached.append(code)
+    
+    result = list(cached)
+    
+    if uncached:
+        try:
+            quotes = get_tencent_quote(uncached)
+            for code, data in quotes.items():
+                q = {
+                    "code": code,
+                    "name": data['name'],
+                    "price": data['price'],
+                    "change": data['change'],
+                    "change_pct": data['change_pct'],
+                    "volume": data['volume'],
+                    "high": data.get('high', 0),
+                    "low": data.get('low', 0),
+                    "time": data.get('time', datetime.now().strftime("%H:%M:%S"))
+                }
+                _cache['quote'][f'quote_{code}'] = {'data': q, 'time': now}
+                result.append(q)
+        except:
+            pass
+    
+    return jsonify(result)
 
 @app.route('/api/market/top')
 def get_market_top():
-    """获取市场涨跌榜"""
+    """获取市场热门股票（使用腾讯API）"""
+    now = time.time()
+    
+    # 常用热门股票列表
+    hot_codes = [
+        '600036', '000001', '601318', '600519', '000858',  # 银行保险白酒
+        '300750', '002475', '688525', '002428', '600276',  # 宁德时代/立讯/佰维/云南锗业/恒瑞
+        '601888', '600009', '000333', '002594', '300059',  # 中免/上海机场/美的/比亚迪/东方财富
+        '300274', '002466', '600900', '601012', '300015',  # 阳光电源/天齐/长江电力/隆基/爱尔
+        '688041', '300033', '002352', '601166', '600030',  # 海光/同花顺/顺丰/兴业/中信
+    ]
+    
+    # 如果有缓存，直接返回（即使过期也先用旧数据）
+    if _cache['market_top']['data']:
+        if (now - _cache['market_top']['time']) >= _CACHE_TTL:
+            def _refresh():
+                try:
+                    quotes = get_tencent_quote(hot_codes)
+                    result = []
+                    for code, data in quotes.items():
+                        if data.get('price', 0) > 0:
+                            result.append({
+                                "code": code,
+                                "name": data['name'],
+                                "price": data['price'],
+                                "change_pct": data['change_pct'],
+                                "volume": data.get('amount', 0),
+                            })
+                    result.sort(key=lambda x: x['volume'], reverse=True)
+                    _cache['market_top'] = {'data': result[:20], 'time': time.time()}
+                except:
+                    pass
+            threading.Thread(target=_refresh, daemon=True).start()
+        return jsonify(_cache['market_top']['data'])
+    
+    # 完全没有缓存
     try:
-        df = ak.stock_zh_a_spot_em()
-        df = df.head(20)  # 取前20只
+        quotes = get_tencent_quote(hot_codes)
         result = []
-        for _, row in df.iterrows():
-            result.append({
-                "code": row['代码'],
-                "name": row['名称'],
-                "price": float(row['最新价']),
-                "change_pct": float(row['涨跌幅']),
-                "volume": float(row['成交额']),
-            })
-        return jsonify(result)
+        for code, data in quotes.items():
+            if data.get('price', 0) > 0:
+                result.append({
+                    "code": code,
+                    "name": data['name'],
+                    "price": data['price'],
+                    "change_pct": data['change_pct'],
+                    "volume": data.get('amount', 0),
+                })
+        result.sort(key=lambda x: x['volume'], reverse=True)
+        _cache['market_top'] = {'data': result[:20], 'time': time.time()}
+        return jsonify(result[:20])
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -144,99 +298,143 @@ def get_market_top():
 def execute_trade():
     """执行交易"""
     data = request.json
-    action = data.get('action')  # buy or sell
+    action = data.get('action')
     stock_code = data.get('stock_code')
-    shares = int(data.get('shares', 100))  # 默认100股
+    shares = int(data.get('shares', 100))
     
-    portfolio = load_json(PORTFOLIO_FILE, init_account())
-    trades = load_json(TRADES_FILE, [])
+    account = db.get_account()
     
-    # 获取当前价
+    # 获取当前价（腾讯API）
     try:
-        df = ak.stock_zh_a_spot_em()
-        row = df[df['代码'] == stock_code]
-        if row.empty:
-            return jsonify({"error": "股票不存在"}), 400
-        price = float(row.iloc[0]['最新价'])
-        name = row.iloc[0]['名称']
+        quotes = get_tencent_quote([stock_code])
+        if stock_code not in quotes or quotes[stock_code]['price'] == 0:
+            return jsonify({"error": "股票不存在或停牌"}), 400
+        price = quotes[stock_code]['price']
+        name = quotes[stock_code]['name']
     except Exception as e:
         return jsonify({"error": f"获取行情失败: {str(e)}"}), 500
     
-    trade_record = {
-        "id": len(trades) + 1,
-        "timestamp": datetime.now().isoformat(),
-        "action": action,
-        "stock_code": stock_code,
-        "stock_name": name,
-        "price": price,
-        "shares": shares,
-        "amount": price * shares,
-        "reason": data.get('reason', '')
-    }
+    commission = 0
+    profit = 0
     
     if action == 'buy':
         cost = price * shares * 1.0003  # 手续费+印花税
-        if cost > portfolio['cash']:
+        if cost > account['cash']:
             return jsonify({"error": "资金不足"}), 400
-        portfolio['cash'] -= cost
-        if stock_code in portfolio['positions']:
-            old = portfolio['positions'][stock_code]
-            total_shares = old['shares'] + shares
-            total_cost = old['avg_cost'] * old['shares'] + price * shares
-            old['avg_cost'] = total_cost / total_shares
-            old['shares'] = total_shares
+        
+        new_cash = account['cash'] - cost
+        position = db.get_position(stock_code)
+        
+        if position:
+            # 追加买入
+            total_shares = position['shares'] + shares
+            total_cost = position['avg_cost'] * position['shares'] + price * shares
+            new_avg_cost = total_cost / total_shares
+            db.upsert_position(stock_code, name, total_shares, new_avg_cost)
         else:
-            portfolio['positions'][stock_code] = {
-                "name": name,
-                "shares": shares,
-                "avg_cost": price,
-                "buy_date": date.today().isoformat()
-            }
-        trade_record['commission'] = cost - price * shares
-        portfolio['cash'] -= trade_record['commission']
+            # 新买入
+            db.upsert_position(stock_code, name, shares, price)
+        
+        commission = cost - price * shares
+        new_cash -= commission
         
     elif action == 'sell':
-        if stock_code not in portfolio['positions']:
+        position = db.get_position(stock_code)
+        if not position:
             return jsonify({"error": "没有持仓"}), 400
-        pos = portfolio['positions'][stock_code]
-        if pos['shares'] < shares:
+        if position['shares'] < shares:
             return jsonify({"error": "持仓不足"}), 400
-        revenue = price * shares * 0.9997  # 手续费+印花税
-        profit = (price - pos['avg_cost']) * shares * 0.9997
-        portfolio['cash'] += revenue
-        pos['shares'] -= shares
-        if pos['shares'] == 0:
-            del portfolio['positions'][stock_code]
-        trade_record['profit'] = profit
-        trade_record['commission'] = price * shares - revenue
+        
+        revenue = price * shares * 0.9997  # 扣除手续费
+        profit = (price - position['avg_cost']) * shares * 0.9997
+        new_cash = account['cash'] + revenue
+        commission = price * shares - revenue
+        
+        remaining = position['shares'] - shares
+        if remaining == 0:
+            db.delete_position(stock_code)
+        else:
+            db.upsert_position(stock_code, name, remaining, position['avg_cost'])
     
-    # 更新总市值
-    total_value = portfolio['cash']
-    for code, pos in portfolio['positions'].items():
-        try:
-            qdf = ak.stock_zh_a_spot_em()
-            curr_price = float(qdf[qdf['代码'] == code].iloc[0]['最新价'])
-            total_value += curr_price * pos['shares']
-        except:
+    # 更新账户
+    positions = db.get_positions()
+    total_value = new_cash
+    try:
+        codes = [p['stock_code'] for p in positions]
+        quotes = get_tencent_quote(codes) if codes else {}
+        for pos in positions:
+            code = pos['stock_code']
+            if code in quotes and quotes[code]['price'] > 0:
+                total_value += quotes[code]['price'] * pos['shares']
+            else:
+                total_value += pos['avg_cost'] * pos['shares']
+    except:
+        for pos in positions:
             total_value += pos['avg_cost'] * pos['shares']
-    portfolio['total_value'] = total_value
-    portfolio['total_profit'] = total_value - 1000000.0
     
-    trades.append(trade_record)
-    save_json(PORTFOLIO_FILE, portfolio)
-    save_json(TRADES_FILE, trades)
+    total_profit = total_value - 1000000.0
+    db.update_account(new_cash, total_value, total_profit)
+    
+    # 记录交易
+    trade_id = db.add_trade(
+        action, stock_code, name, price, shares,
+        price * shares, commission, profit, data.get('reason', '')
+    )
+    
+    # 记录净值
+    position_value = total_value - new_cash
+    db.add_equity_record(date.today().isoformat(), total_value, new_cash, position_value)
     
     return jsonify({
         "success": True,
-        "trade": trade_record,
-        "portfolio": portfolio
+        "trade_id": trade_id,
+        "trade": {
+            "id": trade_id,
+            "timestamp": datetime.now().isoformat(),
+            "action": action,
+            "stock_code": stock_code,
+            "stock_name": name,
+            "price": price,
+            "shares": shares,
+            "amount": price * shares,
+            "commission": commission,
+            "profit": profit
+        },
+        "portfolio": {
+            "cash": new_cash,
+            "total_value": total_value,
+            "total_profit": total_profit
+        }
+    })
+
+@app.route('/api/review', methods=['POST'])
+def add_review():
+    """添加复盘记录"""
+    data = request.json
+    content = data.get('content', '')
+    tags = data.get('tags', [])
+    strategies = data.get('strategies', [])
+    
+    # 获取今日收益
+    account = db.get_account()
+    
+    review_id = db.add_review(
+        date=date.today().isoformat(),
+        content=content,
+        strategies=json.dumps(strategies, ensure_ascii=False),
+        profit=account.get('total_profit', 0),
+        tags=json.dumps(tags, ensure_ascii=False)
+    )
+    
+    return jsonify({
+        "success": True,
+        "review_id": review_id
     })
 
 @app.route('/api/analyze/<stock_code>')
 def analyze_stock(stock_code):
     """AI策略分析单只股票"""
-    portfolio = load_json(PORTFOLIO_FILE, init_account())
-    position = portfolio.get('positions', {}).get(stock_code)
+    position = db.get_position(stock_code)
     signal = strategy_mgr.get_best_signal(stock_code, position)
     return jsonify({
         "code": stock_code,
@@ -244,39 +442,221 @@ def analyze_stock(stock_code):
         "strategies": strategy_mgr.analyze_all(stock_code, position)
     })
 
-@app.route('/api/review', methods=['POST'])
-def add_review():
-    """添加复盘记录"""
-    data = request.json
-    daily = load_json(DAILY_FILE, [])
-    
-    review = {
-        "id": len(daily) + 1,
-        "date": date.today().isoformat(),
-        "timestamp": datetime.now().isoformat(),
-        "content": data.get('content', ''),
-        "strategies": data.get('strategies', []),
-        "profit": data.get('profit', 0),
-        "tags": data.get('tags', [])
-    }
-    daily.append(review)
-    save_json(DAILY_FILE, daily)
-    return jsonify({"success": True, "review": review})
-
 @app.route('/api/init', methods=['POST'])
-def init_portfolio():
-    """初始化/重置账户"""
-    portfolio = init_account()
-    # 默认放入几只候选股
-    default_stocks = ['300750', '002475', '688525']  # 宁德时代、立讯精密、佰维存储
-    save_json(PORTFOLIO_FILE, portfolio)
-    save_json(TRADES_FILE, [])
-    save_json(DAILY_FILE, [])
-    return jsonify({"success": True, "portfolio": portfolio})
+def reset_account():
+    """重置账户"""
+    import shutil
+    db_path = db.get_db_path()
+    if os.path.exists(db_path):
+        os.remove(db_path)
+    db.init_database()
+    return jsonify({"success": True})
+
+
+
+# ========== 工作室页面 ==========
+
+@app.route('/studio')
+def studio_page():
+    return render_template('studio.html')
+
+@app.route('/studio-ui')
+@app.route('/studio-ui/')
+def studio_ui_index():
+    """反向代理 Star Office UI 首页"""
+    try:
+        resp = requests.get(f'http://127.0.0.1:19000/', timeout=10)
+        content = resp.content.decode('utf-8')
+        # 重写静态资源路径
+        content = content.replace('href="/', 'href="/studio-ui/')
+        content = content.replace('src="/', 'src="/studio-ui/')
+        return make_response(content, resp.status_code)
+    except Exception as e:
+        return make_response(f'Proxy error: {e}', 502)
+
+@app.route('/studio-ui/<path:path>')
+def studio_ui_proxy(path):
+    """反向代理 Star Office UI 静态资源"""
+    try:
+        resp = requests.get(f'http://127.0.0.1:19000/{path}', timeout=10)
+        response = make_response(resp.content, resp.status_code)
+        # Pass through CORS headers
+        response.headers['Access-Control-Allow-Origin'] = '*'
+        return response
+    except Exception as e:
+        return make_response(f'Proxy error: {e}', 502)
+
+@app.route('/studio-api/<path:path>', methods=['GET', 'POST', 'PUT', 'DELETE'])
+def studio_api_proxy(path):
+    """反向代理 Star Office UI API"""
+    try:
+        url = f'http://127.0.0.1:19000/{path}'
+        if request.method == 'GET':
+            resp = requests.get(url, params=request.args, timeout=10)
+        elif request.method == 'POST':
+            resp = requests.post(url, json=request.json, timeout=10)
+        elif request.method == 'PUT':
+            resp = requests.put(url, json=request.json, timeout=10)
+        elif request.method == 'DELETE':
+            resp = requests.delete(url, timeout=10)
+        else:
+            return make_response('Method not allowed', 405)
+        
+        response = make_response(resp.content, resp.status_code)
+        for key, value in resp.headers.items():
+            if key not in ('Content-Length', 'Content-Encoding', 'Transfer-Encoding'):
+                response.headers[key] = value
+        return response
+    except Exception as e:
+        return make_response(f'Proxy error: {e}', 502)
+
+@app.route('/api/run_command', methods=['POST'])
+def run_command():
+    import subprocess
+    data = request.json
+    cmd = data.get('command', '')
+    try:
+        result = subprocess.run(
+            cmd, shell=True, capture_output=True, text=True, timeout=120
+        )
+        output = result.stdout.strip() or result.stderr.strip() or '执行完成'
+        return jsonify({'success': True, 'output': output[:500]})
+    except subprocess.TimeoutExpired:
+        return jsonify({'success': False, 'error': '执行超时'})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/start_tunnel', methods=['POST'])
+def start_tunnel():
+    import subprocess
+    try:
+        subprocess.run('pkill -f cloudflared', shell=True)
+        subprocess.run('sleep 1')
+        proc = subprocess.Popen(
+            'cloudflared tunnel --url http://127.0.0.1:19000',
+            shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
+        )
+        import time
+        url = None
+        for _ in range(30):
+            time.sleep(2)
+            try:
+                with open('/tmp/tunnel_url', 'r') as f:
+                    url = f.read().strip()
+                    if url:
+                        break
+            except:
+                pass
+            if proc.poll() is not None:
+                break
+        if url:
+            return jsonify({'url': url})
+        else:
+            return jsonify({'error': '创建链接超时'})
+    except Exception as e:
+        return jsonify({'error': str(e)})
+
 
 if __name__ == '__main__':
-    with app.app_context():
-        # 初始化账户
-        if not os.path.exists(PORTFOLIO_FILE):
-            save_json(PORTFOLIO_FILE, init_account())
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    db.init_database()
+    app.run(host='0.0.0.0', port=80, debug=False, threaded=True)
+
+# ==================== Star Office UI 集成路由 ====================
+
+@app.route('/star-api/<path:path>', methods=['GET', 'POST', 'PUT', 'DELETE'])
+def star_api_proxy(path):
+    """反向代理 Star Office UI 所有请求"""
+    try:
+        url = f'http://127.0.0.1:19000/{path}'
+        headers = {'Origin': request.headers.get('Origin', '*')}
+        
+        if request.method == 'GET':
+            resp = requests.get(url, params=request.args, headers=headers, timeout=10)
+        elif request.method == 'POST':
+            resp = requests.post(url, json=request.json, headers=headers, timeout=10)
+        elif request.method == 'PUT':
+            resp = requests.put(url, json=request.json, headers=headers, timeout=10)
+        elif request.method == 'DELETE':
+            resp = requests.delete(url, headers=headers, timeout=10)
+        else:
+            return make_response('Method not allowed', 405)
+        
+        response = make_response(resp.content)
+        response.status_code = resp.status_code
+        content_type = resp.headers.get('Content-Type', 'application/json')
+        response.content_type = content_type
+        for key, value in resp.headers.items():
+            if key not in ('Content-Length', 'Content-Encoding', 'Transfer-Encoding', 'Host', 'Content-Type'):
+                response.headers[key] = value
+        response.headers['Access-Control-Allow-Origin'] = '*'
+        return response
+    except Exception as e:
+        return make_response(f'Proxy error: {e}', 502)
+
+@app.route('/static/<path:filename>')
+def star_static_catchall(filename):
+    """反向代理 Star Office UI 静态文件"""
+    import sys
+    print(f"DEBUG star_static_catchall called: filename={filename}", flush=True)
+    try:
+        resp = requests.get(f'http://127.0.0.1:19000/static/{filename}', timeout=10)
+        response = make_response(resp.content)
+        response.status_code = resp.status_code
+        content_type = resp.headers.get('Content-Type', 'application/octet-stream')
+        response.content_type = content_type
+        response.headers['Access-Control-Allow-Origin'] = '*'
+        return response
+    except Exception as e:
+        print(f"DEBUG star_static_catchall error: {e}", flush=True)
+        return make_response(f'Proxy error: {e}', 502)
+
+@app.route('/star-assets/<path:filename>')
+def star_assets_proxy(filename):
+    """反向代理 Star Office UI 静态文件"""
+    try:
+        resp = requests.get(f'http://127.0.0.1:19000/static/{filename}', timeout=10)
+        response = make_response(resp.content)
+        response.status_code = resp.status_code
+        content_type = resp.headers.get('Content-Type', 'application/octet-stream')
+        response.content_type = content_type
+        response.headers['Access-Control-Allow-Origin'] = '*'
+        return response
+    except Exception as e:
+        return make_response(f'Proxy error: {e}', 502)
+
+@app.route('/star-static/<path:filename>')
+def star_static_proxy(filename):
+    """反向代理 Star Office UI 静态文件"""
+    try:
+        resp = requests.get(f'http://127.0.0.1:19000/static/{filename}', timeout=10)
+        response = make_response(resp.content)
+        response.status_code = resp.status_code
+        content_type = resp.headers.get('Content-Type', 'application/octet-stream')
+        response.content_type = content_type
+        response.headers['Access-Control-Allow-Origin'] = '*'
+        return response
+    except Exception as e:
+        return make_response(f'Proxy error: {e}', 502)
+
+@app.route('/star-index')
+def star_index():
+    """获取 Star Office UI 首页并重写静态资源路径"""
+    try:
+        resp = requests.get(f'http://127.0.0.1:19000/', timeout=10)
+        content = resp.content.decode('utf-8')
+        # 重写静态资源路径
+        content = content.replace('href="/static/', 'href="/static/')
+        content = content.replace('src="/static/', 'src="/static/')
+        # 重写API路径
+        content = content.replace("fetch('/", "fetch('/star-api/")
+        content = content.replace('fetch("/', 'fetch("/star-api/')
+        return make_response(content, resp.status_code)
+    except Exception as e:
+        return make_response(f'Proxy error: {e}', 502)
+
+@app.route('/star/')
+@app.route('/star')
+def star_home():
+    """重定向到重写后的首页"""
+    return redirect('/star-index')
+

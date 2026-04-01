@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🏠 工作室 - 蛋蛋爱挣钱</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #0a0e17;
+            color: #f1f5f9;
+            min-height: 100vh;
+        }
+        .app-header {
+            background: linear-gradient(180deg, #0f172a 0%, #0a0e17 100%);
+            border-bottom: 1px solid #1e293b;
+            padding: 1rem 2rem;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .header-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .header-brand {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+        .header-brand h1 {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: white;
+        }
+        .btn-back {
+            background: #111827;
+            border: 1px solid #1e293b;
+            color: #f1f5f9;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            font-size: 0.875rem;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+        .btn-back:hover { background: #1a2235; border-color: #3b82f6; }
+        
+        .iframe-container {
+            width: 100%;
+            height: calc(100vh - 70px);
+            background: #000;
+        }
+        iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+        
+        .loading {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: calc(100vh - 70px);
+            background: #0a0e17;
+        }
+        .loading-spinner {
+            width: 48px;
+            height: 48px;
+            border: 4px solid #1e293b;
+            border-top-color: #3b82f6;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .loading-text {
+            margin-top: 1rem;
+            color: #94a3b8;
+            font-size: 0.875rem;
+        }
+        .error-box {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: calc(100vh - 70px);
+            background: #0a0e17;
+            padding: 2rem;
+            text-align: center;
+        }
+        .error-box h2 { color: #ef4444; margin-bottom: 1rem; }
+        .error-box p { color: #94a3b8; margin-bottom: 1rem; }
+        .btn-retry {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            font-size: 0.875rem;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <header class="app-header">
+        <div class="header-content">
+            <div class="header-brand">
+                <span style="font-size:1.5rem">🥚</span>
+                <h1>🏠 工作室 - 蛋蛋爱挣钱</h1>
+            </div>
+            <div class="header-actions">
+                <a href="/" class="btn-back">← 返回交易系统</a>
+            </div>
+        </div>
+    </header>
+
+    <div class="loading" id="loading">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">正在加载工作室看板...</div>
+    </div>
+    
+    <div class="error-box" id="error">
+        <h2>⚠️ 工作室服务未启动</h2>
+        <p>AI 办公室看板服务暂时无法访问<br>请确保后端服务运行在 19000 端口</p>
+        <button class="btn-retry" onclick="location.reload()">重试</button>
+    </div>
+
+    <div class="iframe-container" style="display:none" id="iframe-container">
+        <iframe id="studio-frame" src="/star-index"></iframe>
+    </div>
+
+    <script>
+        const iframe = document.getElementById('studio-frame');
+        const loading = document.getElementById('loading');
+        const error = document.getElementById('error');
+        const container = document.getElementById('iframe-container');
+        
+        // 直接显示iframe，让浏览器处理加载
+        // 添加超时检测
+        let iframeLoaded = false;
+        
+        iframe.onload = () => {
+            iframeLoaded = true;
+            loading.style.display = 'none';
+            container.style.display = 'block';
+        };
+        
+        iframe.onerror = () => {
+            if (!iframeLoaded) {
+                loading.style.display = 'none';
+                error.style.display = 'flex';
+            }
+        };
+        
+        // 10秒超时检测
+        setTimeout(() => {
+            if (!iframeLoaded) {
+                // 尝试一次检测
+                const img = new Image();
+                img.onload = () => {
+                    loading.style.display = 'none';
+                    container.style.display = 'block';
+                };
+                img.onerror = () => {
+                    loading.style.display = 'none';
+                    error.style.display = 'flex';
+                };
+                img.src = 'http://127.0.0.1:19000/favicon.ico?t=' + Date.now();
+            }
+        }, 10000);
+        
+        // 初始显示iframe
+        loading.style.display = 'none';
+        container.style.display = 'block';
+    </script>
+</body>
+</html>
