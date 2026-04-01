@@ -43,6 +43,7 @@
 | `/api/quote/<code>` | GET | 获取单只股票行情 |
 | `/api/quotes/batch` | GET | 批量获取持仓股行情 |
 | `/api/market/top` | GET | 获取热门股票 |
+| `/api/index` | GET | **获取大盘指数+MA5/MA10** |
 | `/api/trade` | POST | **执行买卖** |
 | `/api/review` | POST | **添加复盘** |
 | `/api/analyze/<code>` | GET | AI策略分析 |
