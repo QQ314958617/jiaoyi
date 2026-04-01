@@ -1,5 +1,35 @@
-*.db
+# Python
 *.pyc
+*.pyo
 __pycache__/
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
 venv/
+.venv/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Logs
 *.log
+server.log
+
+# Data files (keep structure, ignore content)
+data/*.db
+data/*.json
+!data/.gitkeep
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temp
+*.tmp
+*.bak

@@ -372,7 +372,7 @@ def execute_trade():
         for pos in positions:
             total_value += pos['avg_cost'] * pos['shares']
     
-    total_profit = total_value - 1000000.0
+    total_profit = total_value - 50000.0
     db.update_account(new_cash, total_value, total_profit)
     
     # 记录交易

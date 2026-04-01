@@ -35,8 +35,8 @@ def init_database():
         c.execute('''
             CREATE TABLE IF NOT EXISTS account (
                 id INTEGER PRIMARY KEY,
-                cash REAL DEFAULT 1000000.0,
-                total_value REAL DEFAULT 1000000.0,
+                cash REAL DEFAULT 50000.0,
+                total_value REAL DEFAULT 50000.0,
                 total_profit REAL DEFAULT 0.0,
                 created_at TEXT DEFAULT CURRENT_TIMESTAMP,
                 updated_at TEXT DEFAULT CURRENT_TIMESTAMP
@@ -102,7 +102,7 @@ def init_database():
         # 初始化账户（如果不存在）
         c.execute('SELECT COUNT(*) FROM account')
         if c.fetchone()[0] == 0:
-            c.execute('INSERT INTO account (id, cash, total_value) VALUES (1, 1000000.0, 1000000.0)')
+            c.execute('INSERT INTO account (id, cash, total_value) VALUES (1, 50000.0, 50000.0)')
         
         conn.commit()
 
@@ -116,7 +116,7 @@ def get_account():
         row = c.fetchone()
         if row:
             return dict(row)
-        return {'cash': 1000000.0, 'total_value': 1000000.0, 'total_profit': 0.0}
+        return {'cash': 50000.0, 'total_value': 50000.0, 'total_profit': 0.0}
 
 def update_account(cash, total_value, total_profit):
     """更新账户"""
