@@ -98,8 +98,14 @@
 - 明日策略调整（根据今天学到的调整）
 
 **调用API保存：**
-- 获取数据：`GET /api/portfolio`, `GET /api/trades`, `GET /api/daily`
-- 复盘报告通过 message 推送给你
+```bash
+# 复盘通过 POST /api/review 保存
+curl -X POST http://localhost/api/review \
+  -H "Content-Type: application/json" \
+  -d '{"content": "复盘内容", "tags": ["标签"], "strategies": ["策略"]}'
+```
+
+**不复盘=没记录！必须写进系统！**
 
 ---
 
