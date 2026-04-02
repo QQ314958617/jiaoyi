@@ -207,6 +207,15 @@ def get_reviews(limit=50):
         c.execute('SELECT * FROM daily_reviews ORDER BY timestamp DESC LIMIT ?', (limit,))
         return [dict(row) for row in c.fetchall()]
 
+def get_reviews_paged(offset=0, limit=10):
+    """获取复盘记录（分页）"""
+    with get_connection() as conn:
+        c = conn.cursor()
+        c.execute('SELECT COUNT(*) FROM daily_reviews')
+        total = c.fetchone()[0]
+        c.execute('SELECT * FROM daily_reviews ORDER BY timestamp DESC LIMIT ? OFFSET ?', (limit, offset))
+        return total, [dict(row) for row in c.fetchall()]
+
 # ========== 净值曲线 ==========
 
 def add_equity_record(date, total_value, cash, position_value):

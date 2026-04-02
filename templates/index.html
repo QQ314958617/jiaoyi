@@ -635,8 +635,9 @@
 
         <!-- Review Panel -->
         <div class="tab-panel" id="panel-review">
-            <div style="margin-bottom:1rem">
+            <div style="margin-bottom:1rem;display:flex;justify-content:space-between;align-items:center">
                 <button class="btn-ai" onclick="showReviewModal()">✍️ 写复盘</button>
+                <div id="review-pagination" style="font-size:0.8rem;color:var(--text-muted)"></div>
             </div>
             <div id="review-list">
                 <div style="text-align:center;padding:2rem;color:var(--text-muted)">暂无复盘记录</div>
@@ -886,20 +887,25 @@
             } catch(e) { console.error(e); }
         }
 
-        // Load Reviews
-        async function loadReviews() {
+        // Load Reviews (分页)
+        let reviewPage = 1;
+        const reviewPageSize = 10;
+
+        async function loadReviews(page = 1) {
             try {
-                const res = await fetch('/api/daily');
-                const reviews = await res.json();
+                const res = await fetch(`/api/daily?page=${page}&page_size=${reviewPageSize}`);
+                const data = await res.json();
                 const list = document.getElementById('review-list');
+                const pagination = document.getElementById('review-pagination');
                 
-                if (!reviews || reviews.length === 0) {
+                if (!data.reviews || data.reviews.length === 0) {
                     list.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--text-muted)">暂无复盘记录</div>';
+                    pagination.innerHTML = '';
                     return;
                 }
                 
                 let html = '';
-                reviews.slice().reverse().forEach(r => {
+                data.reviews.forEach(r => {
                     const ts = new Date(r.timestamp).toLocaleString('zh-CN', {hour12:false}).replace(/\//g, '-');
                     const tags = r.tags || [];
                     const tagHtml = tags.map(t => `<span class="review-tag">${t}</span>`).join('');
@@ -911,6 +917,18 @@
                     </div>`;
                 });
                 list.innerHTML = html;
+                
+                // 渲染分页
+                if (data.total_pages > 1) {
+                    let pageHtml = `<span>第 ${data.page}/${data.total_pages} 页，共 ${data.total} 条</span>&nbsp;&nbsp;`;
+                    if (data.page > 1) pageHtml += `<a href="javascript:loadReviews(${data.page - 1})">上一页</a>`;
+                    if (data.page < data.total_pages) pageHtml += ` <a href="javascript:loadReviews(${data.page + 1})">下一页</a>`;
+                    pagination.innerHTML = pageHtml;
+                } else {
+                    pagination.innerHTML = `<span>共 ${data.total} 条</span>`;
+                }
+                
+                reviewPage = data.page;
             } catch(e) { console.error(e); }
         }
 

@@ -133,9 +133,15 @@ def get_trades():
 
 @app.route('/api/daily')
 def get_daily():
-    """获取每日复盘"""
-    reviews = db.get_reviews(limit=50)
-    # 解析 JSON 字段
+    """获取每日复盘（支持分页）
+    参数: page=1, page_size=10
+    """
+    page = int(request.args.get('page', 1))
+    page_size = int(request.args.get('page_size', 10))
+    offset = (page - 1) * page_size
+    
+    total, reviews = db.get_reviews_paged(offset=offset, limit=page_size)
+    
     for r in reviews:
         if r.get('strategies'):
             try:
@@ -147,7 +153,14 @@ def get_daily():
                 r['tags'] = json.loads(r['tags'])
             except:
                 r['tags'] = r['tags'].split(',') if r['tags'] else []
-    return jsonify(reviews)
+    
+    return jsonify({
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "total_pages": (total + page_size - 1) // page_size if total > 0 else 0,
+        "reviews": reviews
+    })
 
 @app.route('/api/stats')
 def get_stats():
