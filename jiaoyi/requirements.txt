@@ -1,6 +1,0 @@
-flask
-akshare
-pandas
-requests
-echarts
-jinja2

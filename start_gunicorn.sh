@@ -8,12 +8,11 @@ PID_FILE="/tmp/gunicorn_trading.pid"
 cd "$WORKSPACE"
 
 # 停止旧进程
-if [ -f "$PID_FILE" ]; then
-    kill $(cat "$PID_FILE") 2>/dev/null
-fi
+pkill -9 gunicorn 2>/dev/null
+sleep 1
 
 # 激活虚拟环境并启动
-source sim_trading/venv/bin/activate
+source venv/bin/activate
 
 nohup gunicorn \
     -w 1 \

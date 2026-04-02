@@ -3,7 +3,7 @@
   "skills": {
     "openclaw-tavily-search": {
       "version": "0.1.0",
-      "installedAt": 1774109334571
+      "installedAt": 1775094241389
     },
     "summarize": {
       "version": "1.0.0",
@@ -50,8 +50,8 @@
       "installedAt": 1774232154982
     },
     "self-improving-agent": {
-      "version": "1.0.11",
-      "installedAt": 1774232191193
+      "version": "3.0.11",
+      "installedAt": 1775094362205
     },
     "ontology": {
       "version": "0.1.2",
@@ -71,23 +71,23 @@
     },
     "akshare-stock": {
       "version": "1.0.1",
-      "installedAt": 1774859323069
+      "installedAt": 1775094542248
     },
     "market-analysis-cn": {
       "version": "1.0.0",
-      "installedAt": 1774859324458
+      "installedAt": 1775094721919
     },
     "china-stock-analysis": {
       "version": "1.0.0",
-      "installedAt": 1774859325815
+      "installedAt": 1775094781854
     },
     "stock-monitor-skill": {
       "version": "0.1.0",
-      "installedAt": 1774859327027
+      "installedAt": 1775094902613
     },
     "stock-watcher": {
       "version": "1.0.0",
-      "installedAt": 1774859328306
+      "installedAt": 1775095142052
     }
   }
 }
