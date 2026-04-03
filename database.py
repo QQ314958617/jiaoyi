@@ -3,7 +3,7 @@
 """
 import sqlite3
 import os
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from contextlib import contextmanager
 
 DATABASE_FILE = os.path.join(os.path.dirname(__file__), 'data', 'trading.db')
@@ -100,9 +100,12 @@ def init_database():
         ''')
         
         # 初始化账户（如果不存在）
+        bj_tz = timezone(timedelta(hours=8))
+        now_bj = datetime.now(bj_tz).strftime('%Y-%m-%d %H:%M:%S')
         c.execute('SELECT COUNT(*) FROM account')
         if c.fetchone()[0] == 0:
-            c.execute('INSERT INTO account (id, cash, total_value) VALUES (1, 50000.0, 50000.0)')
+            c.execute('INSERT INTO account (id, cash, total_value, created_at, updated_at) VALUES (1, 50000.0, 50000.0, ?, ?)',
+                      (now_bj, now_bj))
         
         conn.commit()
 
@@ -120,13 +123,16 @@ def get_account():
 
 def update_account(cash, total_value, total_profit):
     """更新账户"""
+    bj_tz = timezone(timedelta(hours=8))
+    now_bj = datetime.now(bj_tz).strftime('%Y-%m-%d %H:%M:%S')
+    
     with get_connection() as conn:
         c = conn.cursor()
         c.execute('''
             UPDATE account 
             SET cash = ?, total_value = ?, total_profit = ?, updated_at = ?
             WHERE id = 1
-        ''', (cash, total_value, total_profit, datetime.now().isoformat()))
+        ''', (cash, total_value, total_profit, now_bj))
         conn.commit()
 
 # ========== 持仓操作 ==========
@@ -148,16 +154,19 @@ def get_position(stock_code):
 
 def upsert_position(stock_code, stock_name, shares, avg_cost, buy_date=None):
     """更新持仓（插入或更新）"""
+    bj_tz = timezone(timedelta(hours=8))
+    now_bj = datetime.now(bj_tz).strftime('%Y-%m-%d %H:%M:%S')
+    
     with get_connection() as conn:
         c = conn.cursor()
         c.execute('''
-            INSERT INTO positions (stock_code, stock_name, shares, avg_cost, buy_date)
-            VALUES (?, ?, ?, ?, ?)
+            INSERT INTO positions (stock_code, stock_name, shares, avg_cost, buy_date, created_at)
+            VALUES (?, ?, ?, ?, ?, ?)
             ON CONFLICT(stock_code) DO UPDATE SET
                 stock_name = excluded.stock_name,
                 shares = excluded.shares,
                 avg_cost = excluded.avg_cost
-        ''', (stock_code, stock_name, shares, avg_cost, buy_date or datetime.now().isoformat()))
+        ''', (stock_code, stock_name, shares, avg_cost, buy_date or now_bj, now_bj))
         conn.commit()
 
 def delete_position(stock_code):
@@ -171,7 +180,6 @@ def delete_position(stock_code):
 
 def add_trade(action, stock_code, stock_name, price, shares, amount, commission=0, profit=0, reason=''):
     """添加交易记录"""
-    from datetime import timezone, timedelta
     bj_tz = timezone(timedelta(hours=8))
     bj_time = datetime.now(bj_tz).strftime('%Y-%m-%d %H:%M:%S')
     
@@ -196,7 +204,6 @@ def get_trades(limit=100):
 def add_review(date, content, strategies='', profit=0, tags=''):
     """添加复盘"""
     # 使用北京时间（SQLite的CURRENT_TIMESTAMP是UTC，需要显式传入）
-    from datetime import timezone, timedelta
     bj_tz = timezone(timedelta(hours=8))
     bj_time = datetime.now(bj_tz).strftime('%Y-%m-%d %H:%M:%S')
     
@@ -229,7 +236,6 @@ def get_reviews_paged(offset=0, limit=10):
 
 def add_equity_record(date, total_value, cash, position_value):
     """记录净值"""
-    from datetime import timezone, timedelta
     bj_tz = timezone(timedelta(hours=8))
     bj_time = datetime.now(bj_tz).strftime('%Y-%m-%d %H:%M:%S')
     
