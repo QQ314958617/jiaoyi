@@ -850,3 +850,371 @@ def check_path_constraints(
                         return False, f"cd 目标不允许: {target}"
 
     return True, ""
+
+
+# ============================================================================
+# 路径安全验证（第2轮深化）
+# ============================================================================
+
+import os
+from pathlib import Path
+from typing import Tuple
+
+
+def expand_tilde(path: str) -> str:
+    """
+    展开 ~ 为用户主目录。
+
+    对应 Claude Code 的 expandTilde()。
+    """
+    if path.startswith("~"):
+        home = os.path.expanduser("~")
+        if path == "~":
+            return home
+        if path.startswith("~/"):
+            return os.path.join(home, path[2:])
+    return path
+
+
+def is_dangerous_removal_path(resolved_path: str) -> bool:
+    """
+    判断路径是否为危险删除目标。
+
+    对应 Claude Code 的 isDangerousRemovalPath()。
+    危险路径包括：
+    - 根目录 /
+    - 用户主目录 ~
+    - 系统关键目录的直接子目录（/bin/*, /etc/*, /tmp/* 等）
+    - 通配符路径 */*
+    """
+    # 规范化路径（统一斜杠）
+    normalized = resolved_path.replace("\\", "/")
+
+    # 去除尾部斜杠（除非是根目录）
+    if normalized != "/" and normalized.endswith("/"):
+        normalized = normalized[:-1]
+
+    # 通配符检查
+    if normalized == "*" or normalized.endswith("/*"):
+        return True
+
+    # 根目录
+    if normalized == "/":
+        return True
+
+    # Windows 驱动器根目录
+    if len(normalized) == 2 and normalized[1] == ":":
+        return True  # C:
+    if len(normalized) == 3 and normalized[1] == ":" and normalized[2] == "\\":
+        return True  # C:\
+
+    # 用户主目录
+    home = os.path.expanduser("~").replace("\\", "/")
+    if home != "/" and (normalized == home or normalized.startswith(home + "/")):
+        return True
+
+    # 获取父目录
+    parent = os.path.dirname(normalized)
+
+    if parent == "/":
+        # 根的直接子目录（如 /bin, /etc）
+        if normalized in {"/tmp", "/proc", "/sys", "/dev", "/boot"}:
+            return True
+        # 直接子目录危险（/bin, /sbin, /etc 等）
+        if normalized in {"/bin", "/sbin", "/etc", "/lib", "/lib64", "/opt", "/root", "/run", "/var", "/snap", "/mnt", "/media"}:
+            return True
+        return False
+
+    if parent in {"/bin", "/sbin", "/etc", "/lib", "/tmp", "/proc", "/sys", "/dev", "/boot", "/opt", "/root", "/run", "/var", "/snap", "/mnt", "/media"}:
+        return True
+
+    if parent == "/usr":
+        # /usr/bin, /usr/sbin 等危险
+        # 但 /usr/local 是例外
+        if normalized == "/usr/local":
+            return False
+        return True
+
+    if parent in {"/usr/bin", "/usr/sbin", "/usr/lib", "/usr/include", "/usr/share"}:
+        return True
+
+    return False
+
+
+def validate_path(
+    path: str,
+    cwd: str = "/",
+    allowed_paths: Optional[List[str]] = None,
+) -> Tuple[bool, str]:
+    """
+    验证文件路径安全性。
+
+    对应 Claude Code 的 validatePath()。
+    检查：
+    1. 不包含 shell 扩展语法（$()、``、${}）
+    2. 不包含 UNC 路径
+    3. 不包含危险符号
+    4. 不以 ~ 开头（除非已展开）
+
+    Returns:
+        (is_safe, resolved_path)
+    """
+    # 清理引号
+    clean_path = path.strip("'\"")
+
+    # 展开 ~
+    clean_path = expand_tilde(clean_path)
+
+    # 检查 shell 扩展语法
+    shell_chars = ["$(", "`", "${", "%{"]
+    for char in shell_chars:
+        if char in clean_path:
+            return False, f"路径包含shell扩展语法: {char}"
+
+    # 检查 Windows 环境变量语法
+    if "%" in clean_path and "%" in clean_path.replace("%", "", 1):
+        return False, "路径包含Windows环境变量语法"
+
+    # 检查 UNC 路径（\\server\share）
+    if clean_path.startswith("\\\\"):
+        return False, "UNC网络路径需要手动批准"
+
+    # 如果有路径约束
+    if allowed_paths:
+        # 解析为绝对路径
+        if not os.path.isabs(clean_path):
+            clean_path = os.path.normpath(os.path.join(cwd, clean_path))
+
+        # 检查是否在允许目录内
+        allowed = False
+        for allowed_prefix in allowed_paths:
+            if clean_path == allowed_prefix or clean_path.startswith(allowed_prefix + "/"):
+                allowed = True
+                break
+
+        if not allowed:
+            return False, f"路径不在允许范围内: {clean_path}"
+
+    return True, clean_path
+
+
+def check_path_constraints(
+    command: str,
+    cwd: str = "/",
+    allowed_paths: Optional[List[str]] = None,
+) -> Tuple[bool, str]:
+    """
+    检查命令的路径约束。
+
+    对应 Claude Code 的 checkPathConstraints()。
+    用于 cd, rm, cat 等涉及路径操作的命令。
+
+    Returns:
+        (is_allowed, error_message)
+    """
+    import shlex
+    try:
+        tokens = shlex.split(command)
+    except ValueError:
+        # 无法解析的命令，跳过路径检查
+        return True, ""
+
+    dangerous_removal_tokens = {"rm", "rmdir", "del", "erase"}
+    path_tokens = {"cd", "cat", "head", "tail", "grep", "rg", "find", "ls"}
+
+    for i, token in enumerate(tokens):
+        # 跳过选项
+        if token.startswith("-"):
+            continue
+
+        # 跳过常见的非路径参数
+        if token in {"|", "&&", "||", ";", ">", ">>", "<"}:
+            continue
+
+        is_removal = tokens[0] in dangerous_removal_tokens if tokens else False
+        is_path_cmd = tokens[0] in path_tokens
+
+        # 对于路径相关命令，验证参数
+        if is_path_cmd or is_removal or token.startswith("/") or token.startswith("~"):
+            # 展开 ~
+            check_token = expand_tilde(token)
+
+            # 解析为绝对路径
+            if not os.path.isabs(check_token):
+                check_token = os.path.normpath(os.path.join(cwd, check_token))
+
+            # 危险删除路径检查
+            if is_removal and is_dangerous_removal_path(check_token):
+                return False, f"禁止删除危险路径: {check_token}"
+
+            # 路径约束检查
+            if allowed_paths:
+                allowed = False
+                for allowed_prefix in allowed_paths:
+                    if check_token == allowed_prefix or check_token.startswith(allowed_prefix + "/"):
+                        allowed = True
+                        break
+                if not allowed:
+                    return False, f"路径不在允许范围内: {check_token}"
+
+    return True, ""
+
+
+# ============================================================================
+# sed 命令验证（第2轮深化）
+# ============================================================================
+
+# sed 允许的 flags（安全子集）
+SED_ALLOWED_FLAGS = {
+    "-n", "--quiet", "--silent",      # 只打印匹配行
+    "-E", "-r", "--regexp-extended",  # 扩展正则
+    "-z", "--zero-terminated",        # NUL分隔
+    "-p", "--quiet", "--silent",      # 打印（通常与-n一起用）
+    "--posix",
+}
+
+# sed 允许的表达式模式（简化版）
+SED_ALLOWED_PATTERNS = {
+    # 只允许打印和替换，不能执行命令
+    "p",       # 打印
+    "P",       # 打印（保持）
+    "s/",      # 替换
+    "d",       # 删除行
+    "D",       # 删除（保持）
+    "n",       # 下一行
+    "N",       # 追加下一行
+    "q",       # 退出
+    "Q",       # 退出（保持）
+    "=",
+    "a\\",     # 追加
+    "i\\",     # 插入
+    "c\\",     # 改变
+}
+
+# sed 禁止的模式（危险操作）
+SED_DANGEROUS_PATTERNS = {
+    "e",       # 执行命令（危险！）
+    "w",       # 写入文件（需要验证目标）
+    "r",       # 读取文件（需要验证源）
+}
+
+
+def validate_sed_flags(flags: List[str]) -> bool:
+    """
+    验证 sed 命令的 flags 是否安全。
+
+    对应 Claude Code 的 validateFlagsAgainstAllowlist()。
+    只允许安全的 flags，拒绝 -e（执行命令）等危险 flag。
+    """
+    for flag in flags:
+        # 处理组合 flags 如 -nE
+        if flag.startswith("-") and not flag.startswith("--") and len(flag) > 2:
+            # 检查每个字符
+            for c in flag[1:]:
+                if f"-{c}" not in SED_ALLOWED_FLAGS:
+                    return False
+        elif flag.startswith("--"):
+            # 长格式 flag
+            if flag not in SED_ALLOWED_FLAGS:
+                return False
+        elif flag.startswith("-"):
+            # 单个 flag
+            if flag not in SED_ALLOWED_FLAGS:
+                return False
+
+    return True
+
+
+def validate_sed_expression(expr: str) -> Tuple[bool, str]:
+    """
+    验证 sed 表达式是否安全。
+
+    对应 Claude Code 的 sedValidation.js。
+    只允许打印(p)、替换(s)、删除(d)等，禁止执行命令(e)。
+    """
+    expr_stripped = expr.strip()
+
+    # 检查是否包含危险模式
+    for dangerous in SED_DANGEROUS_PATTERNS:
+        # e 命令（执行）绝对禁止
+        if expr_stripped == "e" or expr_stripped.startswith("e "):
+            return False, "sed: 禁止执行命令模式"
+
+        # w 命令（写入）需要检查目标路径
+        if expr_stripped.startswith("w "):
+            return False, "sed: 禁止直接写入文件，请使用重定向"
+
+        # r 命令（读取）需要检查源路径
+        if expr_stripped.startswith("r "):
+            return False, "sed: 禁止直接读取文件"
+
+    # 检查允许的模式
+    first_char = expr_stripped[0] if expr_stripped else ""
+    if first_char not in SED_ALLOWED_PATTERNS:
+        return False, f"sed: 不允许的表达式首字符: {first_char}"
+
+    return True, ""
+
+
+def check_sed_command(command: str) -> Tuple[bool, str]:
+    """
+    检查 sed 命令是否安全。
+
+    对应 Claude Code 的 checkSedConstraints()。
+    验证：
+    1. flags 是否安全
+    2. 表达式是否安全
+    3. 禁止 -e 执行命令
+    """
+    # 简单的 sed 命令解析
+    import shlex
+    try:
+        tokens = shlex.split(command)
+    except ValueError:
+        return False, "sed: 无法解析命令"
+
+    if not tokens or tokens[0] != "sed":
+        return True, ""  # 不是 sed 命令
+
+    # 提取 flags 和表达式
+    flags = []
+    expressions = []
+    files = []
+    i = 1
+    while i < len(tokens):
+        token = tokens[i]
+        if token.startswith("-"):
+            flags.append(token)
+        elif not token.startswith("/") and "=" in token:
+            # 可能是 -e "expression"
+            pass
+        elif token.startswith("'"):
+            # 表达式
+            expressions.append(token.strip("'\""))
+        elif token.startswith('"'):
+            expressions.append(token.strip("'\""))
+        else:
+            # 文件参数
+            files.append(token)
+        i += 1
+
+    # 验证 flags
+    if not validate_sed_flags(flags):
+        return False, "sed: 包含不允许的flag"
+
+    # 验证表达式
+    for expr in expressions:
+        safe, msg = validate_sed_expression(expr)
+        if not safe:
+            return False, msg
+
+    # 禁止 -e 执行命令
+    if "-e" in flags or "--expression" in flags:
+        # 检查 -e 的参数是否是命令执行
+        for i, flag in enumerate(flags):
+            if flag in ("-e", "--expression") and i + 1 < len(tokens):
+                expr = tokens[i + 1]
+                if expr.startswith("e ") or expr == "e":
+                    return False, "sed: 禁止使用 e 命令执行shell"
+
+    return True, ""
