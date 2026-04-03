@@ -50,6 +50,7 @@
 | 27 | 代理客户端 | `upstreamproxy.ts` | proxy.py | ✅ |
 | 28 | 事件分析 | `src/services/analytics/index.ts` | analytics.py | ✅ |
 | 29 | 错误处理 | `src/utils/errors.ts` | errors.py | ✅ |
+| 30 | 事件信号 | `src/utils/signal.ts` | signal.py | ✅ |
 
 ## 更新规则
 每次学习完一个模块，在此文件更新"当前模块"为下一个
