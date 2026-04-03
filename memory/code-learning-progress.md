@@ -19,18 +19,17 @@
 | 12 | 状态管理 | `src/state/AppState.tsx` | ✅ 已完成 |
 
 ## 当前进度
-- 当前模块：第2轮深化中
+- 当前模块：第2轮全部完成 🎉
 - 已完成第1轮：1,2,3,4,5,6,7,8,9,10,11,12
-- 第2轮已完成（17:04-17:22）：
+- 第2轮已完成（17:04-18:05）：
   - ✅ skill_system + mcp_client 深度集成
   - ✅ SkillExecutorV2 (MiniMax API调用)
   - ✅ state_manager + Star Office AI工作室状态同步
   - ✅ /api/agent_status HTTP接口（GET/POST）
   - ✅ 盘中监控cron状态推送（researching/executing/idle）
-- 第2轮待完成：
-  - ⬜ agent_tool execute_agent() 接真实AI模型
-  - ⬜ bashPermissions pathValidation/sedValidation深化
-  - ⬜ AgentTool流式输出
+  - ✅ agent_tool call_agent() 接真实MiniMax API
+  - ✅ security.py 路径验证+Sed验证深化
+  - ✅ agent_tool stream_agent() 流式输出
 
 ## 更新规则
 每次学习完一个模块，在此文件更新"当前模块"为下一个
