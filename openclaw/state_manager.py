@@ -60,6 +60,10 @@ class AppState:
     status_text: str = ""
     expanded_view: str = "none"  # none / tasks / teammates
 
+    # Agent 状态（AI 工作室 6 状态）
+    agent_status: str = "idle"       # researching/writing/executing/syncing/idle/error
+    agent_status_detail: str = ""     # 状态描述
+
     # 设置相关
     settings: Dict[str, Any] = field(default_factory=dict)
 
@@ -89,6 +93,8 @@ class AppState:
             "model": self.model,
             "status_text": self.status_text,
             "expanded_view": self.expanded_view,
+            "agent_status": self.agent_status,
+            "agent_status_detail": self.agent_status_detail,
             "settings": copy.deepcopy(self.settings),
             "tasks": copy.deepcopy(self.tasks),
             "active_task_id": self.active_task_id,
@@ -543,3 +549,135 @@ def get_status_text() -> str:
 def set_status_text(text: str) -> None:
     """设置状态文本"""
     get_global_store().set_state({"status_text": text})
+
+# ============================================================================
+# Star Office AI 工作室 状态同步（第2轮深化）
+# ============================================================================
+
+VALID_AGENT_STATES = {
+    "idle", "writing", "receiving", "replying",
+    "researching", "executing", "syncing", "error"
+}
+
+
+def set_agent_status(state: str, detail: str = "") -> None:
+    """
+    设置 Agent 状态（同步到 Star Office AI 工作室）。
+
+    对应 AGENTS.md 中的 6 状态规范：
+    - researching: 搜索/分析中
+    - writing: 执行任务中
+    - executing: 交易操作中
+    - syncing: 数据同步中
+    - idle: 待命中
+    - error: 异常/出错
+
+    同时更新 state_manager 全局状态 + Star Office UI。
+
+    Args:
+        state: 状态名（必须是 VALID_AGENT_STATES 之一）
+        detail: 状态描述
+    """
+    if state not in VALID_AGENT_STATES:
+        state = "idle"
+
+    # 更新全局状态
+    get_global_store().set_state({
+        "agent_status": state,
+        "agent_status_detail": detail,
+        "status_text": detail,
+    })
+
+    # 同步到 Star Office UI
+    _sync_to_star_office(state, detail)
+
+
+def _sync_to_star_office(state: str, detail: str) -> None:
+    """
+    内部函数：将状态同步到 Star Office AI 工作室。
+
+    通过调用 set_state.py 实现。
+    """
+    import os
+    import json
+    import subprocess
+    from datetime import datetime
+
+    star_office_script = os.environ.get(
+        "STAR_OFFICE_SET_STATE",
+        "/root/Star-Office-UI/set_state.py"
+    )
+
+    if not os.path.exists(star_office_script):
+        return
+
+    try:
+        # 直接写 state.json（更可靠）
+        state_file = os.environ.get(
+            "STAR_OFFICE_STATE_FILE",
+            "/root/Star-Office-UI/state.json"
+        )
+        agents_file = "/root/Star-Office-UI/agents-state.json"
+
+        now = datetime.now().isoformat()
+
+        # 更新主状态
+        main_state = {
+            "state": state,
+            "detail": detail,
+            "progress": 0,
+            "updated_at": now
+        }
+        with open(state_file, "w", encoding="utf-8") as f:
+            json.dump(main_state, f, ensure_ascii=False, indent=2)
+
+        # 更新 agents-state.json 中的 dandan
+        if os.path.exists(agents_file):
+            try:
+                with open(agents_file, "r", encoding="utf-8") as f:
+                    agents = json.load(f)
+                for agent in agents:
+                    if agent.get("agentId") == "dandan":
+                        agent["state"] = state
+                        agent["detail"] = detail
+                        agent["updated_at"] = now
+                        agent["lastPushAt"] = now
+                with open(agents_file, "w", encoding="utf-8") as f:
+                    json.dump(agents, f, ensure_ascii=False, indent=2)
+            except (json.JSONDecodeError, KeyError, OSError):
+                pass
+
+    except Exception as e:
+        # 静默失败，不阻塞主流程
+        pass
+
+
+def get_agent_status() -> tuple[str, str]:
+    """获取当前 Agent 状态 (state, detail)"""
+    store = get_global_store()
+    state = store.get_state_field("agent_status") or "idle"
+    detail = store.get_state_field("agent_status_detail") or ""
+    return (state, detail)
+
+
+# 全局状态变化时自动同步到 Star Office
+def _setup_star_office_sync():
+    """设置状态变化自动同步（仅执行一次）"""
+    store = get_global_store()
+    _sync_enabled = True
+
+    def _on_any_change(event: "StateChangeEvent"):
+        if not _sync_enabled:
+            return
+        state = event.new_value.agent_status if hasattr(event.new_value, 'agent_status') else None
+        detail = event.new_value.agent_status_detail if hasattr(event.new_value, 'agent_status_detail') else ""
+        if state and state not in (None, "idle", ""):
+            _sync_to_star_office(state, detail or "")
+
+    store.subscribe_all(_on_any_change)
+
+# 在模块加载时自动设置（带检查确保只执行一次）
+if not hasattr(get_global_store(), '_star_office_sync_configured'):
+    _setup_star_office_sync()
+    # 标记已配置
+    get_global_store().__dict__['_star_office_sync_configured'] = True
