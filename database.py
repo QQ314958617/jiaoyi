@@ -171,12 +171,16 @@ def delete_position(stock_code):
 
 def add_trade(action, stock_code, stock_name, price, shares, amount, commission=0, profit=0, reason=''):
     """添加交易记录"""
+    from datetime import timezone, timedelta
+    bj_tz = timezone(timedelta(hours=8))
+    bj_time = datetime.now(bj_tz).strftime('%Y-%m-%d %H:%M:%S')
+    
     with get_connection() as conn:
         c = conn.cursor()
         c.execute('''
-            INSERT INTO trades (action, stock_code, stock_name, price, shares, amount, commission, profit, reason)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ''', (action, stock_code, stock_name, price, shares, amount, commission, profit, reason))
+            INSERT INTO trades (action, stock_code, stock_name, price, shares, amount, commission, profit, reason, timestamp)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (action, stock_code, stock_name, price, shares, amount, commission, profit, reason, bj_time))
         conn.commit()
         return c.lastrowid
 
@@ -191,12 +195,17 @@ def get_trades(limit=100):
 
 def add_review(date, content, strategies='', profit=0, tags=''):
     """添加复盘"""
+    # 使用北京时间（SQLite的CURRENT_TIMESTAMP是UTC，需要显式传入）
+    from datetime import timezone, timedelta
+    bj_tz = timezone(timedelta(hours=8))
+    bj_time = datetime.now(bj_tz).strftime('%Y-%m-%d %H:%M:%S')
+    
     with get_connection() as conn:
         c = conn.cursor()
         c.execute('''
-            INSERT INTO daily_reviews (date, content, strategies, profit, tags)
-            VALUES (?, ?, ?, ?, ?)
-        ''', (date, content, strategies, profit, tags))
+            INSERT INTO daily_reviews (date, content, strategies, profit, tags, timestamp)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ''', (date, content, strategies, profit, tags, bj_time))
         conn.commit()
         return c.lastrowid
 
@@ -220,12 +229,16 @@ def get_reviews_paged(offset=0, limit=10):
 
 def add_equity_record(date, total_value, cash, position_value):
     """记录净值"""
+    from datetime import timezone, timedelta
+    bj_tz = timezone(timedelta(hours=8))
+    bj_time = datetime.now(bj_tz).strftime('%Y-%m-%d %H:%M:%S')
+    
     with get_connection() as conn:
         c = conn.cursor()
         c.execute('''
-            INSERT INTO equity_curve (date, total_value, cash, position_value)
-            VALUES (?, ?, ?, ?)
-        ''', (date, total_value, cash, position_value))
+            INSERT INTO equity_curve (date, total_value, cash, position_value, timestamp)
+            VALUES (?, ?, ?, ?, ?)
+        ''', (date, total_value, cash, position_value, bj_time))
         conn.commit()
 
 def get_equity_curve(days=30):
