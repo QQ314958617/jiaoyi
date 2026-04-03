@@ -638,8 +638,26 @@ async def _call_minimax_chat(
             method="POST"
         )
 
+        start_time = time.time()
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             result = json.loads(resp.read().decode("utf-8"))
+        duration_ms = int((time.time() - start_time) * 1000)
+
+        # 追踪成本
+        try:
+            from openclaw.cost_tracker import record_api_call
+            usage = result.get("usage", {})
+            input_tokens = usage.get("prompt_tokens", 0) or usage.get("input_tokens", len(str(messages)) * 4)  # 估算
+            output_tokens = usage.get("completion_tokens", 0) or usage.get("output_tokens", 0)
+            record_api_call(
+                model=model if model != "MiniMax-Text-01" else "abab6.5s-chat",
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+                duration_ms=duration_ms,
+                success=True,
+            )
+        except Exception:
+            pass  # 成本追踪失败不影响主流程
 
         # 标准化返回格式
         reply = result.get("reply", "")

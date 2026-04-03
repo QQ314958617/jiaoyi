@@ -730,6 +730,53 @@ def agent_status_route():
         return jsonify({'error': str(e)}), 500
 
 
+# ==================== 成本追踪路由 ====================
+
+@app.route('/api/cost', methods=['GET'])
+def cost_route():
+    """
+    获取成本报表。
+    GET /api/cost?format=summary|detail|recent
+    """
+    fmt = request.args.get('format', 'summary')
+
+    from openclaw.cost_tracker import (
+        get_cost_state, format_total_cost, get_cost_summary,
+        get_recent_calls, get_model_usage, format_cost, format_tokens
+    )
+
+    state = get_cost_state()
+
+    if fmt == 'detail':
+        return jsonify(state.to_dict())
+    elif fmt == 'recent':
+        return jsonify({"calls": get_recent_calls(20)})
+    elif fmt == 'model':
+        return jsonify(get_model_usage())
+    else:
+        # summary
+        return jsonify({
+            "summary": get_cost_summary(),
+            "total_cost_usd": round(state.total_cost_usd, 6),
+            "total_api_calls": state.total_api_calls,
+            "total_duration_ms": state.total_duration_ms,
+            "input_tokens": state.total_input_tokens,
+            "output_tokens": state.total_output_tokens,
+            "cache_read_tokens": state.total_cache_read_tokens,
+            "cache_write_tokens": state.total_cache_write_tokens,
+            "model_usage": get_model_usage(),
+        })
+
+
+@app.route('/api/cost/reset', methods=['POST'])
+def cost_reset_route():
+    """重置成本计数器"""
+    from openclaw.cost_tracker import reset_cost_state, save_cost_state
+    reset_cost_state()
+    save_cost_state()
+    return jsonify({"ok": True, "message": "成本计数器已重置"})
+
+
 if __name__ == '__main__':
     db.init_database()
     app.run(host='0.0.0.0', port=80, debug=False, threaded=True)
