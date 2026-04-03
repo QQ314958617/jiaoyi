@@ -76,6 +76,7 @@
 | 53 | XDG目录 | `src/utils/xdg.ts` | xdg.py | ✅ |
 | 54 | 随机单词 | `src/utils/words.ts` | words.py | ✅ |
 | 55 | 哈希工具 | `src/utils/hash.ts` | hash_utils.py | ✅ |
+| 56 | HTTP工具 | `src/utils/http.ts` | http_utils.py | ✅ |
 
 ## 更新规则
 每次学习完一个模块，在此文件更新"当前模块"为下一个
