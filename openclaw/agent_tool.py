@@ -706,6 +706,176 @@ async def call_agent(
 
 
 # ============================================================================
+# 流式Agent执行（第2轮深化）
+# ============================================================================
+
+from dataclasses import dataclass
+from typing import AsyncIterator, Optional, Dict, Any, List, Callable
+import json
+
+
+@dataclass
+class AgentStreamEvent:
+    """
+    Agent流式事件。
+
+    对应 Claude Code 的 Message 类型。
+    """
+    type: str  # "message" / "tool_use" / "tool_result" / "complete" / "error"
+    content: str = ""
+    tool_name: str = ""
+    tool_args: Optional[Dict] = None
+    tool_result: Any = None
+    model: str = ""
+    done: bool = False
+    metadata: Dict[str, Any] = field(default_factory=dict)
+
+
+async def stream_agent(
+    agent_type: str,
+    prompt: str,
+    tools: List[str],
+    agent_def: AgentDefinition,
+    on_progress: Optional[Callable[[AgentStreamEvent], None]] = None,
+    abort_event: Optional[threading.Event] = None,
+) -> AsyncIterator[AgentStreamEvent]:
+    """
+    流式执行Agent。
+
+    对应 Claude Code 的 runAgent() AsyncGenerator<Message>。
+
+    使用方式：
+        async for event in stream_agent(...):
+            if event.type == "message":
+                print(event.content, end="", flush=True)
+            elif event.type == "tool_use":
+                print(f"\\n[Calling {event.tool_name}]")
+
+    Yields:
+        AgentStreamEvent - 流式事件序列
+    """
+    from openclaw.hooks import trigger_trade
+
+    # 1. 触发开始事件
+    yield AgentStreamEvent(
+        type="message",
+        content=f"[Agent {agent_type} 开始执行...]",
+        metadata={"phase": "start", "agent_type": agent_type}
+    )
+
+    # 2. 获取系统提示词
+    system_prompt = ""
+    if agent_def.get_system_prompt:
+        ctx = AgentToolContext(
+            task_id="",
+            agent_type=agent_type,
+            tools=tools,
+            permission_mode=agent_def.permission_mode
+        )
+        system_prompt = agent_def.get_system_prompt(ctx)
+
+    # 3. 触发交易钩子
+    trigger_trade(
+        action="agent_start",
+        stock_code="",
+        shares=0,
+        result={"agent_type": agent_type, "prompt": prompt}
+    )
+
+    # 4. 构建消息
+    messages = []
+    if system_prompt:
+        messages.append({"role": "system", "content": system_prompt})
+    messages.append({"role": "user", "content": prompt})
+
+    # 5. 调用模型（分块yield）
+    result = await _call_minimax_chat(
+        messages=messages,
+        model=agent_def.model or "MiniMax-Text-01",
+        max_tokens=4096,
+        temperature=0.7,
+    )
+
+    if "error" in result:
+        yield AgentStreamEvent(
+            type="error",
+            content=f"[Agent调用失败] {result['error']}",
+            metadata={"phase": "error", "error": result["error"]}
+        )
+        return
+
+    # 6. 解析响应
+    choices = result.get("choices", [])
+    if not choices:
+        yield AgentStreamEvent(
+            type="complete",
+            content="[Agent响应为空]",
+            done=True,
+        )
+        return
+
+    message = choices[0].get("message", {})
+    content = message.get("content", "")
+    tool_calls = message.get("tool_calls", [])
+
+    # 7. 先yield内容
+    if content:
+        yield AgentStreamEvent(
+            type="message",
+            content=content,
+            model=result.get("model", ""),
+        )
+
+    # 8. 然后yield tool_calls（如果有）
+    for tc in tool_calls:
+        func = tc.get("function", {})
+        tool_name = func.get("name", "")
+        tool_args = func.get("arguments", {})
+
+        # 解析 arguments（可能是 JSON string）
+        if isinstance(tool_args, str):
+            try:
+                tool_args = json.loads(tool_args)
+            except json.JSONDecodeError:
+                tool_args = {"raw": tool_args}
+
+        yield AgentStreamEvent(
+            type="tool_use",
+            content=f"[调用工具: {tool_name}]",
+            tool_name=tool_name,
+            tool_args=tool_args,
+        )
+
+        # 触发 tool_use 回调
+        if on_progress:
+            on_progress(AgentStreamEvent(
+                type="tool_use",
+                tool_name=tool_name,
+                tool_args=tool_args,
+            ))
+
+        # TODO: 实际执行工具并yield结果
+        # 这里需要集成 ToolRegistry 来真正执行工具
+        yield AgentStreamEvent(
+            type="tool_result",
+            tool_name=tool_name,
+            tool_result={"status": "pending", "note": "工具执行需要集成ToolRegistry"},
+        )
+
+    # 9. 完成
+    yield AgentStreamEvent(
+        type="complete",
+        content=content,
+        done=True,
+        metadata={
+            "tool_uses": len(tool_calls),
+            "model": result.get("model", ""),
+            "usage": result.get("usage", {}),
+        }
+    )
+
+
+# ============================================================================
 # AgentTool
 # ============================================================================
 
