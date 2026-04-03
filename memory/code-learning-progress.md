@@ -53,6 +53,7 @@
 | 30 | 事件信号 | `src/utils/signal.ts` | signal.py | ✅ |
 | 31 | 任务队列 | `src/utils/sdkEventQueue.ts` | task_queue.py | ✅ |
 | 32 | 缓存系统 | `src/utils/fileReadCache.ts` | cache.py | ✅ |
+| 33 | 文件锁 | `src/utils/lockfile.ts` | lockfile.py | ✅ |
 
 ## 更新规则
 每次学习完一个模块，在此文件更新"当前模块"为下一个
