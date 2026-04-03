@@ -11,7 +11,7 @@
 | 4 | 工具注册表 | `src/tools.ts` | ✅ 已完成 |
 | 5 | Agent上下文隔离 | `src/utils/agentContext.ts` | ✅ 已完成 |
 | 6 | AgentTool嵌套 | `src/tools/AgentTool/AgentTool.tsx` | ✅ 已完成 |
-| 7 | Bash权限分类器 | `src/tools/BashTool/bashPermissions.ts` | ⬜ 待学 |
+| 7 | Bash权限分类器 | `src/tools/BashTool/bashPermissions.ts` | ✅ 已完成 |
 | 8 | Hooks系统 | `src/utils/hooks.ts` | ✅ 已完成 |
 | 9 | SkillTool | `src/tools/SkillTool/SkillTool.ts` | ⬜ 待学 |
 | 10 | MCP系统 | `src/services/mcp/client.ts` | ⬜ 待学 |
@@ -19,9 +19,9 @@
 | 12 | 状态管理 | `src/state/AppState.tsx` | ⬜ 待学 |
 
 ## 当前进度
-- 当前模块：#7 Bash权限分类器 (bashPermissions.ts)
-- 已完成：1,2,3,4,5,6,8
-- 待完成：7,9,10,11,12
+- 当前模块：#9 SkillTool (SkillTool.ts)
+- 已完成：1,2,3,4,5,6,7,8
+- 待完成：9,10,11,12
 - 循环：学完#12后从头开始
 
 ## 更新规则

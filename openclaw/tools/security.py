@@ -483,3 +483,370 @@ def safe_exec(
             exit_code=-1,
             execution_time_ms=(time.time() - start) * 1000,
         )
+
+
+# ============================================================================
+# Claude Code bashPermissions.ts 设计补充
+# ============================================================================
+# 以下代码灵感来自 Claude Code 的 bashPermissions.ts (2621行)
+# 核心改进：完整的 SAFE_ENV_VARS 白名单、Wrapper 剥离、命令前缀提取
+# ============================================================================
+
+# -----------------------------------------------------------------------------
+# SAFE_ENV_VARS - 可安全剥离的环境变量白名单
+# -----------------------------------------------------------------------------
+# 来自 Claude Code 的 SAFE_ENV_VARS 设计
+# 安全原则：这些变量不能执行代码或加载库
+
+SAFE_ENV_VARS: Set[str] = {
+    # Go - build/runtime settings only
+    "GOEXPERIMENT", "GOOS", "GOARCH", "CGO_ENABLED", "GO111MODULE",
+
+    # Rust - logging/debugging only
+    "RUST_BACKTRACE", "RUST_LOG",
+
+    # Node - environment name only (not NODE_OPTIONS!)
+    "NODE_ENV",
+
+    # Python - behavior flags only (not PYTHONPATH!)
+    "PYTHONDONTWRITEBYTECODE", "PYTHONUNBUFFERED",
+
+    # Pytest - test configuration
+    "PYTEST_DISABLE_PLUGIN_AUTOLOAD", "PYTEST_DEBUG",
+
+    # API keys and authentication
+    "ANTHROPIC_API_KEY",
+
+    # Locale and character encoding
+    "LANG", "LANGUAGE", "LC_ALL", "LC_CTYPE", "LC_TIME", "CHARSET",
+
+    # Terminal and display
+    "TERM", "COLORTERM", "NO_COLOR", "FORCE_COLOR", "TZ",
+
+    # Color configuration
+    "LS_COLORS", "LSCOLORS", "GREP_COLOR", "GREP_COLORS", "GCC_COLORS",
+
+    # Display formatting
+    "TIME_STYLE", "BLOCK_SIZE", "BLOCKSIZE",
+}
+
+# 命令前缀提取的正则
+ENV_VAR_ASSIGN_RE = re.compile(r"^[A-Za-z_]\w*=")
+SUBCOMMAND_RE = re.compile(r"^[a-z][a-z0-9]*(-[a-z0-9]+)*$")
+
+# 裸 Shell 前缀（不能单独作为前缀建议）
+BARE_SHELL_PREFIXES: Set[str] = {
+    "sh", "bash", "zsh", "fish", "csh", "tcsh", "ksh", "dash",
+    "cmd", "powershell", "pwsh",
+    "env", "xargs",
+    "nice", "stdbuf", "nohup", "timeout", "time",
+    "sudo", "doas", "pkexec",
+}
+
+
+def get_simple_command_prefix(command: str) -> Optional[str]:
+    """
+    提取命令前缀（命令 + 子命令）。
+
+    对应 Claude Code 的 getSimpleCommandPrefix。
+    例如：
+        'git commit -m "fix"' → 'git commit'
+        'ls -la' → None (flag, not subcommand)
+        'python3 script.py' → None (filename, not subcommand)
+
+    Returns:
+        命令前缀字符串，或 None
+    """
+    import shlex
+    try:
+        tokens = shlex.split(command.strip())
+    except ValueError:
+        return None
+
+    if not tokens:
+        return None
+
+    # 跳过环境变量赋值
+    i = 0
+    while i < len(tokens) and ENV_VAR_ASSIGN_RE.match(tokens[i]):
+        i += 1
+
+    remaining = tokens[i:]
+    if len(remaining) < 2:
+        return None
+
+    # 第二个 token 必须是子命令（不是 flag/文件名/路径/数字）
+    subcmd = remaining[1]
+    if not SUBCOMMAND_RE.match(subcmd):
+        return None
+
+    return f"{remaining[0]} {subcmd}"
+
+
+def get_first_word_prefix(command: str) -> Optional[str]:
+    """
+    回退方案：提取第一个单词作为前缀。
+
+    对应 Claude Code 的 getFirstWordPrefix。
+    例如：'python3 script.py' → 'python3'
+    """
+    import shlex
+    try:
+        tokens = shlex.split(command.strip())
+    except ValueError:
+        return None
+
+    if not tokens:
+        return None
+
+    # 跳过环境变量赋值
+    i = 0
+    while i < len(tokens) and ENV_VAR_ASSIGN_RE.match(tokens[i]):
+        i += 1
+
+    if i >= len(tokens):
+        return None
+
+    cmd = tokens[i]
+    # 不能是裸 shell 前缀
+    if cmd in BARE_SHELL_PREFIXES or not SUBCOMMAND_RE.match(cmd):
+        return None
+
+    return cmd
+
+
+def strip_safe_wrappers(command: str) -> str:
+    """
+    剥离安全的命令包装器。
+
+    对应 Claude Code 的 stripSafeWrappers。
+    剥离：timeout, time, nice, stdbuf, nohup 等包装命令。
+    这些包装器本身是安全的，只是执行其参数。
+    """
+    stripped = command.strip()
+
+    # timeout 剥离
+    # 例如: timeout 30s python3 script.py
+    timeout_pattern = re.compile(
+        r"^timeout(?:\s+--?\w+(?:=\S+|\s+\S+)?)*\s+\d+(?:\.\d+)?[smhd]?\s+"
+    )
+    stripped = timeout_pattern.sub("", stripped)
+
+    # time 剥离
+    time_pattern = re.compile(r"^time\s+")
+    stripped = time_pattern.sub("", stripped)
+
+    # nice 剥离
+    # 例如: nice -n 10 python3 script.py
+    nice_pattern = re.compile(r"^nice(?:\s+-n\s+\d+|\s+-\d+)?\s+")
+    stripped = nice_pattern.sub("", stripped)
+
+    # stdbuf 剥离
+    # 例如: stdbuf -o0 python3 script.py
+    stdbuf_pattern = re.compile(r"^stdbuf(?:\s+-[ioe][LN0-9]+)+\s+")
+    stripped = stdbuf_pattern.sub("", stripped)
+
+    # nohup 剥离
+    nohup_pattern = re.compile(r"^nohup\s+")
+    stripped = nohup_pattern.sub("", stripped)
+
+    return stripped
+
+
+def strip_all_leading_env_vars(command: str) -> str:
+    """
+    剥离命令开头的环境变量赋值。
+
+    对应 Claude Code 的 stripAllLeadingEnvVars。
+    例如: 'NODE_ENV=prod npm run build' → 'npm run build'
+    """
+    import shlex
+    try:
+        tokens = shlex.split(command.strip())
+    except ValueError:
+        return command
+
+    if not tokens:
+        return command
+
+    result = []
+    i = 0
+    for i, token in enumerate(tokens):
+        if ENV_VAR_ASSIGN_RE.match(token):
+            var_name = token.split("=")[0]
+            if var_name in SAFE_ENV_VARS:
+                continue  # 剥离这个 token
+        result.append(token)
+
+    return " ".join(result)
+
+
+def normalize_command(command: str) -> str:
+    """
+    标准化命令：剥离注释、空格、环境变量、包装器。
+
+    对应 Claude Code 的完整命令标准化流程。
+    """
+    import shlex
+    # 去除注释
+    lines = command.split("\n")
+    non_comment = [
+        line for line in lines
+        if line.strip() and not line.strip().startswith("#")
+    ]
+    command = "\n".join(non_comment)
+
+    # 剥离环境变量
+    command = strip_all_leading_env_vars(command)
+
+    # 剥离包装器
+    command = strip_safe_wrappers(command)
+
+    return command.strip()
+
+
+def suggest_permission_rule(command: str) -> str:
+    """
+    为命令生成权限规则建议。
+
+    对应 Claude Code 的 suggestionForExactCommand/suggestionForPrefix。
+    返回：精确匹配规则 或 前缀匹配规则。
+    """
+    # 标准化命令
+    normalized = normalize_command(command)
+
+    # 尝试提取命令前缀
+    prefix = get_simple_command_prefix(normalized)
+    if prefix:
+        return f"Bash({prefix}:*)"
+
+    # 回退到第一单词
+    first_word = get_first_word_prefix(normalized)
+    if first_word:
+        return f"Bash({first_word}:*)"
+
+    # 最末回退：精确匹配
+    return f"Bash({normalized}:*)"
+
+
+# -----------------------------------------------------------------------------
+# 命令语义检查（增强版）
+# -----------------------------------------------------------------------------
+# 危险命令的语义检查，不仅仅依赖模式匹配
+
+DANGEROUS_COMMANDS: Set[str] = {
+    # 文件删除/格式化
+    "rm", "del", "rmdir", "mkfs", "fdisk", "dd",
+    # 网络后门
+    "nc", "ncat", "netcat", "socat",
+    # 权限修改
+    "chmod", "chown", "chgrp",
+    # 系统修改
+    "sysctl", "mount", "umount", "modprobe", "insmod",
+    # 进程终止
+    "kill", "killall", "pkill",
+    # 下载执行
+    "curl|sh", "wget|sh", "bash -c", "sh -c",
+}
+
+
+def check_command_semantics(command: str) -> Tuple[bool, str]:
+    """
+    检查命令语义层面的安全性。
+
+    对应 Claude Code 的 checkSemanticsDeny。
+    比正则更深入地检查命令的实际意图。
+    """
+    import shlex
+    normalized = normalize_command(command)
+
+    try:
+        tokens = shlex.split(normalized)
+    except ValueError:
+        return True, ""  # 无法解析，跳过
+
+    if not tokens:
+        return True, ""
+
+    base_cmd = tokens[0]
+
+    # 危险命令黑名单
+    if base_cmd in {
+        "rm", "del", "rmdir",
+        "mkfs", "fdisk", "dd",
+        "chmod", "chown", "chgrp",
+        "mount", "umount",
+        "sysctl", "modprobe", "insmod",
+        "kill", "killall", "pkill",
+    }:
+        return False, f"危险命令: {base_cmd}"
+
+    # 管道危险组合
+    if "|" in command or "&&" in command:
+        # curl|sh, wget|sh 等下载执行模式
+        dangerous_combo = any(
+            combo in command.lower()
+            for combo in ["curl|sh", "wget|sh", "bash -c", "sh -c", "|sh", "| bash"]
+        )
+        if dangerous_combo:
+            return False, "危险的管道命令组合"
+
+    # eval / source with variable
+    if base_cmd in {"eval", "source"}:
+        return False, f"潜在危险的命令: {base_cmd}"
+
+    return True, ""
+
+
+# -----------------------------------------------------------------------------
+# 路径约束（增强版）
+# -----------------------------------------------------------------------------
+
+def check_path_constraints(
+    command: str,
+    constraint: Optional[PathConstraint] = None
+) -> Tuple[bool, str]:
+    """
+    检查命令的路径约束（增强版）。
+
+    基于 Claude Code 的 checkPathConstraints。
+    包含更完善的路径遍历检测。
+    """
+    import shlex
+
+    if constraint is None:
+        constraint = DEFAULT_PATH_CONSTRAINT
+
+    try:
+        tokens = shlex.split(command)
+    except ValueError:
+        return True, ""
+
+    for token in tokens:
+        # 跳过选项和 URL
+        if token.startswith("-") or "://" in token:
+            continue
+        # 跳过常见系统路径
+        if token.startswith("/bin/") or token.startswith("/usr/bin/"):
+            continue
+        # 跳过环境变量
+        if "=" in token and not token.startswith("-"):
+            continue
+
+        # 清理可能的引号
+        clean = token.strip("'\"")
+
+        # 检查路径
+        if clean.startswith("/") and not constraint.is_allowed(clean):
+            return False, f"路径不在允许范围内: {clean}"
+
+        # 检查 cd .. 逃逸
+        if "cd .." in command or command.startswith("cd .."):
+            # 检查 cd 目标
+            for i, t in enumerate(tokens):
+                if t == "cd" and i + 1 < len(tokens):
+                    target = tokens[i + 1]
+                    if not constraint.is_allowed(target):
+                        return False, f"cd 目标不允许: {target}"
+
+    return True, ""
