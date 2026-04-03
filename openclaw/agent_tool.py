@@ -1281,3 +1281,125 @@ def spawn_agent(
         return AgentToolOutput(**result.data)
     else:
         raise Exception(result.error)
+
+
+# ============================================================================
+# Async Stream（第15个模块 - streaming utility）
+# ============================================================================
+
+import asyncio
+from typing import AsyncIterator, AsyncIterable, TypeVar, Optional, Callable, Awaitable
+
+T = TypeVar("T")
+
+
+class Stream(AsyncIterator[T]):
+    """
+    Async 流式迭代器。
+
+    对应 Claude Code 的 src/utils/stream.ts (76行)。
+    基于 queue + Promise 的 async iterator 实现。
+
+    用法：
+        stream = Stream()
+        async for item in stream:
+            print(item)
+        # 或者
+        async def producer():
+            stream.enqueue(item)
+            stream.done()
+    """
+
+    def __init__(self, on_return: Optional[Callable[[], Awaitable[None]]] = None):
+        self._queue: list[T] = []
+        self._read_resolve: Optional[Callable[[T], None]] = None
+        self._read_reject: Optional[Callable[[Exception], None]] = None
+        self._is_done = False
+        self._has_error: Optional[Exception] = None
+        self._started = False
+        self._on_return = on_return
+
+    def __aiter__(self) -> AsyncIterator[T]:
+        if self._started:
+            raise RuntimeError("Stream can only be iterated once")
+        self._started = True
+        return self
+
+    async def __anext__(self) -> T:
+        if self._queue:
+            return self._queue.pop(0)
+
+        if self._is_done:
+            raise StopAsyncIteration
+
+        if self._has_error:
+            raise self._has_error
+
+        # Wait for enqueue() to be called
+        loop = asyncio.get_event_loop()
+        future = loop.create_future()
+
+        def resolve(value: T):
+            if not future.done():
+                future.set_result(value)
+
+        self._read_resolve = resolve
+        self._read_reject = lambda e: future.set_exception(e) if not future.done() else None
+
+        return await future
+
+    def enqueue(self, value: T) -> None:
+        """加入一个值到流"""
+        if self._read_resolve:
+            resolve = self._read_resolve
+            self._read_resolve = None
+            self._read_reject = None
+            resolve(value)
+        else:
+            self._queue.append(value)
+
+    def done(self) -> None:
+        """标记流结束"""
+        self._is_done = True
+        if self._read_resolve:
+            resolve = self._read_resolve
+            self._read_resolve = None
+            self._read_reject = None
+            resolve(None)  # type: ignore
+
+    def error(self, exc: Exception) -> None:
+        """标记流出错"""
+        self._has_error = exc
+        if self._read_reject:
+            reject = self._read_reject
+            self._read_resolve = None
+            self._read_reject = None
+            reject(exc)
+
+    async def aclose(self) -> None:
+        """异步关闭流"""
+        self._is_done = True
+        if self._on_return:
+            await self._on_return()
+
+
+def stream_from_async_gen(
+    gen: AsyncIterator[T]
+) -> Stream[T]:
+    """
+    将 async generator 转换为 Stream。
+
+    对应 Claude Code 中 runAgent() 的流式输出模式。
+    """
+    stream = Stream[T]()
+
+    async def consume():
+        try:
+            async for item in gen:
+                stream.enqueue(item)
+            stream.done()
+        except Exception as e:
+            stream.error(e)
+
+    asyncio.create_task(consume())
+    return stream

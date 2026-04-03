@@ -28,12 +28,14 @@
   - ✅ 5个交易cron状态推送
 - 第4轮（21:06起）：实用化模块
   - ✅ cost-tracker.ts → cost_tracker.py（成本追踪系统）
+  - ✅ stream.ts → Stream类（async流式迭代器）
 
 ## 新增模块
 | # | 模块 | 源码文件 | 落地 | 状态 |
 |---|------|---------|------|------|
 | 13 | 历史记录系统 | `src/history.ts` | trading_history.py | ✅ |
 | 14 | 成本追踪 | `src/cost-tracker.ts` | cost_tracker.py | ✅ |
+| 15 | Async Stream | `src/utils/stream.ts` | agent_tool.py Stream类 | ✅ |
 
 ## 更新规则
 每次学习完一个模块，在此文件更新"当前模块"为下一个
