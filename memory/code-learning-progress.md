@@ -56,6 +56,7 @@
 | 33 | 文件锁 | `src/utils/lockfile.ts` | lockfile.py | ✅ |
 | 34 | 环境工具 | `src/utils/env.ts` | env.py | ✅ |
 | 35 | ID生成器 | `src/utils/uuid.ts` | id.py | ✅ |
+| 36 | 格式化工具 | `src/utils/format.ts` | format.py | ✅ |
 
 ## 更新规则
 每次学习完一个模块，在此文件更新"当前模块"为下一个
