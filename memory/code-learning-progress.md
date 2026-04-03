@@ -48,6 +48,7 @@
 | 25 | MCP客户端 | `src/services/mcp/client.ts` | mcp_client.py | ✅ |
 | 26 | 异步Stream | `src/utils/stream.ts` | stream.py | ✅ |
 | 27 | 代理客户端 | `upstreamproxy.ts` | proxy.py | ✅ |
+| 28 | 事件分析 | `src/services/analytics/index.ts` | analytics.py | ✅ |
 
 ## 更新规则
 每次学习完一个模块，在此文件更新"当前模块"为下一个
