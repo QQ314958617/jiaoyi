@@ -58,6 +58,7 @@
 | 35 | ID生成器 | `src/utils/uuid.ts` | id.py | ✅ |
 | 36 | 格式化工具 | `src/utils/format.ts` | format.py | ✅ |
 | 37 | 文本截断 | `src/utils/truncate.ts` | truncate.py | ✅ |
+| 38 | JSON处理 | `src/utils/json.ts` | json_utils.py | ✅ |
 
 ## 更新规则
 每次学习完一个模块，在此文件更新"当前模块"为下一个
