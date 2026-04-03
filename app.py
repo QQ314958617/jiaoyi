@@ -674,13 +674,27 @@ def agent_status_route():
     POST: 设置状态 {"state": "researching", "detail": "分析中..."}
     """
     from openclaw.state_manager import (
-        set_agent_status, get_agent_status,
-        VALID_AGENT_STATES, get_global_store
+        set_agent_status, VALID_AGENT_STATES, get_global_store
     )
+    import os
 
     if request.method == 'GET':
-        state, detail = get_agent_status()
-        return jsonify({'state': state, 'detail': detail})
+        # 从 state.json 读取（gunicorn 多 worker 共享文件）
+        state_file = os.environ.get(
+            "STAR_OFFICE_STATE_FILE",
+            "/root/Star-Office-UI/state.json"
+        )
+        try:
+            if os.path.exists(state_file):
+                with open(state_file, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                return jsonify({
+                    "state": data.get("state", "idle"),
+                    "detail": data.get("detail", "")
+                })
+        except (json.JSONDecodeError, OSError):
+            pass
+        return jsonify({"state": "idle", "detail": ""})
 
     # POST: set status
     try:
