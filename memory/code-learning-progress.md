@@ -21,11 +21,12 @@
 ## 当前进度
 - 当前模块：第2轮深化中
 - 已完成第1轮：1,2,3,4,5,6,7,8,9,10,11,12
-- 第2轮已完成：
+- 第2轮已完成（17:04-17:22）：
   - ✅ skill_system + mcp_client 深度集成
   - ✅ SkillExecutorV2 (MiniMax API调用)
   - ✅ state_manager + Star Office AI工作室状态同步
-  - ✅ 盘中监控cron状态推送
+  - ✅ /api/agent_status HTTP接口（GET/POST）
+  - ✅ 盘中监控cron状态推送（researching/executing/idle）
 - 第2轮待完成：
   - ⬜ agent_tool execute_agent() 接真实AI模型
   - ⬜ bashPermissions pathValidation/sedValidation深化
