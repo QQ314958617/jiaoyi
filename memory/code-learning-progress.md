@@ -14,14 +14,14 @@
 | 7 | Bash权限分类器 | `src/tools/BashTool/bashPermissions.ts` | ✅ 已完成 |
 | 8 | Hooks系统 | `src/utils/hooks.ts` | ✅ 已完成 |
 | 9 | SkillTool | `src/tools/SkillTool/SkillTool.ts` | ✅ 已完成 |
-| 10 | MCP系统 | `src/services/mcp/client.ts` | ⬜ 待学 |
+| 10 | MCP系统 | `src/services/mcp/client.ts` | ✅ 已完成 |
 | 11 | 命令注册表 | `src/commands.ts` | ⬜ 待学 |
 | 12 | 状态管理 | `src/state/AppState.tsx` | ⬜ 待学 |
 
 ## 当前进度
-- 当前模块：#10 MCP系统 (client.ts)
-- 已完成：1,2,3,4,5,6,7,8,9
-- 待完成：10,11,12
+- 当前模块：#11 命令注册表 (commands.ts)
+- 已完成：1,2,3,4,5,6,7,8,9,10
+- 待完成：11,12
 - 循环：学完#12后从头开始
 
 ## 更新规则
