@@ -560,6 +560,65 @@ async def run_async_agent_lifecycle(
         }
 
 
+async def _call_minimax_chat(
+    messages: List[Dict[str, str]],
+    model: str = "MiniMax-Text-01",
+    temperature: float = 0.7,
+    max_tokens: int = 4096,
+    tools: Optional[List[Dict[str, Any]]] = None,
+    timeout: int = 60,
+) -> Dict[str, Any]:
+    """
+    调用 MiniMax Chat API。
+
+    对应 Claude Code 中 AI 模型的实际调用。
+    支持 tool use（函数调用）。
+    """
+    import os
+    import json
+    import urllib.request
+    import urllib.error
+
+    api_key = os.environ.get("MINIMAX_API_KEY", "")
+    if not api_key:
+        return {"error": "MINIMAX_API_KEY not set", "choices": []}
+
+    url = "https://api.minimax.chat/v1/text/chatcompletion_pro"
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {api_key}"
+    }
+
+    data = {
+        "model": model,
+        "messages": messages,
+        "max_tokens": max_tokens,
+        "temperature": temperature,
+    }
+
+    if tools:
+        data["tools"] = tools
+
+    try:
+        req = urllib.request.Request(
+            url,
+            data=json.dumps(data).encode("utf-8"),
+            headers=headers,
+            method="POST"
+        )
+
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            result = json.loads(resp.read().decode("utf-8"))
+
+        return result
+
+    except urllib.error.HTTPError as e:
+        error_body = e.read().decode("utf-8") if e.fp else ""
+        return {"error": f"HTTP {e.code}: {error_body}", "choices": []}
+    except Exception as e:
+        return {"error": str(e), "choices": []}
+
+
 async def call_agent(
     agent_type: str,
     prompt: str,
@@ -595,13 +654,53 @@ async def call_agent(
         result={"agent_type": agent_type, "prompt": prompt}
     )
 
-    # TODO: 调用实际的AI模型
-    # 在OpenClaw中，这里会调用 MiniMax API 或其他模型
-    # 目前返回模拟结果
-    await asyncio.sleep(0.1)  # 占位
+    # 构建消息
+    messages = []
+    if system_prompt:
+        messages.append({"role": "system", "content": system_prompt})
+    messages.append({"role": "user", "content": prompt})
+
+    # 调用 MiniMax API
+    result = await _call_minimax_chat(
+        messages=messages,
+        model=agent_def.model or "MiniMax-Text-01",
+        max_tokens=4096,
+        temperature=0.7,
+    )
+
+    if "error" in result:
+        return {
+            "content": f"[Agent调用失败] {result['error']}",
+            "tool_uses": 0,
+            "error": result["error"]
+        }
+
+    # 解析响应
+    choices = result.get("choices", [])
+    if choices:
+        message = choices[0].get("message", {})
+        content = message.get("content", "")
+
+        # 检查是否有 tool_calls
+        tool_calls = message.get("tool_calls", [])
+        if tool_calls:
+            return {
+                "content": content,
+                "tool_uses": len(tool_calls),
+                "tool_calls": tool_calls,
+                "model": result.get("model", ""),
+                "usage": result.get("usage", {}),
+            }
+
+        return {
+            "content": content,
+            "tool_uses": 0,
+            "model": result.get("model", ""),
+            "usage": result.get("usage", {}),
+        }
 
     return {
-        "content": f"[模拟Agent响应] {agent_type}: {prompt[:50]}...",
+        "content": "[Agent响应为空]",
         "tool_uses": 0
     }
 
