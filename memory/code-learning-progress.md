@@ -64,6 +64,7 @@
 | 41 | Cron调度 | `src/utils/cron.ts` | cron.py | ✅ |
 | 42 | 限流器 | rate limiting | rate_limit.py | ✅ |
 | 43 | Abort控制器 | `src/utils/abortController.ts` | abort.py | ✅ |
+| 44 | 睡眠工具 | `src/utils/sleep.ts` | sleep.py | ✅ |
 
 ## 更新规则
 每次学习完一个模块，在此文件更新"当前模块"为下一个
