@@ -62,6 +62,7 @@
 | 39 | 数据验证器 | `src/utils/settings/validation.ts` | validators.py | ✅ |
 | 40 | 异步工具 | async patterns | async_utils.py | ✅ |
 | 41 | Cron调度 | `src/utils/cron.ts` | cron.py | ✅ |
+| 42 | 限流器 | rate limiting | rate_limit.py | ✅ |
 
 ## 更新规则
 每次学习完一个模块，在此文件更新"当前模块"为下一个
