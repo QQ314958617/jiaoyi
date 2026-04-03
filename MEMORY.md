@@ -144,6 +144,47 @@ POST /api/review
 - ✅ 数据获取失败 → 明确告知"查不到"
 - ✅ 数据时效存疑 → 说明"可能不准确"
 
+## 📚 Claude Code 源码学习（2026-04-03）
+
+**源码仓库**: NanmiCoder/cc-haha（完整可运行版本）
+**代码总量**: 1,899 文件 | 1,026,630 行
+
+### 已完成并落地
+
+| 模块 | 文件 | 状态 |
+|------|------|------|
+| Feature Flag 系统 | `openclaw/feature_flags.py` | ✅ |
+| 上下文缓存 | `openclaw/context_cache.py` | ✅ |
+| BaseTool 工具体系 | `openclaw/tools/base.py` | ✅ |
+| 交易工具集 | `openclaw/tools/trade.py` | ✅ |
+| 权限安全 | `openclaw/tools/security.py` | ✅ |
+| Agent 上下文隔离 | `openclaw/agent_context.py` | ✅ |
+| Hooks 系统 | `openclaw/hooks.py` | ✅ |
+| akshare count bug 修复 | `trading/strategies.py` | ✅ |
+
+### 核心设计模式（已掌握）
+
+1. **buildTool 工厂模式** — 工具定义标准化
+2. **AsyncLocalStorage 上下文隔离** — 并发 Agent 不互相干扰
+3. **PermissionRule 规则引擎** — 可配置的权限决策
+4. **memoize 缓存** — 对话期间零重复 I/O
+5. **工具注册表 + Feature Flag** — 按需加载
+
+### 待完成
+- SkillTool 深度集成
+- 命令注册表
+- 状态管理系统
+
+### Claude Code 源码文件清单（已读）
+```
+✅ src/entrypoints/cli.tsx        ✅ src/tools.ts (3500行)
+✅ src/Tool.ts                   ✅ src/context.ts
+✅ src/utils/agentContext.ts     ✅ src/main.tsx (部分)
+✅ src/tools/AgentTool/AgentTool.tsx ✅ src/commands.ts (部分)
+✅ src/tools/BashTool/bashPermissions.ts ✅ src/utils/hooks.ts (部分)
+✅ src/tools/SkillTool/SkillTool.ts
+```
+
 ## 核心授权（2026-04-01）
 **用户明确授权：5万元模拟资金由我自己决定什么时候交易！**
 
