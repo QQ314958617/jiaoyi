@@ -566,6 +566,12 @@ def reset_account():
 def studio_page():
     return render_template('studio.html')
 
+
+@app.route('/trading-card')
+def trading_card_page():
+    """交易状态卡片 HTML 页面"""
+    return render_template('trading_card.html')
+
 @app.route('/studio-ui')
 @app.route('/studio-ui/')
 def studio_ui_index():
