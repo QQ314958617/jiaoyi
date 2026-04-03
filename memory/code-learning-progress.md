@@ -71,6 +71,7 @@
 | 48 | 文件工具 | `src/utils/file.ts` | file_utils.py | ✅ |
 | 49 | 调试工具 | `src/utils/debug.ts` | debug_utils.py | ✅ |
 | 50 | YAML处理 | `src/utils/yaml.ts` | yaml_utils.py | ✅ |
+| 51 | 进程工具 | `src/utils/process.ts` | process_utils.py | ✅ |
 
 ## 更新规则
 每次学习完一个模块，在此文件更新"当前模块"为下一个
