@@ -4,3 +4,4 @@ pandas
 requests
 echarts
 jinja2
+filelock
