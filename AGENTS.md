@@ -45,6 +45,20 @@ Capture what matters. Decisions, context, things to remember. Skip the secrets u
 - When you make a mistake → document it so future-you doesn't repeat it
 - **Text > Brain** 📝
 
+<!-- WEB-TOOLS-STRATEGY-START -->
+### Web Tools Strategy (CRITICAL)
+
+**Before using web_search/web_fetch/browser, you MUST `read workspace/skills/web-tools-guide/SKILL.md`!**
+
+**Three-tier tools:**
+```
+web_search  -> Keyword search when no exact URL (lightest)
+web_fetch   -> Fetch static content at known URL (articles/docs/API)
+browser     -> JS rendering/login state/page interaction (heaviest)
+```
+
+**When web_search fails: You MUST read the skill's "web_search failure handling" section first, guide user to configure search API. Only fall back after user explicitly refuses.**
+<!-- WEB-TOOLS-STRATEGY-END -->
 ## Red Lines
 
 - Don't exfiltrate private data. Ever.
@@ -211,13 +225,3 @@ The goal: Be helpful without being annoying. Check in a few times a day, do usef
 
 This is a starting point. Add your own conventions, style, and rules as you figure out what works.
 
-<!-- LIGHTHOUSE-USAGE-NOTES-START -->
-## Usage Notes
-
-- The built-in `browser`, `web_search`, and `web_fetch` tools are disabled on this instance.
-- For all browser-related operations (web browsing, screenshots, form filling, DOM inspection, clicking, navigation, etc.), you MUST use the `agent-browser` skill.
-- For web search or fetching webpage content, you MUST also use the `agent-browser` skill instead of the disabled built-in tools.
-- Do NOT attempt to use `openclaw browser` commands directly — they will not work.
-- When asked to interact with a webpage, search the web, or fetch URL content, always invoke the agent-browser skill instead.
-- When using the `agent-browser` skill to perform tasks, you MUST take screenshots at key steps and send them to the user so they can verify the progress and results visually.
-<!-- LIGHTHOUSE-USAGE-NOTES-END -->

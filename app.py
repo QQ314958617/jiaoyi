@@ -61,7 +61,8 @@ strategy_mgr = StrategyManager()
 # 简单缓存
 _cache = {
     'market_top': {'data': None, 'time': 0},
-    'quote': {}
+    'quote': {},
+    'index': {'data': None, 'time': 0},
 }
 _CACHE_TTL = 300  # 缓存5分钟
 
@@ -306,6 +307,52 @@ def get_market_top():
         return jsonify(result[:20])
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+@app.route('/api/index')
+def get_index():
+    """获取大盘指数及均线数据"""
+    import pandas as pd
+    
+    # 从缓存获取当日指数数据
+    now = time.time()
+    if _cache['index']['data'] and (now - _cache['index']['time']) < _CACHE_TTL:
+        return jsonify(_cache['index']['data'])
+    
+    try:
+        # 1. 获取实时价格（腾讯API）
+        url = "https://qt.gtimg.cn/q=sh000001"
+        headers = {'User-Agent': 'Mozilla/5.0', 'Referer': 'https://gu.qq.com/'}
+        r = requests.get(url, headers=headers, timeout=5)
+        fields = r.text.split('="')[1].strip('"').split('~')
+        current_price = float(fields[3]) if fields[3] != '-' else 0
+        
+        # 2. 获取历史数据计算MA（akshare）
+        df = ak.stock_zh_index_daily(symbol='sh000001')
+        df = df.tail(15).copy()
+        df['ma5'] = df['close'].rolling(window=5).mean()
+        df['ma10'] = df['close'].rolling(window=10).mean()
+        
+        latest = df.iloc[-1]
+        ma5 = round(latest['ma5'], 2) if pd.notna(latest['ma5']) else 0
+        ma10 = round(latest['ma10'], 2) if pd.notna(latest['ma10']) else 0
+        
+        result = {
+            "code": "000001",
+            "name": "上证指数",
+            "price": current_price,
+            "ma5": ma5,
+            "ma10": ma10,
+            "above_ma5": bool(current_price > ma5) if ma5 > 0 else False,
+            "above_ma10": bool(current_price > ma10) if ma10 > 0 else False,
+            "ma5_above_ma10": bool(ma5 > ma10),  # 多头排列
+            "change_pct": float(fields[32]) if len(fields) > 32 and fields[32] != '-' else 0,
+            "volume": float(fields[37]) if len(fields) > 37 and fields[37] != '-' else 0,
+        }
+        
+        _cache['index'] = {'data': result, 'time': time.time()}
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({"error": f"获取指数数据失败: {str(e)}"}), 500
 
 @app.route('/api/trade', methods=['POST'])
 def execute_trade():

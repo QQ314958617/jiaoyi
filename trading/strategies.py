@@ -159,8 +159,9 @@ class StrategyManager:
         """综合所有策略分析"""
         results = []
         for s in self.strategies:
-            if isinstance(s, GridStrategy) and position:
-                result = s.analyze(stock_code, position)
+            if isinstance(s, GridStrategy):
+                # GridStrategy.analyze() 需要 position 参数，None 时传空字典
+                result = s.analyze(stock_code, position or {})
             else:
                 result = s.analyze(stock_code)
             result['strategy'] = s.name

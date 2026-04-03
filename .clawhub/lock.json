@@ -88,6 +88,10 @@
     "stock-watcher": {
       "version": "1.0.0",
       "installedAt": 1775095142052
+    },
+    "web-tools-guide": {
+      "version": "1.0.0",
+      "installedAt": 1775116456077
     }
   }
 }
