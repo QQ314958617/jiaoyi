@@ -73,6 +73,7 @@
 | 50 | YAML处理 | `src/utils/yaml.ts` | yaml_utils.py | ✅ |
 | 51 | 进程工具 | `src/utils/process.ts` | process_utils.py | ✅ |
 | 52 | 命令查找 | `src/utils/which.ts` | which.py | ✅ |
+| 53 | XDG目录 | `src/utils/xdg.ts` | xdg.py | ✅ |
 
 ## 更新规则
 每次学习完一个模块，在此文件更新"当前模块"为下一个
