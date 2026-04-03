@@ -1,17 +1,55 @@
 """
 蛋蛋模拟交易系统 - Flask后端 + SQLite数据库
+==============================================
+学习 Claude Code 源码后的改进：
+1. 上下文缓存（context_cache.py）
+2. Feature Flag 系统（feature_flags.py）
+3. 启动计时点（startup profiler）
 """
 import os
 import json
+import time
+import threading
+import requests
 from datetime import datetime, date
 from flask import Flask, render_template, jsonify, request, make_response
 
 import akshare as ak
 import database as db
 from trading.strategies import StrategyManager
-import time
-import threading
-import requests
+
+# OpenClaw 基础设施
+from openclaw.feature_flags import feature, is_feature_enabled
+from openclaw.context_cache import session_cache, heartbeat_cache
+
+# ============================================================================
+# 启动计时点（学习 Claude Code 的 profileCheckpoint）
+# ============================================================================
+_startup_markers = {}
+
+def _profile_checkpoint(name: str) -> None:
+    """记录启动计时点"""
+    _startup_markers[name] = time.time()
+
+_profile_checkpoint("module_import_done")
+
+# ============================================================================
+# Feature Flag: 各模块按需加载
+# ============================================================================
+
+# 行情数据缓存（默认启用，可通过 OPENCLAW_FEATURE_MARKET_CACHE=0 关闭）
+_MARKET_CACHE_ENABLED = is_feature_enabled("MARKET_CACHE")
+
+# 交易统计缓存（默认启用）
+_STATS_CACHE_ENABLED = is_feature_enabled("STATS_CACHE")
+
+# 股票监控功能
+_STOCK_MONITOR_ENABLED = is_feature_enabled("STOCK_MONITOR")
+
+# 启动时打印特性状态（仅调试）
+if os.environ.get("OPENCLAW_DEBUG") == "1":
+    from openclaw.feature_flags import list_features
+    print("[DEBUG] Feature flags:", list_features())
 
 # 腾讯实时行情API
 def get_tencent_quote(codes):
@@ -58,15 +96,17 @@ app.config['JSON_AS_ASCII'] = False
 
 strategy_mgr = StrategyManager()
 
-# 简单缓存
+# 缓存 TTL 设置（秒）
+_CACHE_TTL = 300  # 5分钟
+
+# 使用 OpenClaw 统一缓存系统替代旧的手动缓存
 _cache = {
     'market_top': {'data': None, 'time': 0},
     'quote': {},
     'index': {'data': None, 'time': 0},
 }
-_CACHE_TTL = 300  # 缓存5分钟
 
-# 后台预加载市场数据
+# 后台预加载市场数据（参考 Claude Code 的并行预加载）
 def preload_market_data():
     def _load():
         print("🔄 预加载市场数据...")
@@ -105,8 +145,14 @@ preload_market_data()
 def before_first_request():
     """首次请求前初始化数据库"""
     if not hasattr(app, '_db_initialized'):
+        _profile_checkpoint("db_init_start")
         db.init_database()
+        _profile_checkpoint("db_init_done")
         app._db_initialized = True
+        if os.environ.get("OPENCLAW_DEBUG") == "1":
+            elapsed = {k: round(v - list(_startup_markers.values())[0], 1)
+                       for k, v in _startup_markers.items()}
+            print(f"[DEBUG] Startup markers: {elapsed}")
 
 # ========== 路由 ==========
 
