@@ -663,6 +663,40 @@ def start_tunnel():
         return jsonify({'error': str(e)})
 
 
+# ==================== Agent 状态路由 ====================
+
+@app.route('/api/agent_status', methods=['GET', 'POST'])
+def agent_status_route():
+    """
+    获取或设置 Agent 状态。
+
+    GET: 返回当前状态 {"state": "idle", "detail": "..."}
+    POST: 设置状态 {"state": "researching", "detail": "分析中..."}
+    """
+    from openclaw.state_manager import (
+        set_agent_status, get_agent_status,
+        VALID_AGENT_STATES, get_global_store
+    )
+
+    if request.method == 'GET':
+        state, detail = get_agent_status()
+        return jsonify({'state': state, 'detail': detail})
+
+    # POST: set status
+    try:
+        data = request.json or {}
+        state = data.get('state', 'idle')
+        detail = data.get('detail', '')
+
+        if state not in VALID_AGENT_STATES:
+            return jsonify({'error': f'Invalid state. Valid: {list(VALID_AGENT_STATES)}'}), 400
+
+        set_agent_status(state, detail)
+        return jsonify({'state': state, 'detail': detail})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 if __name__ == '__main__':
     db.init_database()
     app.run(host='0.0.0.0', port=80, debug=False, threaded=True)
