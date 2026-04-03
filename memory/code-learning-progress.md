@@ -15,14 +15,13 @@
 | 8 | Hooks系统 | `src/utils/hooks.ts` | ✅ 已完成 |
 | 9 | SkillTool | `src/tools/SkillTool/SkillTool.ts` | ✅ 已完成 |
 | 10 | MCP系统 | `src/services/mcp/client.ts` | ✅ 已完成 |
-| 11 | 命令注册表 | `src/commands.ts` | ⬜ 待学 |
-| 12 | 状态管理 | `src/state/AppState.tsx` | ⬜ 待学 |
+| 11 | 命令注册表 | `src/commands.ts` | ✅ 已完成（SkillRegistry已覆盖）|
+| 12 | 状态管理 | `src/state/AppState.tsx` | ✅ 已完成 |
 
 ## 当前进度
-- 当前模块：#11 命令注册表 (commands.ts)
-- 已完成：1,2,3,4,5,6,7,8,9,10
-- 待完成：11,12
-- 循环：学完#12后从头开始
+- 当前模块：全部完成 🎉
+- 已完成：1,2,3,4,5,6,7,8,9,10,11,12
+- 循环：学完#12后从头开始（第2轮）
 
 ## 更新规则
 每次学习完一个模块，在此文件更新"当前模块"为下一个
