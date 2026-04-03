@@ -567,12 +567,19 @@ async def _call_minimax_chat(
     max_tokens: int = 4096,
     tools: Optional[List[Dict[str, Any]]] = None,
     timeout: int = 60,
+    bot_name: str = "dandan",
+    system_prompt: str = "你是蛋蛋，一个幽默搞笑的AI助手",
 ) -> Dict[str, Any]:
     """
     调用 MiniMax Chat API。
 
     对应 Claude Code 中 AI 模型的实际调用。
     支持 tool use（函数调用）。
+
+    MiniMax 特有参数：
+    - bot_setting: 机器人配置（name + prompt）
+    - reply_constraints: 回复约束（sender_type=BOT, sender_name=bot_name）
+    - messages 中每条需要 sender_name + sender_type=USER
     """
     import os
     import json
@@ -583,6 +590,21 @@ async def _call_minimax_chat(
     if not api_key:
         return {"error": "MINIMAX_API_KEY not set", "choices": []}
 
+    # 转换 messages 格式（MiniMax 需要 sender_name + sender_type）
+    mm_messages = []
+    for msg in messages:
+        role = msg.get("role", "user")
+        if role == "system":
+            # system prompt 通过 bot_setting 传入，不作为单独 message
+            continue
+        sender_type = "USER" if role in ("user", "human") else "BOT"
+        mm_messages.append({
+            "role": role,
+            "sender_name": msg.get("sender_name", "user" if sender_type == "USER" else bot_name),
+            "sender_type": sender_type,
+            "content": msg.get("content", "")
+        })
+
     url = "https://api.minimax.chat/v1/text/chatcompletion_pro"
     headers = {
         "Content-Type": "application/json",
@@ -590,10 +612,19 @@ async def _call_minimax_chat(
     }
 
     data = {
-        "model": model,
-        "messages": messages,
+        "model": model if model != "MiniMax-Text-01" else "abab6.5s-chat",
+        "messages": mm_messages,
         "max_tokens": max_tokens,
         "temperature": temperature,
+        "bot_setting": [{
+            "bot_name": bot_name,
+            "content": system_prompt,
+        }],
+        "reply_constraints": {
+            "rich_text": True,
+            "sender_type": "BOT",
+            "sender_name": bot_name,
+        },
     }
 
     if tools:
@@ -609,6 +640,19 @@ async def _call_minimax_chat(
 
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             result = json.loads(resp.read().decode("utf-8"))
+
+        # 标准化返回格式
+        reply = result.get("reply", "")
+        if reply:
+            return {
+                "choices": [{"message": {"content": reply}}],
+                "model": result.get("model", model),
+                "usage": {"total_tokens": result.get("usage_tokens", 0)},
+            }
+        elif result.get("base_resp", {}).get("status_code") == 1008:
+            return {"error": "insufficient balance", "choices": [], "base_resp": result.get("base_resp")}
+        elif result.get("base_resp", {}).get("status_code", 0) != 0:
+            return {"error": result.get("base_resp", {}).get("status_msg", "unknown error"), "choices": []}
 
         return result
 
