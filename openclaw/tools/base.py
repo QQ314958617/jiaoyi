@@ -48,8 +48,6 @@ class ToolMetadata:
     version: str = "1.0.0"
     author: str = ""
     is_critical: bool = False          # 关键工具
-    aliases: List[str] = field(default_factory=list)  # 别名，支持重命名兼容
-
     def to_dict(self) -> Dict:
         return asdict(self)
 
@@ -261,7 +259,6 @@ class BaseTool(ABC):
     可选覆盖：
         category: ToolCategory       - 工具分类
         tags: Set[str]               - 标签
-        aliases: List[str]           - 别名
         is_enabled(): bool           - 是否启用
         validate_input(): ToolResult - 输入验证
         check_permissions(): PermissionCheckResult - 权限检查
@@ -292,7 +289,6 @@ class BaseTool(ABC):
     # 可选类属性
     category: ToolCategory = ToolCategory.GENERAL
     tags: Set[str] = field(default_factory=set)
-    aliases: List[str] = field(default_factory=list)
     version: str = "1.0.0"
 
     # Feature flag 名（如果工具依赖特性开关）
@@ -309,7 +305,6 @@ class BaseTool(ABC):
             category=self.category.value if isinstance(self.category, Enum) else self.category,
             tags=self.tags,
             version=self.version,
-            aliases=self.aliases,
         )
 
     def is_enabled(self) -> bool:
@@ -482,9 +477,6 @@ class ToolRegistry:
             with self._lock:
                 self._tools[tool_name] = instance
                 instance._registry = self
-                # 注册别名
-                for alias in instance.aliases:
-                    self._tools[alias] = instance
 
             return cls
 
@@ -614,32 +606,28 @@ def register_tool(cls: Optional[Type[BaseTool]] = None, *, name: Optional[str] =
 
 DANGEROUS_PATTERNS: List[str] = [
     # 磁盘操作
-    "rm -rf /",
-    "rm -rf /*",
-    "dd if=* of=/dev/*",
-    "mkfs",
-    "fdisk",
+    r"rm\s+-rf\s+/",
+    r"rm\s+-rf\s+/\*",
+    r"dd\s+if=",
+    r"mkfs",
+    r"fdisk",
     # 网络操作
-    "curl.*\|.*sh",
-    "wget.*\|.*sh",
-    "nc -e /bin/sh",
-    "nc -e /bin/bash",
-    "ncat.*-e",
+    r"nc\s+-e\s+",
+    r"ncat\s+.*-e",
     # 进程操作
-    "kill -9 -1",
-    "killall",
+    r"kill\s+-9\s+-1",
+    r"killall",
     # 系统修改
-    "chmod 777 /etc/*",
-    "chmod -R 777 /",
-    "sudo rm -rf",
+    r"chmod\s+777\s+/etc",
+    r"chmod\s+-R\s+777\s+/",
     # 密码/密钥
-    "*password*",
-    "*secret*",
-    "*api_key*",
+    r".*password.*",
+    r".*secret.*",
+    r".*api_key.*",
     # 交易相关危险操作
-    "rm -rf data/*",
-    "DROP TABLE",
-    "DELETE FROM.*WHERE",
+    r"rm\s+-rf\s+data",
+    r"DROP\s+TABLE",
+    r"DELETE\s+FROM.*WHERE",
 ]
 
 
