@@ -39,6 +39,8 @@
 | 16 | Prompt模板 | `src/utils/argumentSubstitution.ts` | prompt_template.py | ✅ |
 | 17 | 重试+限流 | `rateLimitMessages.ts` | retry.py | ✅ |
 | 18 | TTL缓存 | `src/utils/memoize.ts` | memoize.py | ✅ |
+| 19 | 上下文分析 | `src/utils/contextAnalysis.ts` | context_analyzer.py | ✅ |
+| 20 | HTTP预热 | `src/utils/apiPreconnect.ts` | preconnect.py | ✅ |
 
 ## 更新规则
 每次学习完一个模块，在此文件更新"当前模块"为下一个
