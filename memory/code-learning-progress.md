@@ -79,6 +79,7 @@
 | 56 | HTTP工具 | `src/utils/http.ts` | http_utils.py | ✅ |
 | 57 | 加密工具 | `src/services/oauth/crypto.ts` | crypto_utils.py | ✅ |
 | 58 | 活动管理 | `src/utils/activityManager.ts` | activity_manager.py | ✅ |
+| 59 | 提示词模板 | prompt system | prompt.py | ✅ |
 
 ## 更新规则
 每次学习完一个模块，在此文件更新"当前模块"为下一个
