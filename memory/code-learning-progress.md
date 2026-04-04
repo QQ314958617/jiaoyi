@@ -101,3 +101,9 @@
 |---|------|---------|------|------|
 | 64 | 边查询API | `src/utils/sideQuery.ts` | side_query.py | ✅ |
 | 65 | 慢操作日志 | `src/utils/slowOperations.ts` | slow_operations.py | ✅ |
+
+## 第63批（2026-04-04 08:43）
+| # | 模块 | 源码文件 | 落地 | 状态 |
+|---|------|---------|------|------|
+| 66 | 会话存储 | `src/utils/sessionStorage.ts` | session_storage.py | ✅ |
+| 67 | 文件历史 | `src/utils/fileHistory.ts` | file_history.py | ✅ |
