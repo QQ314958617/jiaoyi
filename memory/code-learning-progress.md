@@ -321,3 +321,9 @@
 |---|------|---------|------|------|
 | 128 | 类型守卫 | `src/utils/typeGuards.ts` | type_guards.py | ✅ |
 | 129 | 超时工具 | `src/utils/timeout.ts` | timeout.py | ✅ |
+
+## 第102批（2026-04-04 10:18】
+| # | 模块 | 源码文件 | 落地 | 状态 |
+|---|------|---------|------|------|
+| 130 | 功能开关 | `src/utils/flags.ts` | flags.py | ✅ |
+| 131 | 重试工具 | `src/utils/retry.ts` | retry.py | ✅ |
