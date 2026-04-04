@@ -203,3 +203,8 @@
 |---|------|---------|------|------|
 | 94 | Agent团队开关 | `src/utils/agentSwarmsEnabled.ts` | agent_swarms.py | ✅ |
 | 95 | 参数替换 | `src/utils/argumentSubstitution.ts` | argument_substitution.py | ✅ |
+
+## 第81批（2026-04-04 09:37）
+| # | 模块 | 源码文件 | 落地 | 状态 |
+|---|------|---------|------|------|
+| 96 | 终端录制 | `src/utils/asciicast.ts` | asciicast.py | ✅ |
