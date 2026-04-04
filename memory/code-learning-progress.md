@@ -872,3 +872,9 @@
 |---|------|---------|------|------|
 | 339 | 事件 | `src/utils/event.ts` | event.py | ✅ |
 | 340 | 异步 | `src/utils/async.ts` | async2.py | ✅ |
+
+## 第187批（2026-04-04 17:40】
+| # | 模块 | 源码文件 | 落地 | 状态 |
+|---|------|---------|------|------|
+| 341 | 缓存 | `src/utils/cache.ts` | cache3.py | ✅ |
+| 342 | 超时 | `src/utils/timeout.ts` | timeout2.py | ✅ |
