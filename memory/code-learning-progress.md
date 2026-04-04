@@ -120,3 +120,9 @@
 |---|------|---------|------|------|
 | 71 | 格式化工具 | `src/utils/format.ts` | format.py | ✅ |
 | 72 | 字符串工具 | `src/utils/stringUtils.ts` | string_utils.py | ✅ |
+
+## 第66批（2026-04-04 08:56）
+| # | 模块 | 源码文件 | 落地 | 状态 |
+|---|------|---------|------|------|
+| 73 | JSON工具 | `src/utils/json.ts` | json_utils.py | ✅ |
+| 74 | 日志工具 | `src/utils/log.ts` | log.py | ✅ |
