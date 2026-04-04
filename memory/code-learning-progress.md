@@ -242,3 +242,9 @@
 |---|------|---------|------|------|
 | 105 | 运行时检测 | `src/utils/bundledMode.ts` | bundled_mode.py | ✅ |
 | 106 | 记忆文件加载 | `src/utils/claudemd.ts` | claude_md.py | ✅ |
+
+## 第88批（2026-04-04 09:54）
+| # | 模块 | 源码文件 | 落地 | 状态 |
+|---|------|---------|------|------|
+| 107 | Ripgrep封装 | `src/utils/ripgrep.ts` | ripgrep.py | ✅ |
+| 108 | 进程工具 | `src/utils/process.ts` | process_utils.py | ✅ |
