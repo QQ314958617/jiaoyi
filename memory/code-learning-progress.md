@@ -648,3 +648,9 @@
 | 250 | TOML解析 | `src/utils/toml.ts` | toml.py | ✅ |
 | 251 | URI工具 | `src/utils/uri.ts` | uri.py | ✅ |
 | 252 | Base64 | `src/utils/base64.ts` | base64.py | ✅ |
+
+## 第153批（2026-04-04 13:10】
+| # | 模块 | 源码文件 | 落地 | 状态 |
+|---|------|---------|------|------|
+| 253 | 语义化版本 | `src/utils/semver.ts` | semver.py | ✅ |
+| 254 | 差异计算 | `src/utils/diff.ts` | diff.py | ✅ |
