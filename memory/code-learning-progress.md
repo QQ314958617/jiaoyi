@@ -466,3 +466,9 @@
 |---|------|---------|------|------|
 | 181 | 异步监控 | `src/utils/asyncWatcher.ts` | async_watcher.py | ✅ |
 | 182 | 弹性模式 | `src/utils/resilience.ts` | resilience.py | ✅ |
+
+## 第125批（2026-04-04 11:13】
+| # | 模块 | 源码文件 | 落地 | 状态 |
+|---|------|---------|------|------|
+| 183 | 共享值 | `src/utils/shared.ts` | shared.py | ✅ |
+| 184 | 追踪 | `src/utils/trace.ts` | trace.py | ✅ |
