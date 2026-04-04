@@ -315,3 +315,9 @@
 |---|------|---------|------|------|
 | 126 | Result类型 | `src/utils/result.ts` | result.py | ✅ |
 | 127 | Option类型 | `src/utils/option.ts` | option.py | ✅ |
+
+## 第101批（2026-04-04 10:17】
+| # | 模块 | 源码文件 | 落地 | 状态 |
+|---|------|---------|------|------|
+| 128 | 类型守卫 | `src/utils/typeGuards.ts` | type_guards.py | ✅ |
+| 129 | 超时工具 | `src/utils/timeout.ts` | timeout.py | ✅ |
