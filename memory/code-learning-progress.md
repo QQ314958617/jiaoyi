@@ -866,3 +866,9 @@
 |---|------|---------|------|------|
 | 337 | 任务 | `src/utils/task.ts` | task.py | ✅ |
 | 338 | 调度 | `src/utils/schedule.ts` | schedule.py | ✅ |
+
+## 第186批（2026-04-04 17:37】
+| # | 模块 | 源码文件 | 落地 | 状态 |
+|---|------|---------|------|------|
+| 339 | 事件 | `src/utils/event.ts` | event.py | ✅ |
+| 340 | 异步 | `src/utils/async.ts` | async2.py | ✅ |
