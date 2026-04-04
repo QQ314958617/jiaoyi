@@ -5,10 +5,9 @@ Env - 环境变量
 环境变量工具。
 """
 import os
-from typing import Any, Dict, Optional
 
 
-def get(key: str, default: Any = None) -> Any:
+def get(key: str, default: str = None) -> str:
     """
     获取环境变量
     
@@ -17,7 +16,7 @@ def get(key: str, default: Any = None) -> Any:
         default: 默认值
         
     Returns:
-        变量值或默认值
+        值或默认值
     """
     return os.environ.get(key, default)
 
@@ -25,28 +24,28 @@ def get(key: str, default: Any = None) -> Any:
 def set_(key: str, value: str) -> None:
     """
     设置环境变量
-    
-    Args:
-        key: 变量名
-        value: 值
     """
     os.environ[key] = value
 
 
+def unset(key: str) -> None:
+    """
+    删除环境变量
+    """
+    os.environ.pop(key, None)
+
+
 def has(key: str) -> bool:
-    """检查环境变量是否存在"""
+    """是否存在"""
     return key in os.environ
 
 
-def remove(key: str) -> bool:
-    """删除环境变量"""
-    if key in os.environ:
-        del os.environ[key]
-        return True
-    return False
+def list_all() -> dict:
+    """列出所有环境变量"""
+    return dict(os.environ)
 
 
-def get_int(key: str, default: int = 0) -> int:
+def get_int(key: str, default: int = None) -> int:
     """获取整数"""
     value = os.environ.get(key)
     if value is None:
@@ -57,18 +56,7 @@ def get_int(key: str, default: int = 0) -> int:
         return default
 
 
-def get_float(key: str, default: float = 0.0) -> float:
-    """获取浮点数"""
-    value = os.environ.get(key)
-    if value is None:
-        return default
-    try:
-        return float(value)
-    except ValueError:
-        return default
-
-
-def get_bool(key: str, default: bool = False) -> bool:
+def get_bool(key: str, default: bool = None) -> bool:
     """获取布尔值"""
     value = os.environ.get(key)
     if value is None:
@@ -76,34 +64,30 @@ def get_bool(key: str, default: bool = False) -> bool:
     return value.lower() in ('true', '1', 'yes', 'on')
 
 
-def get_list(key: str, separator: str = ',', default: list = None) -> list:
-    """获取列表"""
-    value = os.environ.get(key)
-    if value is None:
-        return default or []
-    return [v.strip() for v in value.split(separator)]
-
-
-def all_vars() -> Dict[str, str]:
-    """获取所有环境变量"""
-    return dict(os.environ)
-
-
-def clear_cache() -> None:
-    """清空缓存（无操作，os.environ直接访问）"""
-    pass
+class Env:
+    """环境变量访问器"""
+    
+    def __getattr__(self, key: str) -> str:
+        return get(key)
+    
+    def __setattr__(self, key: str, value: str) -> None:
+        if key.startswith('_'):
+            super().__setattr__(key, value)
+        else:
+            set_(key, value)
+    
+    def __has__(self, key: str) -> bool:
+        return has(key)
 
 
 # 导出
 __all__ = [
     "get",
     "set_",
+    "unset",
     "has",
-    "remove",
+    "list_all",
     "get_int",
-    "get_float",
     "get_bool",
-    "get_list",
-    "all_vars",
-    "clear_cache",
+    "Env",
 ]
