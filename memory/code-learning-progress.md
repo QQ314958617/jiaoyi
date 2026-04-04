@@ -820,3 +820,10 @@
 | 318 | 克隆 | `src/utils/clone.ts` | clone.py | ✅ |
 | 319 | 属性操作 | `src/utils/omit.ts` | omit.py | ✅ |
 | 320 | 字符串 | `src/utils/string.ts` | string2.py | ✅ |
+
+## 第179批（2026-04-04 15:25】
+| # | 模块 | 源码文件 | 落地 | 状态 |
+|---|------|---------|------|------|
+| 321 | 类型检查 | `src/utils/type.ts` | type.py | ✅ |
+| 322 | 类型守卫 | `src/utils/guard.ts` | guard.py | ✅ |
+| 323 | 验证 | `src/utils/validate.ts` | validate.py | ✅ |
