@@ -6,7 +6,6 @@ Encoding - 编码
 """
 import base64
 import json
-import zlib
 from typing import Any
 
 
@@ -55,32 +54,14 @@ def from_json(data: str) -> Any:
 
 def compress_gzip(data: bytes) -> bytes:
     """GZIP压缩"""
-    return zlib.compress(data)
+    import gzip
+    return gzip.compress(data)
 
 
 def decompress_gzip(data: bytes) -> bytes:
     """GZIP解压"""
-    return zlib.decompress(data)
-
-
-def compress_zlib(data: bytes) -> bytes:
-    """Zlib压缩"""
-    return zlib.compress(data, level=9)
-
-
-def decompress_zlib(data: bytes) -> bytes:
-    """Zlib解压"""
-    return zlib.decompress(data)
-
-
-def crc32(data: bytes) -> int:
-    """CRC32校验"""
-    return zlib.crc32(data)
-
-
-def adler32(data: bytes) -> int:
-    """Adler32校验"""
-    return zlib.adler32(data)
+    import gzip
+    return gzip.decompress(data)
 
 
 # 导出
@@ -95,8 +76,4 @@ __all__ = [
     "from_json",
     "compress_gzip",
     "decompress_gzip",
-    "compress_zlib",
-    "decompress_zlib",
-    "crc32",
-    "adler32",
 ]
