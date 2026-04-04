@@ -743,3 +743,10 @@
 | 285 | 重试 | `src/utils/retry.ts` | retry2.py | ✅ |
 | 286 | 超时 | `src/utils/timeout.ts` | timeout.py | ✅ |
 | 287 | 加密 | `src/utils/crypto.ts` | crypto2.py | ✅ |
+
+## 第168批（2026-04-04 14:57】
+| # | 模块 | 源码文件 | 落地 | 状态 |
+|---|------|---------|------|------|
+| 288 | 防抖 | `src/utils/debounce.ts` | debounce.py | ✅ |
+| 289 | 节流 | `src/utils/throttle.ts` | throttle2.py | ✅ |
+| 290 | 批处理 | `src/utils/batch.ts` | batch2.py | ✅ |

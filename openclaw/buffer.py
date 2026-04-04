@@ -2,19 +2,16 @@
 Buffer - 缓冲区
 基于 Claude Code buffer.ts 设计
 
-各种缓冲数据结构。
+缓冲区工具。
 """
-from collections import deque
-from typing import Callable, Generic, TypeVar, Optional
-
-T = TypeVar('T')
+from typing import Any, List, Optional
 
 
-class RingBuffer(Generic[T]):
+class Buffer:
     """
-    环形缓冲区
+    缓冲区
     
-    固定大小的缓冲区，新元素覆盖最旧的元素。
+    固定大小的数据缓冲。
     """
     
     def __init__(self, capacity: int):
@@ -23,143 +20,144 @@ class RingBuffer(Generic[T]):
             capacity: 容量
         """
         self._capacity = capacity
-        self._buffer: deque = deque(maxlen=capacity)
+        self._data: List[Any] = []
+        self._position = 0
     
-    def append(self, item: T) -> None:
-        """添加元素"""
-        self._buffer.append(item)
+    def write(self, item: Any) -> bool:
+        """
+        写入
+        
+        Args:
+            item: 数据项
+            
+        Returns:
+            是否成功
+        """
+        if len(self._data) < self._capacity:
+            self._data.append(item)
+            return True
+        return False
     
-    def get_all(self) -> list[T]:
-        """获取所有元素"""
-        return list(self._buffer)
+    def write_overwrite(self, item: Any) -> Any:
+        """
+        写入（溢出时覆盖最旧的）
+        
+        Args:
+            item: 数据项
+            
+        Returns:
+            被覆盖的数据项
+        """
+        overwritten = None
+        
+        if len(self._data) >= self._capacity:
+            overwritten = self._data[self._position]
+            self._data[self._position] = item
+            self._position = (self._position + 1) % self._capacity
+        else:
+            self._data.append(item)
+        
+        return overwritten
     
-    def get_recent(self, n: int) -> list[T]:
-        """获取最近的n个元素"""
-        if n >= len(self._buffer):
-            return list(self._buffer)
-        return list(self._buffer)[-n:]
+    def read(self) -> Optional[Any]:
+        """
+        读取最旧的数据
+        
+        Returns:
+            数据项或None
+        """
+        if not self._data:
+            return None
+        
+        item = self._data[self._position]
+        self._data[self._position] = None
+        
+        if self._position == 0 and len(self._data) == 1:
+            self._data.clear()
+        else:
+            self._position = (self._position + 1) % self._capacity
+        
+        return item
+    
+    def peek(self) -> Optional[Any]:
+        """查看最旧数据"""
+        if self._data:
+            return self._data[self._position]
+        return None
     
     def clear(self) -> None:
-        """清空缓冲区"""
-        self._buffer.clear()
+        """清空"""
+        self._data.clear()
+        self._position = 0
     
-    def __len__(self) -> int:
-        return len(self._buffer)
-    
-    def __bool__(self) -> bool:
-        return bool(self._buffer)
+    @property
+    def size(self) -> int:
+        """当前大小"""
+        if not self._data:
+            return 0
+        if len(self._data) < self._capacity:
+            return len(self._data)
+        return self._capacity
     
     @property
     def capacity(self) -> int:
         """容量"""
         return self._capacity
+    
+    @property
+    def is_empty(self) -> bool:
+        return len(self._data) == 0
+    
+    @property
+    def is_full(self) -> bool:
+        return len(self._data) >= self._capacity
+    
+    def to_list(self) -> List[Any]:
+        """转为列表"""
+        if not self._data:
+            return []
+        if len(self._data) < self._capacity:
+            return list(self._data)
+        return self._data[self._position:] + self._data[:self._position]
 
 
-class SlidingWindowBuffer(Generic[T]):
-    """
-    滑动窗口缓冲区
+class CircularBuffer:
+    """循环缓冲区（别名）"""
     
-    只保留时间窗口内的元素。
-    """
+    def __init__(self, capacity: int):
+        self._buffer = Buffer(capacity)
     
-    def __init__(self, max_age_seconds: float):
-        """
-        Args:
-            max_age_seconds: 最大存活时间（秒）
-        """
-        import time
-        self._max_age = max_age_seconds
-        self._buffer: deque = deque()
-        self._timestamps: deque = deque()
+    def push(self, item: Any) -> bool:
+        return self._buffer.write(item)
     
-    def append(self, item: T) -> None:
-        """添加元素"""
-        import time
-        now = time.time()
-        self._buffer.append(item)
-        self._timestamps.append(now)
-        self._cleanup()
+    def pop(self) -> Optional[Any]:
+        return self._buffer.read()
     
-    def _cleanup(self) -> None:
-        """清理过期元素"""
-        import time
-        now = time.time()
-        cutoff = now - self._max_age
-        
-        while self._timestamps and self._timestamps[0] < cutoff:
-            self._timestamps.popleft()
-            if self._buffer:
-                self._buffer.popleft()
-    
-    def get_all(self) -> list[T]:
-        """获取所有未过期的元素"""
-        self._cleanup()
-        return list(self._buffer)
+    def peek(self) -> Optional[Any]:
+        return self._buffer.peek()
     
     def clear(self) -> None:
-        """清空缓冲区"""
         self._buffer.clear()
-        self._timestamps.clear()
     
-    def __len__(self) -> int:
-        self._cleanup()
-        return len(self._buffer)
+    @property
+    def size(self) -> int:
+        return self._buffer.size
     
-    def __bool__(self) -> bool:
-        self._cleanup()
-        return bool(self._buffer)
-
-
-class AccumulatingBuffer(Generic[T]):
-    """
-    累积缓冲区
+    @property
+    def capacity(self) -> int:
+        return self._buffer.capacity
     
-    累积元素直到达到阈值，然后处理。
-    """
+    @property
+    def is_empty(self) -> bool:
+        return self._buffer.is_empty
     
-    def __init__(
-        self,
-        threshold: int,
-        flush_fn: Callable[[list[T]], None],
-        max_size: int = None,
-    ):
-        """
-        Args:
-            threshold: 触发flush的阈值
-            flush_fn: 达到阈值时调用的flush函数
-            max_size: 最大累积数（超过强制flush）
-        """
-        self._threshold = threshold
-        self._flush_fn = flush_fn
-        self._max_size = max_size or threshold * 2
-        self._buffer: list[T] = []
-    
-    def append(self, item: T) -> None:
-        """添加元素"""
-        self._buffer.append(item)
-        
-        if len(self._buffer) >= self._threshold:
-            self.flush()
-    
-    def flush(self) -> None:
-        """手动flush"""
-        if not self._buffer:
-            return
-        
-        items = self._buffer
-        self._buffer = []
-        self._flush_fn(items)
-    
-    def __len__(self) -> int:
-        return len(self._buffer)
-    
-    def __bool__(self) -> bool:
-        return bool(self._buffer)
+    @property
+    def is_full(self) -> bool:
+        return self._buffer.is_full
 
 
 # 导出
 __all__ = [
-    "RingBuffer",
-    "SlidingWindowBuffer",
-    "AccumulatingBuffer",
+    "Buffer",
+    "CircularBuffer",
 ]
