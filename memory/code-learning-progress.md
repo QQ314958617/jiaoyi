@@ -156,3 +156,8 @@
 |---|------|---------|------|------|
 | 83 | 清理注册表 | `src/utils/cleanupRegistry.ts` | cleanup_registry.py | ✅ |
 | 84 | 错误类 | `src/utils/errors.ts` | errors.py | ✅ |
+
+## 第72批（2026-04-04 09:16）
+| # | 模块 | 源码文件 | 落地 | 状态 |
+|---|------|---------|------|------|
+| 85 | Beta特性管理 | `src/utils/betas.ts` | betas.py | ✅ |
