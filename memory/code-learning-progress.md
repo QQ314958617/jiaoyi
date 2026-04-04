@@ -685,3 +685,10 @@
 | 263 | 同步锁 | `src/utils/lock.ts` | lock.py | ✅ |
 | 264 | 有序集合 | `src/utils/sorted.ts` | sorted.py | ✅ |
 | 265 | 位操作 | `src/utils/bits.ts` | bits.py | ✅ |
+
+## 第159批（2026-04-04 13:28】
+| # | 模块 | 源码文件 | 落地 | 状态 |
+|---|------|---------|------|------|
+| 266 | 循环缓冲 | `src/utils/circular.ts` | circular.py | ✅ |
+| 267 | 单子 | `src/utils/monad.ts` | monad.py | ✅ |
+| 268 | 管道 | `src/utils/pipe.ts` | pipe.py | ✅ |
