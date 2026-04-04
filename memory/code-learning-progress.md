@@ -197,3 +197,9 @@
 | # | 模块 | 源码文件 | 落地 | 状态 |
 |---|------|---------|------|------|
 | 93 | 活动管理器 | `src/utils/activityManager.ts` | activity_manager.py | ✅ |
+
+## 第80批（2026-04-04 09:35）
+| # | 模块 | 源码文件 | 落地 | 状态 |
+|---|------|---------|------|------|
+| 94 | Agent团队开关 | `src/utils/agentSwarmsEnabled.ts` | agent_swarms.py | ✅ |
+| 95 | 参数替换 | `src/utils/argumentSubstitution.ts` | argument_substitution.py | ✅ |
