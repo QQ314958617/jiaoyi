@@ -806,3 +806,10 @@
 | 312 | 过滤器 | `src/utils/filter.ts` | filter.py | ✅ |
 | 313 | 归约 | `src/utils/reduce.ts` | reduce.py | ✅ |
 | 314 | 变换 | `src/utils/transform.ts` | transform.py | ✅ |
+
+## 第177批（2026-04-04 15:20】
+| # | 模块 | 源码文件 | 落地 | 状态 |
+|---|------|---------|------|------|
+| 315 | 比较 | `src/utils/compare.ts` | compare.py | ✅ |
+| 316 | 排序 | `src/utils/sort.ts` | sort.py | ✅ |
+| 317 | 搜索 | `src/utils/search.ts` | search.py | ✅ |
