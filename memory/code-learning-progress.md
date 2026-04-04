@@ -884,3 +884,9 @@
 |---|------|---------|------|------|
 | 343 | 限流桶 | `src/utils/bucket.ts` | bucket2.py | ✅ |
 | 344 | 断路器 | `src/utils/breaker.ts` | breaker2.py | ✅ |
+
+## 第189批（2026-04-04 17:45】
+| # | 模块 | 源码文件 | 落地 | 状态 |
+|---|------|---------|------|------|
+| 345 | 广播 | `src/utils/broadcast.ts` | broadcast.py | ✅ |
+| 346 | 响应式 | `src/utils/observable.ts` | observable.py | ✅ |

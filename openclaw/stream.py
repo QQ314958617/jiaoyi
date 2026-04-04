@@ -1,240 +1,196 @@
 """
-Stream - 流式处理
+Stream - 流
 基于 Claude Code stream.ts 设计
 
-异步流处理工具。
+流处理工具。
 """
-import asyncio
-from typing import AsyncIterator, Callable, Generic, TypeVar, Optional, AsyncGenerator
-
-T = TypeVar('T')
-U = TypeVar('U')
+from typing import Any, Callable, Generator, Iterable, Iterator, List
 
 
-class Stream(Generic[T]):
+class Stream:
     """
-    异步流
+    流
     
-    支持入队、出队、完成、错误处理。
+    函数式数据处理。
     """
     
-    def __init__(self, on_return: Optional[Callable] = None):
+    def __init__(self, source: Iterable):
         """
         Args:
-            on_return: 迭代结束时调用的函数
+            source: 数据源
         """
-        self._queue: asyncio.Queue = asyncio.Queue()
-        self._on_return = on_return
-        self._is_done = False
-        self._has_error = False
-        self._error: Optional[Exception] = None
-        self._read_waiter: Optional[asyncio.Future] = None
-        self._started = False
+        self._source = source
+        self._operations: List[Callable] = []
     
-    def __aiter__(self) -> AsyncIterator[T]:
-        """返回异步迭代器"""
-        if self._started:
-            raise ValueError("Stream can only be iterated once")
-        self._started = True
-        return self
+    def map(self, fn: Callable) -> "Stream":
+        """映射"""
+        def operation(iterable):
+            for item in iterable:
+                yield fn(item)
+        
+        new_stream = Stream(self._source)
+        new_stream._operations = self._operations + [operation]
+        return new_stream
     
-    async def __anext__(self) -> T:
-        """异步迭代下一步"""
-        if self._queue.qsize() > 0:
-            return self._queue.get_nowait()
+    def filter(self, predicate: Callable) -> "Stream":
+        """过滤"""
+        def operation(iterable):
+            for item in iterable:
+                if predicate(item):
+                    yield item
         
-        if self._is_done:
-            raise StopAsyncIteration
-        
-        if self._has_error and self._error:
-            raise self._error
-        
-        # 创建等待
-        self._read_waiter = asyncio.get_event_loop().create_future()
-        
-        try:
-            value = await self._read_waiter
-            if self._has_error and self._error:
-                raise self._error
-            return value
-        except asyncio.CancelledError:
-            raise StopAsyncIteration
+        new_stream = Stream(self._source)
+        new_stream._operations = self._operations + [operation]
+        return new_stream
     
-    async def enqueue(self, value: T) -> None:
-        """
-        入队
+    def flat_map(self, fn: Callable) -> "Stream":
+        """扁平映射"""
+        def operation(iterable):
+            for item in iterable:
+                for result in fn(item):
+                    yield result
         
-        Args:
-            value: 值
-        """
-        if self._read_waiter and not self._read_waiter.done():
-            waiter = self._read_waiter
-            self._read_waiter = None
-            waiter.set_result(value)
-        else:
-            await self._queue.put(value)
+        new_stream = Stream(self._source)
+        new_stream._operations = self._operations + [operation]
+        return new_stream
     
-    async def done(self) -> None:
-        """标记流完成"""
-        self._is_done = True
+    def take(self, n: int) -> "Stream":
+        """取前n个"""
+        def operation(iterable):
+            for i, item in enumerate(iterable):
+                if i < n:
+                    yield item
+                else:
+                    break
         
-        if self._read_waiter and not self._read_waiter.done():
-            waiter = self._read_waiter
-            self._read_waiter = None
-            waiter.set_result(None)  # 发送结束信号
+        new_stream = Stream(self._source)
+        new_stream._operations = self._operations + [operation]
+        return new_stream
     
-    async def error(self, err: Exception) -> None:
-        """
-        标记流错误
+    def skip(self, n: int) -> "Stream":
+        """跳过前n个"""
+        def operation(iterable):
+            for i, item in enumerate(iterable):
+                if i >= n:
+                    yield item
         
-        Args:
-            err: 错误
-        """
-        self._has_error = True
-        self._error = err
-        
-        if self._read_waiter and not self._read_waiter.done():
-            waiter = self._read_waiter
-            self._read_waiter = None
-            waiter.set_exception(err)
+        new_stream = Stream(self._source)
+        new_stream._operations = self._operations + [operation]
+        return new_stream
     
-    async def aclose(self) -> None:
-        """关闭流"""
-        self._is_done = True
-        if self._on_return:
-            try:
-                self._on_return()
-            except Exception:
-                pass
+    def limit(self, n: int) -> "Stream":
+        """限制数量（take别名）"""
+        return self.take(n)
+    
+    def distinct(self) -> "Stream":
+        """去重"""
+        seen = set()
+        
+        def operation(iterable):
+            for item in iterable:
+                if item not in seen:
+                    seen.add(item)
+                    yield item
+        
+        new_stream = Stream(self._source)
+        new_stream._operations = self._operations + [operation]
+        return new_stream
+    
+    def sorted(self, key: Callable = None, reverse: bool = False) -> "Stream":
+        """排序"""
+        def operation(iterable):
+            return sorted(iterable, key=key, reverse=reverse)
+        
+        new_stream = Stream(self._source)
+        new_stream._operations = self._operations + [operation]
+        return new_stream
+    
+    def reduce(self, fn: Callable, initial: Any = None) -> Any:
+        """归约"""
+        result = initial
+        for item in self:
+            if result is None:
+                result = item
+            else:
+                result = fn(result, item)
+        return result
+    
+    def collect(self) -> List:
+        """收集为列表"""
+        return list(self)
+    
+    def count(self) -> int:
+        """计数"""
+        return sum(1 for _ in self)
+    
+    def first(self) -> Any:
+        """第一个"""
+        for item in self:
+            return item
+        return None
+    
+    def last(self) -> Any:
+        """最后一个"""
+        last = None
+        for item in self:
+            last = item
+        return last
+    
+    def for_each(self, fn: Callable) -> None:
+        """遍历"""
+        for item in self:
+            fn(item)
+    
+    def any_match(self, predicate: Callable) -> bool:
+        """是否有任意匹配"""
+        for item in self:
+            if predicate(item):
+                return True
+        return False
+    
+    def all_match(self, predicate: Callable) -> bool:
+        """是否全部匹配"""
+        for item in self:
+            if not predicate(item):
+                return False
+        return True
+    
+    def none_match(self, predicate: Callable) -> bool:
+        """是否都不匹配"""
+        return not self.any_match(predicate)
+    
+    def __iter__(self) -> Iterator:
+        """迭代"""
+        iterable = self._source
+        for op in self._operations:
+            iterable = op(iterable)
+        return iter(iterable)
 
 
-async def stream_from_async_generator(
-    gen: AsyncGenerator[T, None],
-) -> Stream[T]:
-    """
-    从异步生成器创建流
-    
-    Args:
-        gen: 异步生成器
-        
-    Returns:
-        Stream
-    """
-    stream = Stream[T]()
-    
-    async def consume():
-        try:
-            async for item in gen:
-                await stream.enqueue(item)
-            await stream.done()
-        except Exception as e:
-            await stream.error(e)
-    
-    asyncio.create_task(consume())
-    return stream
+def of(*items) -> Stream:
+    """从数据创建流"""
+    return Stream(items)
 
 
-async def stream_map(
-    stream: Stream[T],
-    fn: Callable[[T], U],
-) -> Stream[U]:
-    """
-    流映射
-    
-    Args:
-        stream: 输入流
-        fn: 映射函数
-        
-    Returns:
-        输出流
-    """
-    output = Stream[U]()
-    
-    async def mapper():
-        async for item in stream:
-            try:
-                result = fn(item)
-                if asyncio.iscoroutine(result):
-                    result = await result
-                await output.enqueue(result)
-            except Exception as e:
-                await output.error(e)
-                return
-        await output.done()
-    
-    asyncio.create_task(mapper())
-    return output
+def from_iterable(iterable: Iterable) -> Stream:
+    """从可迭代对象创建流"""
+    return Stream(iterable)
 
 
-async def stream_filter(
-    stream: Stream[T],
-    predicate: Callable[[T], bool],
-) -> Stream[T]:
-    """
-    流过滤
-    
-    Args:
-        stream: 输入流
-        predicate: 过滤函数
-        
-    Returns:
-        输出流
-    """
-    output = Stream[T]()
-    
-    async def filter():
-        async for item in stream:
-            try:
-                keep = predicate(item)
-                if asyncio.iscoroutine(keep):
-                    keep = await keep
-                if keep:
-                    await output.enqueue(item)
-            except Exception as e:
-                await output.error(e)
-                return
-        await output.done()
-    
-    asyncio.create_task(filter())
-    return output
-
-
-async def stream_batch(
-    stream: Stream[T],
-    size: int,
-) -> Stream[list[T]]:
-    """
-    流批量处理
-    
-    Args:
-        stream: 输入流
-        size: 批量大小
-        
-    Returns:
-        输出流（批量）
-    """
-    output = Stream[list[T]]()
-    
-    async def batcher():
-        batch = []
-        async for item in stream:
-            batch.append(item)
-            if len(batch) >= size:
-                await output.enqueue(batch)
-                batch = []
-        if batch:
-            await output.enqueue(batch)
-        await output.done()
-    
-    asyncio.create_task(batcher())
-    return output
+def range(start: int, end: int, step: int = 1) -> Stream:
+    """数值范围流"""
+    def generate():
+        current = start
+        while current < end:
+            yield current
+            current += step
+    return Stream(generate())
 
 
 # 导出
 __all__ = [
     "Stream",
-    "stream_from_async_generator",
-    "stream_map",
-    "stream_filter",
-    "stream_batch",
+    "of",
+    "from_iterable",
+    "range",
 ]
