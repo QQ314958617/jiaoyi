@@ -1,136 +1,110 @@
 """
-Template - 模板引擎
+Template - 模板
 基于 Claude Code template.ts 设计
 
-简单的字符串模板替换。
+模板工具。
 """
-import re
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 
-class Template:
+def render(template: str, data: Dict[str, Any]) -> str:
     """
-    字符串模板
-    
-    支持{{variable}}和{{#if}}等语法。
-    """
-    
-    def __init__(self, template: str):
-        """
-        Args:
-            template: 模板字符串
-        """
-        self._template = template
-    
-    def render(self, context: Dict[str, Any]) -> str:
-        """
-        渲染模板
-        
-        Args:
-            context: 变量上下文
-            
-        Returns:
-            渲染后的字符串
-        """
-        result = self._template
-        
-        # 简单变量替换
-        for key, value in context.items():
-            result = result.replace(f"{{{{{key}}}}}", str(value))
-        
-        return result
-    
-    def render_conditional(
-        self,
-        context: Dict[str, Any],
-        if_pattern: str = r"{{#if\s+(\w+)}}([\s\S]*?){{/if}}",
-        endif_pattern: str = r"{{/if}}",
-    ) -> str:
-        """
-        渲染条件模板
-        
-        Args:
-            context: 变量上下文
-            if_pattern: if正则
-            endif_pattern: endif正则
-            
-        Returns:
-            渲染后的字符串
-        """
-        result = self._template
-        
-        # 查找所有if块
-        if_blocks = re.finditer(if_pattern, result)
-        
-        for match in if_blocks:
-            var_name = match.group(1)
-            content = match.group(2)
-            
-            if var_name in context and context[var_name]:
-                # 条件为真，保留内容
-                result = result.replace(match.group(0), content)
-            else:
-                # 条件为假，移除内容
-                result = result.replace(match.group(0), "")
-        
-        return result
-
-
-def render(template: str, context: Dict[str, Any]) -> str:
-    """
-    渲染模板字符串
+    渲染模板
     
     Args:
-        template: 模板字符串
-        context: 变量上下文
+        template: 模板字符串，如 "Hello {{name}}!"
+        data: 数据字典
         
     Returns:
         渲染后的字符串
     """
-    t = Template(template)
-    return t.render(context)
+    result = template
+    
+    for key, value in data.items():
+        placeholder = "{{" + key + "}}"
+        result = result.replace(placeholder, str(value))
+    
+    return result
 
 
-def render_with_conditionals(
-    template: str,
-    context: Dict[str, Any],
-) -> str:
+def render_with_filters(template: str, data: Dict[str, Any]) -> str:
     """
-    渲染带条件的模板
+    渲染模板（支持简单过滤器）
+    
+    支持 {{name|upper}}、{{name|lower}}、{{name|capitalize}}
+    """
+    import re
+    
+    result = template
+    
+    # 处理带过滤器的占位符
+    pattern = r'\{\{(\w+)(?:\|(\w+))?\}\}'
+    
+    def replace_fn(match):
+        key = match.group(1)
+        filter_ = match.group(2)
+        value = data.get(key, '')
+        
+        if filter_ == 'upper':
+            value = str(value).upper()
+        elif filter_ == 'lower':
+            value = str(value).lower()
+        elif filter_ == 'capitalize':
+            value = str(value).capitalize()
+        elif filter_ == 'trim':
+            value = str(value).strip()
+        elif filter_ == 'default':
+            value = str(value) if value else data.get('default', '')
+        
+        return str(value)
+    
+    return re.sub(pattern, replace_fn, result)
+
+
+def compile_template(template: str) -> callable:
+    """
+    编译模板为函数
     
     Args:
         template: 模板字符串
-        context: 变量上下文
         
     Returns:
-        渲染后的字符串
+        (data) -> str 函数
     """
-    t = Template(template)
-    result = t.render_conditional(context)
-    return t.render(context)
-
-
-def interpolate(
-    template: str,
-    **kwargs: Any,
-) -> str:
-    """
-    插值渲染
+    def compiled(data: Dict[str, Any]) -> str:
+        return render(template, data)
     
-    Args:
-        template: 模板字符串
-        **kwargs: 变量
-        
-    Returns:
-        渲染后的字符串
+    return compiled
+
+
+class TemplateEngine:
     """
-    return render(template, kwargs)
+    模板引擎
+    """
+    
+    def __init__(self):
+        self._templates: Dict[str, str] = {}
+    
+    def add(self, name: str, template: str) -> None:
+        """添加模板"""
+        self._templates[name] = template
+    
+    def get(self, name: str) -> str:
+        """获取模板"""
+        return self._templates.get(name)
+    
+    def render(self, name: str, data: Dict[str, Any]) -> str:
+        """渲染模板"""
+        template = self._templates.get(name)
+        if template is None:
+            raise KeyError(f"Template not found: {name}")
+        return render_with_filters(template, data)
 
 
 # 导出
 __all__ = [
-    "Template",
     "render",
-    "render_with_conditionals",
-    "interpolate",
+    "render_with_filters",
+    "compile_template",
+    "TemplateEngine",
 ]
