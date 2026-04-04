@@ -598,3 +598,9 @@
 | 232 | 观察者 | `src/utils/observer.ts` | observer.py | ✅ |
 | 233 | 状态机 | `src/utils/state.ts` | state.py | ✅ |
 | 234 | 流程控制 | `src/utils/flow.ts` | flow.py | ✅ |
+
+## 第145批（2026-04-04 12:12】
+| # | 模块 | 源码文件 | 落地 | 状态 |
+|---|------|---------|------|------|
+| 235 | 模板2 | `src/utils/template2.ts` | template2.py | ✅ |
+| 236 | 格式化 | `src/utils/format.ts` | format.py | ✅ |
