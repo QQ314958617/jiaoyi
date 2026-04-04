@@ -1,91 +1,99 @@
 """
-Auth Portable - 便携认证
-基于 Claude Code authPortable.ts 设计
+AuthPortable - 便携认证
+基于 Claude Code auth_portable.ts 设计
 
-跨平台的API Key认证管理。
+便携认证存储工具。
 """
 import os
-import re
-from typing import Optional
+import json
+from typing import Optional, Dict
 
 
-def normalize_api_key_for_config(api_key: str) -> str:
+class AuthPortable:
     """
-    规范化API Key用于配置
+    便携式认证存储
     
-    Args:
-        api_key: 原始API Key
-        
-    Returns:
-        规范化后的Key
+    将认证信息存储在文件中。
     """
-    if not api_key:
-        return ''
     
-    # 移除空白
-    api_key = api_key.strip()
+    def __init__(self, path: str = "~/.config/auth_portable.json"):
+        """
+        Args:
+            path: 认证文件路径
+        """
+        self._path = os.path.expanduser(path)
+        self._data: Dict[str, str] = {}
+        self._load()
     
-    # 移除前缀
-    prefixes_to_remove = ['sk-', 'sk-ant-']
-    for prefix in prefixes_to_remove:
-        if api_key.startswith(prefix):
-            api_key = api_key[len(prefix):]
+    def _load(self):
+        """加载认证文件"""
+        if os.path.exists(self._path):
+            try:
+                with open(self._path, 'r') as f:
+                    self._data = json.load(f)
+            except (json.JSONDecodeError, IOError):
+                self._data = {}
     
-    return api_key
+    def _save(self):
+        """保存认证文件"""
+        os.makedirs(os.path.dirname(self._path) or '.', exist_ok=True)
+        with open(self._path, 'w') as f:
+            json.dump(self._data, f, indent=2)
+    
+    def get(self, key: str) -> Optional[str]:
+        """获取认证值"""
+        return self._data.get(key)
+    
+    def set(self, key: str, value: str):
+        """设置认证值"""
+        self._data[key] = value
+        self._save()
+    
+    def has(self, key: str) -> bool:
+        """检查是否存在"""
+        return key in self._data
+    
+    def remove(self, key: str):
+        """移除认证"""
+        self._data.pop(key, None)
+        self._save()
+    
+    def clear(self):
+        """清空所有认证"""
+        self._data = {}
+        self._save()
+    
+    def keys(self) -> list:
+        """获取所有键"""
+        return list(self._data.keys())
 
 
-def is_valid_api_key(api_key: str) -> bool:
-    """
-    检查API Key是否有效
-    
-    Args:
-        api_key: API Key
-        
-    Returns:
-        是否有效
-    """
-    if not api_key:
-        return False
-    
-    # 移除空白和前缀
-    normalized = normalize_api_key_for_config(api_key)
-    
-    # 检查长度（sk-ant-api开头通常是44-48字符）
-    if len(normalized) < 40:
-        return False
-    
-    # 检查是否只包含有效字符
-    if not re.match(r'^[a-zA-Z0-9_-]+$', normalized):
-        return False
-    
-    return True
+# 全局实例
+_auth: Optional[AuthPortable] = None
 
 
-def mask_api_key(api_key: str) -> str:
-    """
-    遮蔽API Key用于显示
-    
-    Args:
-        api_key: 完整API Key
-        
-    Returns:
-        遮蔽后的Key
-    """
-    if not api_key:
-        return ''
-    
-    normalized = normalize_api_key_for_config(api_key)
-    
-    if len(normalized) <= 8:
-        return '***'
-    
-    # 显示前4后4
-    return f"{normalized[:4]}...{normalized[-4:]}"
+def get_auth(path: str = None) -> AuthPortable:
+    """获取全局认证实例"""
+    global _auth
+    if _auth is None:
+        _auth = AuthPortable(path or "~/.config/auth_portable.json")
+    return _auth
+
+
+def get(key: str) -> Optional[str]:
+    """获取认证值"""
+    return get_auth().get(key)
+
+
+def set_(key: str, value: str):
+    """设置认证值"""
+    get_auth().set(key, value)
 
 
 # 导出
 __all__ = [
-    "normalize_api_key_for_config",
-    "is_valid_api_key",
-    "mask_api_key",
+    "AuthPortable",
+    "get_auth",
+    "get",
+    "set_",
 ]
