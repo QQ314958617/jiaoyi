@@ -218,3 +218,9 @@
 | # | 模块 | 源码文件 | 落地 | 状态 |
 |---|------|---------|------|------|
 | 98 | 调试日志 | `src/utils/debug.ts` | debug.py | ✅ |
+
+## 第84批（2026-04-04 09:45）
+| # | 模块 | 源码文件 | 落地 | 状态 |
+|---|------|---------|------|------|
+| 99 | Agent标识 | `src/utils/agentId.ts` | agent_id.py | ✅ |
+| 100 | Claude提示协议 | `src/utils/claudeCodeHints.ts` | claude_code_hints.py | ✅ |
