@@ -678,3 +678,10 @@
 |---|------|---------|------|------| 
 | 261 | 环境配置 | `src/utils/envConfig.ts` | env_config.py | ✅ |
 | 262 | 模式验证 | `src/utils/schema.ts` | schema.py | ✅ |
+
+## 第158批（2026-04-04 13:25】
+| # | 模块 | 源码文件 | 落地 | 状态 |
+|---|------|---------|------|------|
+| 263 | 同步锁 | `src/utils/lock.ts` | lock.py | ✅ |
+| 264 | 有序集合 | `src/utils/sorted.ts` | sorted.py | ✅ |
+| 265 | 位操作 | `src/utils/bits.ts` | bits.py | ✅ |
