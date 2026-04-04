@@ -415,3 +415,10 @@
 |---|------|---------|------|------|
 | 162 | 解析器 | `src/utils/parser.ts` | parser.py | ✅ |
 | 163 | 序列化 | `src/utils/serializer.ts` | serializer.py | ✅ |
+
+## 第117批（2026-04-04 10:58】
+| # | 模块 | 源码文件 | 落地 | 状态 |
+|---|------|---------|------|------|
+| 164 | ID生成器 | `src/utils/idGenerator.ts` | id_generator.py | ✅ |
+| 165 | 缓存 | `src/utils/cache.ts` | cache.py | ✅ |
+| 166 | 调度器 | `src/utils/scheduler.ts` | scheduler.py | ✅ |
