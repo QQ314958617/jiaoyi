@@ -4,105 +4,90 @@ Log - 日志
 
 日志工具。
 """
-import time
-from enum import Enum
-from typing import Any
+import logging
+import sys
+from datetime import datetime
 
 
-class Level(Enum):
-    """日志级别"""
-    DEBUG = 0
-    INFO = 1
-    WARN = 2
-    ERROR = 3
-    NONE = 4
-
-
+# 简单日志记录器
 class Logger:
-    """
-    日志记录器
-    """
+    """简单日志"""
     
-    def __init__(self, name: str = "", level: Level = Level.INFO):
-        """
-        Args:
-            name: 日志名
-            level: 最小日志级别
-        """
-        self.name = name
-        self.level = level
+    DEBUG = logging.DEBUG
+    INFO = logging.INFO
+    WARNING = logging.WARNING
+    ERROR = logging.ERROR
+    CRITICAL = logging.CRITICAL
     
-    def _format(self, level: Level, *args) -> str:
-        """格式化日志"""
-        timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
-        prefix = f"[{timestamp}] [{level.name}]"
-        if self.name:
-            prefix += f" [{self.name}]"
-        return prefix + " " + " ".join(str(a) for a in args)
+    def __init__(self, name: str = "app", level: int = logging.INFO):
+        self._logger = logging.getLogger(name)
+        self._logger.setLevel(level)
+        
+        if not self._logger.handlers:
+            handler = logging.StreamHandler(sys.stderr)
+            handler.setFormatter(logging.Formatter(
+                '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+            ))
+            self._logger.addHandler(handler)
     
-    def debug(self, *args) -> None:
-        """调试日志"""
-        if self.level.value <= Level.DEBUG.value:
-            print(self._format(Level.DEBUG, *args))
+    def debug(self, msg: str):
+        self._logger.debug(msg)
     
-    def info(self, *args) -> None:
-        """信息日志"""
-        if self.level.value <= Level.INFO.value:
-            print(self._format(Level.INFO, *args))
+    def info(self, msg: str):
+        self._logger.info(msg)
     
-    def warn(self, *args) -> None:
-        """警告日志"""
-        if self.level.value <= Level.WARN.value:
-            print(self._format(Level.WARN, *args))
+    def warn(self, msg: str):
+        self._logger.warning(msg)
     
-    def error(self, *args) -> None:
-        """错误日志"""
-        if self.level.value <= Level.ERROR.value:
-            import sys
-            print(self._format(Level.ERROR, *args), file=sys.stderr)
+    def error(self, msg: str):
+        self._logger.error(msg)
+    
+    def critical(self, msg: str):
+        self._logger.critical(msg)
 
 
 # 全局日志器
 _default_logger = Logger()
 
 
-def get_logger(name: str = "", level: Level = Level.INFO) -> Logger:
-    """
-    获取日志器
-    
-    Args:
-        name: 日志名
-        level: 级别
-        
-    Returns:
-        Logger实例
-    """
-    return Logger(name, level)
+def debug(msg: str):
+    _default_logger.debug(msg)
 
 
-def debug(*args) -> None:
-    _default_logger.debug(*args)
+def info(msg: str):
+    _default_logger.info(msg)
 
 
-def info(*args) -> None:
-    _default_logger.info(*args)
+def warn(msg: str):
+    _default_logger.warn(msg)
 
 
-def warn(*args) -> None:
-    _default_logger.warn(*args)
+def error(msg: str):
+    _default_logger.error(msg)
 
 
-def error(*args) -> None:
-    _default_logger.error(*args)
+def critical(msg: str):
+    _default_logger.critical(msg)
+
+
+def set_level(level: int):
+    """设置日志级别"""
+    _default_logger._logger.setLevel(level)
+
+
+def get_logger(name: str) -> Logger:
+    """获取命名日志器"""
+    return Logger(name)
 
 
 # 导出
 __all__ = [
-    "Level",
     "Logger",
-    "get_logger",
     "debug",
     "info",
     "warn",
     "error",
+    "critical",
+    "set_level",
+    "get_logger",
 ]

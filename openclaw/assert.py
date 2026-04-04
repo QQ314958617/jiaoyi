@@ -1,10 +1,9 @@
 """
-Assert - 断言工具
+Assert - 断言
 基于 Claude Code assert.ts 设计
 
-断言和异常工具。
+断言工具。
 """
-from typing import Any, Optional
 
 
 class AssertionError(Exception):
@@ -12,119 +11,80 @@ class AssertionError(Exception):
     pass
 
 
-def assert_true(condition: bool, message: str = None) -> None:
-    """断言为真"""
+def assert_(condition: bool, message: str = "Assertion failed"):
+    """断言条件为真"""
     if not condition:
-        raise AssertionError(message or "Expected true, got false")
+        raise AssertionError(message)
 
 
-def assert_false(condition: bool, message: str = None) -> None:
-    """断言为假"""
-    if condition:
-        raise AssertionError(message or "Expected false, got true")
-
-
-def assert_equal(actual: Any, expected: Any, message: str = None) -> None:
+def assert_equal(actual: any, expected: any, message: str = None):
     """断言相等"""
     if actual != expected:
-        msg = message or f"Expected {expected}, got {actual}"
+        msg = message or f"{actual!r} != {expected!r}"
         raise AssertionError(msg)
 
 
-def assert_not_equal(actual: Any, expected: Any, message: str = None) -> None:
+def assert_not_equal(actual: any, expected: any, message: str = None):
     """断言不相等"""
     if actual == expected:
-        raise AssertionError(message or f"Expected not {expected}")
+        msg = message or f"{actual!r} == {expected!r}"
+        raise AssertionError(msg)
 
 
-def assert_none(value: Any, message: str = None) -> None:
+def assert_true(value: any, message: str = None):
+    """断言为真"""
+    if not value:
+        msg = message or f"{value!r} is not truthy"
+        raise AssertionError(msg)
+
+
+def assert_false(value: any, message: str = None):
+    """断言为假"""
+    if value:
+        msg = message or f"{value!r} is not falsy"
+        raise AssertionError(msg)
+
+
+def assert_none(value: any, message: str = None):
     """断言为None"""
     if value is not None:
-        raise AssertionError(message or f"Expected None, got {value}")
+        msg = message or f"{value!r} is not None"
+        raise AssertionError(msg)
 
 
-def assert_not_none(value: Any, message: str = None) -> None:
+def assert_not_none(value: any, message: str = None):
     """断言不为None"""
     if value is None:
-        raise AssertionError(message or "Expected not None")
-
-
-def assert_type(value: Any, expected_type: type, message: str = None) -> None:
-    """断言类型"""
-    if not isinstance(value, expected_type):
-        msg = message or f"Expected {expected_type.__name__}, got {type(value).__name__}"
+        msg = message or "value is None"
         raise AssertionError(msg)
 
 
-def assert_in(value: Any, container: Any, message: str = None) -> None:
-    """断言在容器中"""
-    if value not in container:
-        msg = message or f"Expected {value} to be in {container}"
-        raise AssertionError(msg)
-
-
-def assert_not_in(value: Any, container: Any, message: str = None) -> None:
-    """断言不在容器中"""
-    if value in container:
-        raise AssertionError(message or f"Expected {value} to not be in {container}")
-
-
-def assert_empty(value: Any, message: str = None) -> None:
-    """断言为空"""
-    if value:
-        raise AssertionError(message or "Expected empty, got truthy value")
-
-
-def assert_not_empty(value: Any, message: str = None) -> None:
-    """断言不为空"""
-    if not value:
-        raise AssertionError(message or "Expected not empty")
-
-
-def assert_raise(func, *args, **kwargs) -> None:
+def assert_raises(fn: callable, *args, **kwargs):
     """断言抛出异常"""
     try:
-        func(*args, **kwargs)
-        raise AssertionError(f"Expected {func} to raise an exception")
-    except AssertionError:
-        raise
+        fn(*args, **kwargs)
+        raise AssertionError("Expected exception was not raised")
     except Exception:
-        pass  # 预期异常
+        pass  # Expected
 
 
-def assert_match(value: str, pattern: str, message: str = None) -> None:
-    """断言匹配正则"""
-    import re
-    if not re.match(pattern, value):
-        msg = message or f"Expected {value} to match {pattern}"
+def assert_type(value: any, type_: type, message: str = None):
+    """断言类型"""
+    if not isinstance(value, type_):
+        msg = message or f"{type(value).__name__} is not {type_.__name__}"
         raise AssertionError(msg)
-
-
-def invariant(condition: bool, message: str = None) -> None:
-    """
-    不变式断言
-    
-    失败时抛出AssertionError
-    """
-    if not condition:
-        raise AssertionError(message or "Invariant violated")
 
 
 # 导出
 __all__ = [
     "AssertionError",
-    "assert_true",
-    "assert_false",
+    "assert_",
     "assert_equal",
     "assert_not_equal",
+    "assert_true",
+    "assert_false",
     "assert_none",
     "assert_not_none",
+    "assert_raises",
     "assert_type",
-    "assert_in",
-    "assert_not_in",
-    "assert_empty",
-    "assert_not_empty",
-    "assert_raise",
-    "assert_match",
-    "invariant",
 ]
