@@ -2,19 +2,14 @@
 Graph - 图
 基于 Claude Code graph.ts 设计
 
-图数据结构和相关算法。
+图结构工具。
 """
-from typing import Any, Callable, Dict, Generic, List, Optional, Set, TypeVar
-from collections import deque
-
-T = TypeVar('T')
+from typing import Any, Callable, Dict, List, Set, Tuple
 
 
-class Graph(Generic[T]):
+class Graph:
     """
-    图
-    
-    使用邻接表实现。
+    图（邻接表）
     """
     
     def __init__(self, directed: bool = False):
@@ -23,172 +18,196 @@ class Graph(Generic[T]):
             directed: 是否为有向图
         """
         self._directed = directed
-        self._adj: Dict[T, List[T]] = {}
+        self._adj: Dict[Any, Set] = {}  # 顶点 -> 邻居
     
-    def add_vertex(self, v: T) -> None:
-        """添加顶点"""
+    def add_vertex(self, v: Any) -> bool:
+        """
+        添加顶点
+        
+        Args:
+            v: 顶点
+            
+        Returns:
+            是否成功
+        """
         if v not in self._adj:
-            self._adj[v] = []
+            self._adj[v] = set()
+            return True
+        return False
     
-    def add_edge(self, v: T, w: T) -> None:
-        """添加边"""
-        self.add_vertex(v)
-        self.add_vertex(w)
-        self._adj[v].append(w)
+    def add_edge(self, from_v: Any, to_v: Any) -> bool:
+        """
+        添加边
         
-        if not self._directed:
-            self._adj[w].append(v)
-    
-    def remove_edge(self, v: T, w: T) -> None:
-        """移除边"""
-        if v in self._adj and w in self._adj[v]:
-            self._adj[v].remove(w)
+        Args:
+            from_v: 起点
+            to_v: 终点
+            
+        Returns:
+            是否成功
+        """
+        self.add_vertex(from_v)
+        self.add_vertex(to_v)
         
+        self._adj[from_v].add(to_v)
         if not self._directed:
-            if w in self._adj and v in self._adj[w]:
-                self._adj[w].remove(v)
+            self._adj[to_v].add(from_v)
+        return True
     
-    def neighbors(self, v: T) -> List[T]:
+    def remove_edge(self, from_v: Any, to_v: Any) -> bool:
+        """
+        移除边
+        
+        Args:
+            from_v: 起点
+            to_v: 终点
+            
+        Returns:
+            是否成功
+        """
+        if from_v not in self._adj:
+            return False
+        
+        if to_v in self._adj[from_v]:
+            self._adj[from_v].remove(to_v)
+            if not self._directed:
+                self._adj[to_v].remove(from_v)
+            return True
+        return False
+    
+    def remove_vertex(self, v: Any) -> bool:
+        """
+        移除顶点
+        
+        Args:
+            v: 顶点
+            
+        Returns:
+            是否成功
+        """
+        if v not in self._adj:
+            return False
+        
+        # 移除所有相关的边
+        for neighbor in list(self._adj[v]):
+            self.remove_edge(v, neighbor)
+            if not self._directed:
+                self.remove_edge(neighbor, v)
+        
+        del self._adj[v]
+        return True
+    
+    def neighbors(self, v: Any) -> Set:
         """获取邻居"""
-        return self._adj.get(v, [])
+        return self._adj.get(v, set()).copy()
     
-    def vertices(self) -> List[T]:
-        """获取所有顶点"""
+    def vertices(self) -> List:
+        """所有顶点"""
         return list(self._adj.keys())
     
-    def bfs(self, start: T, visit: Callable[[T], None]) -> None:
-        """广度优先搜索"""
-        visited: Set[T] = set()
-        queue = deque([start])
+    def edges(self) -> List[Tuple]:
+        """所有边"""
+        result = []
+        visited = set()
+        
+        for from_v, to_set in self._adj.items():
+            for to_v in to_set:
+                if self._directed or (from_v, to_v) not in visited:
+                    result.append((from_v, to_v))
+                    visited.add((from_v, to_v))
+                    visited.add((to_v, from_v))
+        
+        return result
+    
+    def has_path(self, from_v: Any, to_v: Any) -> bool:
+        """
+        是否有路径
+        
+        Args:
+            from_v: 起点
+            to_v: 终点
+            
+        Returns:
+            是否有路径
+        """
+        if from_v not in self._adj or to_v not in self._adj:
+            return False
+        
+        visited = set()
+        queue = [from_v]
         
         while queue:
-            v = queue.popleft()
-            
-            if v in visited:
-                continue
-            
-            visited.add(v)
-            visit(v)
-            
-            for neighbor in self.neighbors(v):
-                if neighbor not in visited:
-                    queue.append(neighbor)
-    
-    def dfs(self, start: T, visit: Callable[[T], None]) -> None:
-        """深度优先搜索"""
-        visited: Set[T] = set()
-        
-        def _dfs(v: T):
-            if v in visited:
-                return
-            
-            visited.add(v)
-            visit(v)
-            
-            for neighbor in self.neighbors(v):
-                if neighbor not in visited:
-                    _dfs(neighbor)
-        
-        _dfs(start)
-    
-    def has_path(self, start: T, end: T) -> bool:
-        """检查是否存在路径"""
-        visited: Set[T] = set()
-        queue = deque([start])
-        
-        while queue:
-            v = queue.popleft()
-            
-            if v == end:
+            current = queue.pop(0)
+            if current == to_v:
                 return True
             
-            if v in visited:
+            if current in visited:
                 continue
+            visited.add(current)
             
-            visited.add(v)
-            
-            for neighbor in self.neighbors(v):
+            for neighbor in self._adj[current]:
                 if neighbor not in visited:
                     queue.append(neighbor)
         
         return False
     
-    def topological_sort(self) -> List[T]:
-        """拓扑排序"""
-        if not self._directed:
-            raise ValueError("Topological sort requires directed graph")
+    def bfs(self, start: Any, visitor: Callable) -> None:
+        """
+        广度优先遍历
         
-        in_degree: Dict[T, int] = {v: 0 for v in self._adj}
-        
-        for v in self._adj:
-            for neighbor in self._adj[v]:
-                in_degree[neighbor] += 1
-        
-        queue = deque([v for v, deg in in_degree.items() if deg == 0])
-        result = []
-        
-        while queue:
-            v = queue.popleft()
-            result.append(v)
-            
-            for neighbor in self._adj[v]:
-                in_degree[neighbor] -= 1
-                if in_degree[neighbor] == 0:
-                    queue.append(neighbor)
-        
-        return result
-
-
-class UnionFind:
-    """
-    并查集
-    
-    支持不相交集合的合并和查询。
-    """
-    
-    def __init__(self):
-        self._parent: Dict[Any, Any] = {}
-        self._rank: Dict[Any, int] = {}
-    
-    def make_set(self, x: Any) -> None:
-        """创建单元素集合"""
-        if x not in self._parent:
-            self._parent[x] = x
-            self._rank[x] = 0
-    
-    def find(self, x: Any) -> Any:
-        """查找根节点（路径压缩）"""
-        if x not in self._parent:
-            self.make_set(x)
-        
-        if self._parent[x] != x:
-            self._parent[x] = self.find(self._parent[x])
-        
-        return self._parent[x]
-    
-    def union(self, x: Any, y: Any) -> None:
-        """合并集合（按秩合并）"""
-        root_x = self.find(x)
-        root_y = self.find(y)
-        
-        if root_x == root_y:
+        Args:
+            start: 起始顶点
+            visitor: (vertex) -> None
+        """
+        if start not in self._adj:
             return
         
-        if self._rank[root_x] < self._rank[root_y]:
-            self._parent[root_x] = root_y
-        elif self._rank[root_x] > self._rank[root_y]:
-            self._parent[root_y] = root_x
-        else:
-            self._parent[root_y] = root_x
-            self._rank[root_x] += 1
+        visited = set()
+        queue = [start]
+        
+        while queue:
+            v = queue.pop(0)
+            if v in visited:
+                continue
+            visited.add(v)
+            visitor(v)
+            
+            for neighbor in self._adj[v]:
+                if neighbor not in visited:
+                    queue.append(neighbor)
     
-    def connected(self, x: Any, y: Any) -> bool:
-        """检查是否连通"""
-        return self.find(x) == self.find(y)
+    def dfs(self, start: Any, visitor: Callable) -> None:
+        """
+        深度优先遍历
+        
+        Args:
+            start: 起始顶点
+            visitor: (vertex) -> None
+        """
+        if start not in self._adj:
+            return
+        
+        visited = set()
+        stack = [start]
+        
+        while stack:
+            v = stack.pop()
+            if v in visited:
+                continue
+            visited.add(v)
+            visitor(v)
+            
+            for neighbor in self._adj[v]:
+                if neighbor not in visited:
+                    stack.append(neighbor)
+    
+    @property
+    def size(self) -> int:
+        """顶点数"""
+        return len(self._adj)
 
 
 # 导出
 __all__ = [
     "Graph",
-    "UnionFind",
 ]
