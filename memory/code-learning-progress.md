@@ -834,3 +834,10 @@
 | 324 | 函数工具 | `src/utils/function.ts` | function.py | ✅ |
 | 325 | 操作符 | `src/utils/operator.ts` | operator.py | ✅ |
 | 326 | 数学 | `src/utils/math.ts` | math2.py | ✅ |
+
+## 第181批（2026-04-04 17:25】
+| # | 模块 | 源码文件 | 落地 | 状态 |
+|---|------|---------|------|------|
+| 327 | 格式化 | `src/utils/format.ts` | format.py | ✅ |
+| 328 | 表格 | `src/utils/table.ts` | table.py | ✅ |
+| 329 | 进度 | `src/utils/progress.ts` | progress.py | ✅ |
