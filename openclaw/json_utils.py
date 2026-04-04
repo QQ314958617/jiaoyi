@@ -1,256 +1,230 @@
 """
-OpenClaw JSON Utilities
-=====================
-Inspired by Claude Code's src/utils/json.ts.
+JSON Utilities - JSON处理工具
+基于 Claude Code json.ts 设计
 
-JSON 处理工具，支持：
-1. 安全解析（带缓存）
-2. JSONC 解析（带注释）
-3. JSON Schema 验证
-4. JSON 合并
+提供安全的JSON解析、JSONC支持（带注释的JSON），
+以及JSON修改功能。
 """
+import json
+from functools import lru_cache
+from typing import Any, Optional
 
-from __future__ import annotations
+from .errors import log_error
 
-import json, re
-from typing import Any, Optional, Dict
-from pathlib import Path
 
-# ============================================================================
-# 基础 JSON
-# ============================================================================
+# JSON解析缓存最大键大小
+PARSE_CACHE_MAX_KEY_BYTES = 8 * 1024
 
-def safe_parse_json(json_str: str | None, default: Any = None) -> Any:
+
+def strip_bom(s: str) -> str:
     """
-    安全解析 JSON
-    
-    - 自动 strip BOM
-    - 解析失败返回 default
-    """
-    if not json_str:
-        return default
-    
-    try:
-        # Strip BOM
-        if json_str.startswith('\ufeff'):
-            json_str = json_str[1:]
-        
-        return json.loads(json_str)
-    except (json.JSONDecodeError, TypeError):
-        return default
-
-def strip_bom(text: str) -> str:
-    """去除 BOM"""
-    if text.startswith('\ufeff'):
-        return text[1:]
-    return text
-
-def read_json_file(path: str | Path, default: Any = None) -> Any:
-    """读取 JSON 文件"""
-    try:
-        with open(path, 'r', encoding='utf-8-sig') as f:
-            return safe_parse_json(f.read(), default)
-    except (FileNotFoundError, json.JSONDecodeError):
-        return default
-
-def write_json_file(path: str | Path, data: Any, indent: int = 2) -> bool:
-    """写入 JSON 文件"""
-    try:
-        with open(path, 'w', encoding='utf-8') as f:
-            json.dump(data, f, ensure_ascii=False, indent=indent)
-        return True
-    except (IOError, TypeError):
-        return False
-
-# ============================================================================
-# JSON 合并
-# ============================================================================
-
-def merge_json(base: Dict, override: Dict, deep: bool = True) -> Dict:
-    """
-    合并两个 JSON 对象
+    移除UTF-8 BOM
     
     Args:
-        base: 基础对象
-        override: 覆盖对象
-        deep: 是否深度合并
-    """
-    result = dict(base)
-    
-    for key, value in override.items():
-        if deep and key in result and isinstance(result[key], dict) and isinstance(value, dict):
-            result[key] = merge_json(result[key], value, deep)
-        else:
-            result[key] = value
-    
-    return result
-
-# ============================================================================
-# JSON Schema 验证（简化版）
-# ============================================================================
-
-def validate_json_schema(data: Any, schema: Dict) -> tuple[bool, list[str]]:
-    """
-    简单 JSON Schema 验证
-    
-    Returns: (is_valid, error_messages)
-    """
-    errors = []
-    
-    def validate(obj, schema_obj, path):
-        if schema_obj.get("type") == "object":
-            if not isinstance(obj, dict):
-                errors.append(f"{path}: expected object, got {type(obj).__name__}")
-                return
-            
-            required = schema_obj.get("required", [])
-            for req in required:
-                if req not in obj:
-                    errors.append(f"{path}: missing required field '{req}'")
-            
-            for key, value in obj.items():
-                if key in schema_obj.get("properties", {}):
-                    validate(value, schema_obj["properties"][key], f"{path}.{key}")
+        s: 字符串
         
-        elif schema_obj.get("type") == "array":
-            if not isinstance(obj, list):
-                errors.append(f"{path}: expected array, got {type(obj).__name__}")
-                return
-            
-            for i, item in enumerate(obj):
-                if "items" in schema_obj:
-                    validate(item, schema_obj["items"], f"{path}[{i}]")
+    Returns:
+        移除BOM后的字符串
+    """
+    if s.startswith('\ufeff'):
+        return s[1:]
+    return s
+
+
+def safe_parse_json(
+    json_str: Optional[str],
+    should_log_error: bool = True,
+) -> Any:
+    """
+    安全解析JSON
+    
+    Args:
+        json_str: JSON字符串
+        should_log_error: 是否记录错误
         
-        elif schema_obj.get("type") == "string":
-            if not isinstance(obj, str):
-                errors.append(f"{path}: expected string, got {type(obj).__name__}")
-        
-        elif schema_obj.get("type") == "number":
-            if not isinstance(obj, (int, float)):
-                errors.append(f"{path}: expected number, got {type(obj).__name__}")
-        
-        elif schema_obj.get("type") == "boolean":
-            if not isinstance(obj, bool):
-                errors.append(f"{path}: expected boolean, got {type(obj).__name__}")
-    
-    validate(data, schema, "$")
-    return len(errors) == 0, errors
-
-# ============================================================================
-# JSON Path
-# ============================================================================
-
-def get_json_path(data: Any, path: str, default: Any = None) -> Any:
+    Returns:
+        解析后的对象，失败返回None
     """
-    按路径获取 JSON 数据
+    if not json_str:
+        return None
     
-    Example:
-        get_json_path({"a": {"b": [1, 2]}}, "a.b.0") → 1
-    """
-    keys = path.split('.')
-    current = data
-    
-    for key in keys:
-        if isinstance(current, dict):
-            current = current.get(key)
-        elif isinstance(current, list):
-            try:
-                idx = int(key)
-                current = current[idx]
-            except (ValueError, IndexError):
-                return default
-        else:
-            return default
-        
-        if current is None:
-            return default
-    
-    return current
-
-def set_json_path(data: Dict, path: str, value: Any) -> None:
-    """
-    按路径设置 JSON 数据
-    
-    Example:
-        data = {}
-        set_json_path(data, "a.b.0", "hello")
-        # data = {"a": {"b": ["hello"]}}
-    """
-    keys = path.split('.')
-    current = data
-    
-    for i, key in enumerate(keys[:-1]):
-        if key not in current:
-            current[key] = {}
-        current = current[key]
-    
-    final_key = keys[-1]
-    if isinstance(current, list):
-        try:
-            idx = int(final_key)
-            while len(current) <= idx:
-                current.append(None)
-            current[idx] = value
-        except ValueError:
-            current[final_key] = value
-    else:
-        current[final_key] = value
-
-# ============================================================================
-# JSON 差异
-# ============================================================================
-
-def json_diff(old: Dict, new: Dict, path: str = "$") -> list[dict]:
-    """
-    比较两个 JSON 对象的差异
-    
-    Returns: [{"op": "add|remove|replace", "path": "...", "old": ..., "new": ...}]
-    """
-    diffs = []
-    
-    # 查找新增和修改
-    for key in set(old.keys()) | set(new.keys()):
-        current_path = f"{path}.{key}"
-        
-        if key not in old:
-            diffs.append({"op": "add", "path": current_path, "new": new[key]})
-        elif key not in new:
-            diffs.append({"op": "remove", "path": current_path, "old": old[key]})
-        elif old[key] != new[key]:
-            if isinstance(old[key], dict) and isinstance(new[key], dict):
-                diffs.extend(json_diff(old[key], new[key], current_path))
-            else:
-                diffs.append({
-                    "op": "replace",
-                    "path": current_path,
-                    "old": old[key],
-                    "new": new[key]
-                })
-    
-    return diffs
-
-# ============================================================================
-# 常用数据转换
-# ============================================================================
-
-def to_json_string(data: Any, indent: int = None, ensure_ascii: bool = False) -> str:
-    """转换为 JSON 字符串"""
-    if indent is not None:
-        return json.dumps(data, ensure_ascii=ensure_ascii, indent=indent)
-    return json.dumps(data, ensure_ascii=ensure_ascii)
-
-def pretty_json(data: Any) -> str:
-    """格式化 JSON（带颜色，用于调试）"""
-    return json.dumps(data, ensure_ascii=False, indent=2, sort_keys=True)
-
-def compact_json(data: Any) -> str:
-    """压缩 JSON（无缩进）"""
-    return json.dumps(data, separators=(',', ':'))
-
-def is_valid_json(text: str) -> bool:
-    """检查是否是有效 JSON"""
     try:
-        json.loads(text)
-        return True
-    except:
-        return False
+        return json.loads(strip_bom(json_str))
+    except Exception as e:
+        if should_log_error:
+            log_error(f"JSON parse error: {e}")
+        return None
+
+
+def safe_parse_jsonc(json_str: Optional[str]) -> Any:
+    """
+    安全解析JSONC（带注释的JSON）
+    
+    用于VS Code配置文件等支持注释的JSON格式。
+    
+    Args:
+        json_str: JSON字符串
+        
+    Returns:
+        解析后的对象，失败返回None
+    """
+    if not json_str:
+        return None
+    
+    try:
+        content = strip_bom(json_str)
+        
+        # 移除注释和尾随逗号
+        lines = []
+        for line in content.split('\n'):
+            # 移除 // 注释
+            if '#' in line:
+                # 字符串内的#不算
+                in_string = False
+                escaped = False
+                for i, c in enumerate(line):
+                    if escaped:
+                        escaped = False
+                        continue
+                    if c == '"' and not in_string:
+                        in_string = True
+                    elif c == '\\':
+                        escaped = True
+                    elif c == '#' and in_string:
+                        line = line[:i]
+                        break
+                else:
+                    # 字符串外找到#，截断
+                    for i, c in enumerate(line):
+                        if c == '"':
+                            in_string = not in_string
+                        elif c == '#' and not in_string:
+                            line = line[:i].rstrip()
+                            break
+            
+            # 移除尾随逗号
+            line = line.rstrip()
+            if line.endswith(','):
+                line = line[:-1].rstrip()
+            
+            lines.append(line)
+        
+        result = ''.join(lines)
+        return json.loads(result)
+        
+    except Exception as e:
+        log_error(f"JSONC parse error: {e}")
+        return None
+
+
+@lru_cache(maxsize=50)
+def _parse_json_cached(json_str: str) -> Optional[Any]:
+    """缓存的JSON解析"""
+    try:
+        return json.loads(strip_bom(json_str))
+    except Exception:
+        return None
+
+
+def parse_json_cached(json_str: str) -> Optional[Any]:
+    """
+    带缓存的JSON解析（小字符串）
+    
+    Args:
+        json_str: JSON字符串
+        
+    Returns:
+        解析后的对象
+    """
+    if len(json_str) > PARSE_CACHE_MAX_KEY_BYTES:
+        return safe_parse_json(json_str, False)
+    return _parse_json_cached(json_str)
+
+
+def modify_json(
+    content: str,
+    path: list,
+    value: Any,
+) -> str:
+    """
+    修改JSON字符串中的某个路径的值
+    
+    Args:
+        content: JSON字符串
+        path: 路径列表，如 ["key", "nested", "value"]
+        value: 新的值
+        
+    Returns:
+        修改后的JSON字符串
+    """
+    try:
+        data = safe_parse_json(content)
+        if data is None:
+            return content
+        
+        # 遍历路径
+        current = data
+        for key in path[:-1]:
+            if key not in current:
+                current[key] = {}
+            current = current[key]
+        
+        # 设置值
+        current[path[-1]] = value
+        
+        return json.dumps(data, indent=2)
+        
+    except Exception as e:
+        log_error(f"modify_json error: {e}")
+        return content
+
+
+def add_to_json_array(
+    content: str,
+    array_path: list,
+    new_item: Any,
+) -> str:
+    """
+    向JSON数组添加元素
+    
+    Args:
+        content: JSON字符串
+        array_path: 数组的路径
+        new_item: 要添加的元素
+        
+    Returns:
+        修改后的JSON字符串
+    """
+    try:
+        data = safe_parse_json(content)
+        if data is None:
+            return content
+        
+        # 遍历路径
+        current = data
+        for key in array_path:
+            if key not in current:
+                current[key] = []
+            current = current[key]
+        
+        # 添加元素
+        if isinstance(current, list):
+            current.append(new_item)
+        
+        return json.dumps(data, indent=2)
+        
+    except Exception as e:
+        log_error(f"add_to_json_array error: {e}")
+        return content
+
+
+# 导出
+__all__ = [
+    "strip_bom",
+    "safe_parse_json",
+    "safe_parse_jsonc",
+    "parse_json_cached",
+    "modify_json",
+    "add_to_json_array",
+    "PARSE_CACHE_MAX_KEY_BYTES",
+]

@@ -114,3 +114,9 @@
 | 68 | 工作目录 | `src/utils/cwd.ts` | cwd.py | ✅ |
 | 69 | 环境变量 | `src/utils/envUtils.ts` | env_utils.py | ✅ |
 | 70 | 路径工具 | `src/utils/path.ts` | path_utils.py | ✅ |
+
+## 第65批（2026-04-04 08:53）
+| # | 模块 | 源码文件 | 落地 | 状态 |
+|---|------|---------|------|------|
+| 71 | 格式化工具 | `src/utils/format.ts` | format.py | ✅ |
+| 72 | 字符串工具 | `src/utils/stringUtils.ts` | string_utils.py | ✅ |
