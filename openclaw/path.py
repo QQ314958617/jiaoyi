@@ -1,8 +1,8 @@
 """
-Path - 路径工具
+Path - 路径
 基于 Claude Code path.ts 设计
 
-路径处理工具。
+路径操作工具。
 """
 import os
 from pathlib import Path
@@ -19,32 +19,27 @@ def join(*paths: str) -> str:
     Returns:
         连接后的路径
     """
-    return os.path.join(*paths)
+    return str(Path(*paths))
 
 
 def dirname(path: str) -> str:
     """获取目录名"""
-    return os.path.dirname(path)
+    return str(Path(path).parent)
 
 
-def basename(path: str, ext: str = None) -> str:
-    """
-    获取文件名
-    
-    Args:
-        path: 完整路径
-        ext: 要去除的扩展名
-    """
-    b = os.path.basename(path)
-    if ext and b.endswith(ext):
-        return b[:-len(ext)]
-    return b
+def basename(path: str) -> str:
+    """获取文件名"""
+    return Path(path).name
 
 
 def extname(path: str) -> str:
-    """获取扩展名"""
-    _, ext = os.path.splitext(path)
-    return ext
+    """获取扩展名（含点）"""
+    return Path(path).suffix
+
+
+def stem(path: str) -> str:
+    """获取文件名（不含扩展名）"""
+    return Path(path).stem
 
 
 def resolve(*paths: str) -> str:
@@ -52,161 +47,65 @@ def resolve(*paths: str) -> str:
     解析为绝对路径
     
     Args:
-        *paths: 路径片段
+        *paths: 路径
         
     Returns:
         绝对路径
     """
-    return os.path.abspath(join(*paths))
+    return str(Path(*paths).resolve())
 
 
-def relative(from_path: str, to_path: str) -> str:
-    """获取相对路径"""
-    return os.path.relpath(from_path, to_path)
-
-
-def is_absolute(path: str) -> bool:
-    """是否为绝对路径"""
-    return os.path.isabs(path)
+def relative(from_path: str, to: str) -> str:
+    """
+    计算相对路径
+    
+    Args:
+        from_path: 起始路径
+        to: 目标路径
+        
+    Returns:
+        相对路径
+    """
+    return str(Path(from_path).relative_to(to))
 
 
 def normalize(path: str) -> str:
     """规范化路径"""
-    return os.path.normpath(path)
+    return str(Path(path).resolve())
+
+
+def is_absolute(path: str) -> bool:
+    """是否为绝对路径"""
+    return Path(path).is_absolute()
+
+
+def is_relative(path: str) -> bool:
+    """是否为相对路径"""
+    return not Path(path).is_absolute()
 
 
 def split(path: str) -> List[str]:
-    """分割路径为目录列表"""
-    parts = []
-    while True:
-        path, tail = os.path.split(path)
-        if tail:
-            parts.insert(0, tail)
-        else:
-            if path:
-                parts.insert(0, path)
-            break
-    return parts
-
-
-def common_prefix(paths: List[str]) -> str:
-    """获取公共前缀"""
-    if not paths:
-        return ''
-    
-    parts = [split(p) for p in paths]
-    common = []
-    
-    for parts_tuple in zip(*parts):
-        if len(set(parts_tuple)) == 1:
-            common.append(parts_tuple[0])
-        else:
-            break
-    
-    return join(*common) if common else ''
+    """分割路径为各部分"""
+    return list(Path(path).parts)
 
 
 def with_ext(path: str, ext: str) -> str:
-    """替换扩展名"""
+    """
+    替换扩展名
+    
+    Args:
+        path: 路径
+        ext: 新扩展名（可含点或不含）
+        
+    Returns:
+        新路径
+    """
+    p = Path(path)
     if not ext.startswith('.'):
         ext = '.' + ext
-    
-    return os.path.splitext(path)[0] + ext
+    return str(p.with_suffix(ext))
 
 
 def without_ext(path: str) -> str:
-    """去除扩展名"""
-    return os.path.splitext(path)[0]
-
-
-def change_ext(path: str, new_ext: str) -> str:
-    """更改扩展名"""
-    return with_ext(path, new_ext)
-
-
-def split_ext(path: str) -> tuple:
-    """分割为(无扩展名路径, 扩展名)"""
-    return os.path.splitext(path)
-
-
-def is_subpath(parent: str, child: str) -> bool:
-    """检查是否为子路径"""
-    parent = normalize(parent)
-    child = normalize(child)
-    return child.startswith(parent)
-
-
-def make_relative(path: str, base: str) -> str:
-    """转为相对路径"""
-    return os.path.relpath(path, base)
-
-
-# Path对象封装
-class PathObj:
-    """路径对象封装"""
-    
-    def __init__(self, path: str):
-        self._path = Path(path)
-    
-    @property
-    def path(self) -> str:
-        return str(self._path)
-    
-    @property
-    def name(self) -> str:
-        return self._path.name
-    
-    @property
-    def stem(self) -> str:
-        return self._path.stem
-    
-    @property
-    def ext(self) -> str:
-        return self._path.suffix
-    
-    @property
-    def parent(self) -> str:
-        return str(self._path.parent)
-    
-    def exists(self) -> bool:
-        return self._path.exists()
-    
-    def is_file(self) -> bool:
-        return self._path.is_file()
-    
-    def is_dir(self) -> bool:
-        return self._path.is_dir()
-    
-    def read_text(self, encoding: str = 'utf-8') -> str:
-        return self._path.read_text(encoding=encoding)
-    
-    def write_text(self, content: str, encoding: str = 'utf-8') -> None:
-        self._path.write_text(content, encoding=encoding)
-    
-    def iterdir(self):
-        return self._path.iterdir()
-    
-    def glob(self, pattern: str):
-        return self._path.glob(pattern)
-
-
-# 导出
-__all__ = [
-    "join",
-    "dirname",
-    "basename",
-    "extname",
-    "resolve",
-    "relative",
-    "is_absolute",
-    "normalize",
-    "split",
-    "common_prefix",
-    "with_ext",
-    "without_ext",
-    "change_ext",
-    "split_ext",
-    "is_subpath",
-    "make_relative",
-    "PathObj",
-]
+    """移除扩展名"""
+    return str(Path(path).with_suffix(''))
