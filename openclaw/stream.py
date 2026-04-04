@@ -1,196 +1,240 @@
 """
-OpenClaw Async Stream
-=====================
-Inspired by Claude Code's src/utils/stream.ts (76 lines).
+Stream - 流式处理
+基于 Claude Code stream.ts 设计
 
-AsyncIterator 实现，支持：
-- enqueue(value) - 添加数据
-- done() - 标记完成
-- error(ex) - 错误传播
-- for await ... 语法
-
-Python 对等实现：asyncio.Queue 已经提供类似功能，
-但这个版本更轻量，适合同步上下文。
+异步流处理工具。
 """
-
-from __future__ import annotations
-
 import asyncio
-from typing import Generic, TypeVar, Optional, Callable, Awaitable
+from typing import AsyncIterator, Callable, Generic, TypeVar, Optional, AsyncGenerator
 
 T = TypeVar('T')
+U = TypeVar('U')
 
-class AsyncStream(Generic[T]):
+
+class Stream(Generic[T]):
     """
-    异步数据流
+    异步流
     
-    Claude Code 模式：
-    - queue: 缓冲区，未被 next() 消费的值
-    - read_resolve/read_reject: pending next() 的 future
-    - is_done: 流已结束
-    - has_error: 错误状态
-    
-    用法：
-    ```python
-    stream = AsyncStream[int]()
-    
-    async def producer():
-        for i in range(5):
-            stream.enqueue(i)
-        stream.done()
-    
-    async def consumer():
-        async for value in stream:
-            print(value)
-    
-    asyncio.run(consumer())
-    ```
+    支持入队、出队、完成、错误处理。
     """
     
-    def __init__(self, returned: Optional[Callable[[], None]] = None):
-        self._queue: list[T] = []
-        self._read_future: Optional[asyncio.Future] = None
-        self._is_done: bool = False
-        self._has_error: Optional[Exception] = None
-        self._started: bool = False
-        self._returned = returned
-        self._loop: Optional[asyncio.AbstractEventLoop] = None
+    def __init__(self, on_return: Optional[Callable] = None):
+        """
+        Args:
+            on_return: 迭代结束时调用的函数
+        """
+        self._queue: asyncio.Queue = asyncio.Queue()
+        self._on_return = on_return
+        self._is_done = False
+        self._has_error = False
+        self._error: Optional[Exception] = None
+        self._read_waiter: Optional[asyncio.Future] = None
+        self._started = False
     
-    def _get_loop(self) -> asyncio.AbstractEventLoop:
-        if self._loop is None:
-            self._loop = asyncio.get_event_loop()
-        return self._loop
-    
-    def __aiter__(self) -> 'AsyncStream[T]':
+    def __aiter__(self) -> AsyncIterator[T]:
+        """返回异步迭代器"""
         if self._started:
-            raise ValueError("AsyncStream can only be iterated once")
+            raise ValueError("Stream can only be iterated once")
         self._started = True
         return self
     
     async def __anext__(self) -> T:
-        loop = self._get_loop()
+        """异步迭代下一步"""
+        if self._queue.qsize() > 0:
+            return self._queue.get_nowait()
         
-        # 有排队的值
-        if self._queue:
-            return self._queue.pop(0)
-        
-        # 已结束
         if self._is_done:
             raise StopAsyncIteration
         
-        # 有错误
-        if self._has_error:
-            raise self._has_error
+        if self._has_error and self._error:
+            raise self._error
         
-        # 创建新的 future 等待值
-        if self._read_future is not None and not self._read_future.done():
-            # 已有 pending 的 future，先完成它
-            pass
-        else:
-            self._read_future = loop.create_future()
+        # 创建等待
+        self._read_waiter = asyncio.get_event_loop().create_future()
         
         try:
-            result = await self._read_future
-            self._read_future = None
-        except StopAsyncIteration:
-            raise
-        except Exception as e:
-            self._read_future = None
-            raise
-        
-        if isinstance(result, Exception):
-            raise result
-        
-        if result is None or (isinstance(result, dict) and result.get("done")):
+            value = await self._read_waiter
+            if self._has_error and self._error:
+                raise self._error
+            return value
+        except asyncio.CancelledError:
             raise StopAsyncIteration
-        
-        return result
     
-    def enqueue(self, value: T) -> None:
-        """添加一个值到流"""
-        if self._is_done:
-            raise ValueError("Cannot enqueue to a done stream")
+    async def enqueue(self, value: T) -> None:
+        """
+        入队
         
-        if self._read_future is not None and not self._read_future.done():
-            # 有 pending 的消费者，立即传递值
-            future = self._read_future
-            self._read_future = None
-            if not future.done():
-                future.set_result(value)
+        Args:
+            value: 值
+        """
+        if self._read_waiter and not self._read_waiter.done():
+            waiter = self._read_waiter
+            self._read_waiter = None
+            waiter.set_result(value)
         else:
-            self._queue.append(value)
+            await self._queue.put(value)
     
-    def done(self) -> None:
-        """标记流结束"""
+    async def done(self) -> None:
+        """标记流完成"""
         self._is_done = True
-        if self._read_future is not None and not self._read_future.done():
-            future = self._read_future
-            self._read_future = None
-            future.set_result(None)  # None 表示结束
-    
-    def error(self, ex: Exception) -> None:
-        """标记流出错"""
-        self._has_error = ex
-        if self._read_future is not None and not self._read_future.done():
-            future = self._read_future
-            self._read_future = None
-            future.set_exception(ex)
-    
-    async def __aenter__(self) -> 'AsyncStream[T]':
-        return self
-
-    async def __aexit__(self, *args) -> None:
-        self.done()
-        if self._returned:
-            self._returned()
-
-
-class SyncStream(Generic[T]):
-    """
-    同步版本的数据流（用于非异步上下文）
-    
-    使用 threading.Lock + list 实现
-    """
-    
-    def __init__(self):
-        self._queue: list[T] = []
-        self._is_done: bool = False
-        self._has_error: Optional[Exception] = None
-        self._started: bool = False
-        self._lock = __import__('threading').Lock()
-    
-    def __iter__(self) -> 'SyncStream[T]':
-        if self._started:
-            raise ValueError("SyncStream can only be iterated once")
-        self._started = True
-        return self
-    
-    def __next__(self) -> T:
-        import time
         
-        if self._has_error:
-            raise self._has_error
-        
-        # 等待值
-        while not self._queue and not self._is_done:
-            time.sleep(0.01)
-        
-        if self._queue:
-            return self._queue.pop(0)
-        
-        if self._is_done:
-            raise StopIteration
-        
-        raise RuntimeError("Stream in unexpected state")
+        if self._read_waiter and not self._read_waiter.done():
+            waiter = self._read_waiter
+            self._read_waiter = None
+            waiter.set_result(None)  # 发送结束信号
     
-    def enqueue(self, value: T) -> None:
-        if self._is_done:
-            raise ValueError("Cannot enqueue to a done stream")
-        with self._lock:
-            self._queue.append(value)
+    async def error(self, err: Exception) -> None:
+        """
+        标记流错误
+        
+        Args:
+            err: 错误
+        """
+        self._has_error = True
+        self._error = err
+        
+        if self._read_waiter and not self._read_waiter.done():
+            waiter = self._read_waiter
+            self._read_waiter = None
+            waiter.set_exception(err)
     
-    def done(self) -> None:
+    async def aclose(self) -> None:
+        """关闭流"""
         self._is_done = True
+        if self._on_return:
+            try:
+                self._on_return()
+            except Exception:
+                pass
+
+
+async def stream_from_async_generator(
+    gen: AsyncGenerator[T, None],
+) -> Stream[T]:
+    """
+    从异步生成器创建流
     
-    def error(self, ex: Exception) -> None:
-        self._has_error = ex
+    Args:
+        gen: 异步生成器
+        
+    Returns:
+        Stream
+    """
+    stream = Stream[T]()
+    
+    async def consume():
+        try:
+            async for item in gen:
+                await stream.enqueue(item)
+            await stream.done()
+        except Exception as e:
+            await stream.error(e)
+    
+    asyncio.create_task(consume())
+    return stream
+
+
+async def stream_map(
+    stream: Stream[T],
+    fn: Callable[[T], U],
+) -> Stream[U]:
+    """
+    流映射
+    
+    Args:
+        stream: 输入流
+        fn: 映射函数
+        
+    Returns:
+        输出流
+    """
+    output = Stream[U]()
+    
+    async def mapper():
+        async for item in stream:
+            try:
+                result = fn(item)
+                if asyncio.iscoroutine(result):
+                    result = await result
+                await output.enqueue(result)
+            except Exception as e:
+                await output.error(e)
+                return
+        await output.done()
+    
+    asyncio.create_task(mapper())
+    return output
+
+
+async def stream_filter(
+    stream: Stream[T],
+    predicate: Callable[[T], bool],
+) -> Stream[T]:
+    """
+    流过滤
+    
+    Args:
+        stream: 输入流
+        predicate: 过滤函数
+        
+    Returns:
+        输出流
+    """
+    output = Stream[T]()
+    
+    async def filter():
+        async for item in stream:
+            try:
+                keep = predicate(item)
+                if asyncio.iscoroutine(keep):
+                    keep = await keep
+                if keep:
+                    await output.enqueue(item)
+            except Exception as e:
+                await output.error(e)
+                return
+        await output.done()
+    
+    asyncio.create_task(filter())
+    return output
+
+
+async def stream_batch(
+    stream: Stream[T],
+    size: int,
+) -> Stream[list[T]]:
+    """
+    流批量处理
+    
+    Args:
+        stream: 输入流
+        size: 批量大小
+        
+    Returns:
+        输出流（批量）
+    """
+    output = Stream[list[T]]()
+    
+    async def batcher():
+        batch = []
+        async for item in stream:
+            batch.append(item)
+            if len(batch) >= size:
+                await output.enqueue(batch)
+                batch = []
+        if batch:
+            await output.enqueue(batch)
+        await output.done()
+    
+    asyncio.create_task(batcher())
+    return output
+
+
+# 导出
+__all__ = [
+    "Stream",
+    "stream_from_async_generator",
+    "stream_map",
+    "stream_filter",
+    "stream_batch",
+]

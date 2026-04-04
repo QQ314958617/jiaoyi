@@ -351,3 +351,9 @@
 |---|------|---------|------|------|
 | 138 | 限流器 | `src/utils/rateLimit.ts` | rate_limit.py | ✅ |
 | 139 | 单次执行 | `src/utils/once.ts` | once.py | ✅ |
+
+## 第107批（2026-04-04 10:28】
+| # | 模块 | 源码文件 | 落地 | 状态 |
+|---|------|---------|------|------|
+| 140 | 采样器 | `src/utils/sampler.ts` | sampler.py | ✅ |
+| 141 | 限流状态管理 | `src/utils/rateLimitReset.ts` | rate_limit_reset.py | ✅ |
