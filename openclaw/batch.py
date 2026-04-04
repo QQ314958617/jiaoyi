@@ -1,155 +1,162 @@
 """
-Batch - 批量处理
+Batch - 批处理
 基于 Claude Code batch.ts 设计
 
-批量处理工具。
+批处理工具。
 """
 import asyncio
-from typing import Callable, Generic, List, TypeVar, Any
-
-T = TypeVar('T')
-R = TypeVar('R')
+from typing import Any, Callable, List
 
 
-class Batch(Generic[T]):
+def batch(items: List[Any], size: int) -> List[List[Any]]:
     """
-    批量处理器
+    分批
     
-    累积项目，达到阈值或超时时自动处理。
+    Args:
+        items: 项目列表
+        size: 批大小
+        
+    Returns:
+        批次列表
+    """
+    return [items[i:i + size] for i in range(0, len(items), size)]
+
+
+def chunk(items: List[Any], size: int) -> List[List[Any]]:
+    """chunk的别名"""
+    return batch(items, size)
+
+
+async def batch_async(
+    items: List[Any],
+    size: int,
+    processor: Callable,
+) -> List[Any]:
+    """
+    异步批处理
+    
+    Args:
+        items: 项目列表
+        size: 批大小
+        processor: 处理函数
+        
+    Returns:
+        处理结果列表
+    """
+    results = []
+    
+    for batch_items in batch(items, size):
+        batch_results = []
+        
+        for item in batch_items:
+            if asyncio.iscoroutinefunction(processor):
+                result = await processor(item)
+            else:
+                result = processor(item)
+            batch_results.append(result)
+        
+        results.extend(batch_results)
+    
+    return results
+
+
+async def batch_async_parallel(
+    items: List[Any],
+    size: int,
+    processor: Callable,
+    max_concurrency: int = 5,
+) -> List[Any]:
+    """
+    并行异步批处理
+    
+    Args:
+        items: 项目列表
+        size: 批大小
+        processor: 处理函数
+        max_concurrency: 最大并发数
+        
+    Returns:
+        处理结果列表
+    """
+    batches = batch(items, size)
+    semaphore = asyncio.Semaphore(max_concurrency)
+    
+    async def process_batch(batch_items: List[Any]) -> List[Any]:
+        async with semaphore:
+            results = []
+            for item in batch_items:
+                if asyncio.iscoroutinefunction(processor):
+                    result = await processor(item)
+                else:
+                    result = processor(item)
+                results.append(result)
+            return results
+    
+    batch_results = await asyncio.gather(*[process_batch(b) for b in batches])
+    
+    # 展平结果
+    return [item for batch in batch_results for item in batch]
+
+
+def process_batch(
+    items: List[Any],
+    size: int,
+    processor: Callable,
+) -> List[Any]:
+    """
+    同步批处理
+    
+    Args:
+        items: 项目列表
+        size: 批大小
+        processor: 处理函数
+        
+    Returns:
+        处理结果列表
+    """
+    results = []
+    
+    for batch_items in batch(items, size):
+        for item in batch_items:
+            result = processor(item)
+            results.append(result)
+    
+    return results
+
+
+class BatchProcessor:
+    """
+    批处理器
     """
     
     def __init__(
         self,
-        processor: Callable[[List[T]], None],
-        max_size: int = 100,
-        max_wait_ms: int = 1000,
+        batch_size: int = 10,
+        processor: Callable = None,
     ):
         """
         Args:
-            processor: 批量处理器函数
-            max_size: 最大批量大小
-            max_wait_ms: 最大等待毫秒
+            batch_size: 批大小
+            processor: 处理函数
         """
-        self._processor = processor
-        self._max_size = max_size
-        self._max_wait_ms = max_wait_ms
-        self._buffer: List[T] = []
-        self._lock = asyncio.Lock()
-        self._task: Optional[asyncio.Task] = None
+        self.batch_size = batch_size
+        self.processor = processor
     
-    async def add(self, item: T) -> None:
-        """添加项目"""
-        async with self._lock:
-            self._buffer.append(item)
-            
-            if len(self._buffer) >= self._max_size:
-                await self._flush()
-            elif self._task is None:
-                self._task = asyncio.create_task(self._delayed_flush())
+    def process(self, items: List[Any]) -> List[Any]:
+        """处理"""
+        return process_batch(items, self.batch_size, self.processor)
     
-    async def _flush(self) -> None:
-        """立即flush"""
-        if not self._buffer:
-            return
-        
-        items = self._buffer
-        self._buffer = []
-        self._task = None
-        
-        await asyncio.get_event_loop().run_in_executor(
-            None, self._processor, items
-        )
-    
-    async def _delayed_flush(self) -> None:
-        """延迟flush"""
-        await asyncio.sleep(self._max_wait_ms / 1000)
-        async with self._lock:
-            await self._flush()
-    
-    async def close(self) -> None:
-        """关闭，flush剩余项"""
-        async with self._lock:
-            if self._task:
-                self._task.cancel()
-                self._task = None
-            await self._flush()
-
-
-class AsyncBatch(Generic[T, R]):
-    """
-    异步批量处理器
-    
-    支持返回结果的批量处理。
-    """
-    
-    def __init__(
-        self,
-        processor: Callable[[List[T]], List[R]],
-        max_size: int = 100,
-        max_wait_ms: int = 1000,
-    ):
-        self._processor = processor
-        self._max_size = max_size
-        self._max_wait_ms = max_wait_ms
-        self._buffer: List[T] = []
-        self._futures: List[asyncio.Future] = []
-        self._lock = asyncio.Lock()
-    
-    async def submit(self, item: T) -> List[R]:
-        """提交项目并等待结果"""
-        future: asyncio.Future = asyncio.get_event_loop().create_future()
-        
-        async with self._lock:
-            self._buffer.append((item, future))
-            
-            if len(self._buffer) >= self._max_size:
-                await self._flush()
-        
-        return await future
-    
-    async def _flush(self) -> None:
-        """flush处理"""
-        if not self._buffer:
-            return
-        
-        items = [item for item, _ in self._buffer]
-        futures = [f for _, f in self._buffer]
-        self._buffer = []
-        
-        try:
-            results = await asyncio.get_event_loop().run_in_executor(
-                None, self._processor, items
-            )
-            
-            for future, result in zip(futures, results):
-                if not future.done():
-                    future.set_result(result)
-        except Exception as e:
-            for future in futures:
-                if not future.done():
-                    future.set_exception(e)
-
-
-def batch_items(
-    items: List[T],
-    batch_size: int,
-) -> List[List[T]]:
-    """
-    将列表分批
-    
-    Args:
-        items: 列表
-        batch_size: 批量大小
-        
-    Returns:
-        分批后的列表
-    """
-    return [items[i:i+batch_size] for i in range(0, len(items), batch_size)]
+    async def process_async(self, items: List[Any]) -> List[Any]:
+        """异步处理"""
+        return await batch_async(items, self.batch_size, self.processor)
 
 
 # 导出
 __all__ = [
-    "Batch",
-    "AsyncBatch",
-    "batch_items",
+    "batch",
+    "chunk",
+    "batch_async",
+    "batch_async_parallel",
+    "process_batch",
+    "BatchProcessor",
 ]

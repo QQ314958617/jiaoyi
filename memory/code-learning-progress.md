@@ -528,3 +528,10 @@
 | 202 | 控制台 | `src/utils/console.ts` | console.py | ✅ |
 | 203 | 进度条 | `src/utils/progress.ts` | progress.py | ✅ |
 | 204 | 表格 | `src/utils/table.ts` | table.py | ✅ |
+
+## 第135批（2026-04-04 11:34】
+| # | 模块 | 源码文件 | 落地 | 状态 |
+|---|------|---------|------|------|
+| 205 | 断言 | `src/utils/assert.ts` | assert.py | ✅ |
+| 206 | 错误 | `src/utils/error.ts` | error.py | ✅ |
+| 207 | 调试 | `src/utils/debug.ts` | debug.py | ✅ |
