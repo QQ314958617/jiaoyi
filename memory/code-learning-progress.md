@@ -692,3 +692,9 @@
 | 266 | 循环缓冲 | `src/utils/circular.ts` | circular.py | ✅ |
 | 267 | 单子 | `src/utils/monad.ts` | monad.py | ✅ |
 | 268 | 管道 | `src/utils/pipe.ts` | pipe.py | ✅ |
+
+## 第160批（2026-04-04 13:30】
+| # | 模块 | 源码文件 | 落地 | 状态 |
+|---|------|---------|------|------|
+| 269 | 双向映射 | `src/utils/biMap.ts` | bimap.py | ✅ |
+| 270 | 数字工具 | `src/utils/numbers.ts` | numbers.py | ✅ |
