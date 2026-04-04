@@ -375,3 +375,9 @@
 |---|------|---------|------|------|
 | 146 | 数据验证 | `src/utils/validate.ts` | validate.py | ✅ |
 | 147 | UUID工具 | `src/utils/uuid.ts` | uuid.py | ✅ |
+
+## 第111批（2026-04-04 10:35】
+| # | 模块 | 源码文件 | 落地 | 状态 |
+|---|------|---------|------|------|
+| 148 | 文件监控 | `src/utils/watch.ts` | watch.py | ✅ |
+| 149 | 确保执行一次 | `src/utils/onceMore.ts` | once_more.py | ✅ |
