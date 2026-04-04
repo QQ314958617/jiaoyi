@@ -230,3 +230,9 @@
 |---|------|---------|------|------|
 | 101 | Signal信号 | `src/utils/signal.ts` | signal.py | ✅ |
 | 102 | CA证书 | `src/utils/caCerts.ts` | ca_certs.py | ✅ |
+
+## 第86批（2026-04-04 09:50）
+| # | 模块 | 源码文件 | 落地 | 状态 |
+|---|------|---------|------|------|
+| 103 | AWS工具 | `src/utils/aws.ts` | aws_utils.py | ✅ |
+| 104 | Claude桌面配置 | `src/utils/claudeDesktop.ts` | claude_desktop.py | ✅ |
