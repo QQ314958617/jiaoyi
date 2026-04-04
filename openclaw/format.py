@@ -1,80 +1,95 @@
 """
-OpenClaw Format Utilities
-=======================
-Inspired by Claude Code's src/utils/format.ts.
+Format Utilities - 格式化工具
+基于 Claude Code format.ts 设计
 
-格式化工具，支持：
-1. 文件大小（KB/MB/GB）
-2. 时长（ms → s/m/h/d）
-3. 数字（千分位、小数位）
-4. 货币（¥）
-5. 百分比
-6. 日期时间
+提供各种格式化函数：文件大小、时长、日期等。
 """
-
-from __future__ import annotations
-
-import re
 from datetime import datetime, timezone, timedelta
-from typing import Optional, Union
+from typing import Optional
 
-# ============================================================================
-# 文件大小
-# ============================================================================
 
-def format_file_size(size_bytes: int) -> str:
-    """格式化文件大小"""
-    if size_bytes < 1024:
-        return f"{size_bytes} bytes"
+def format_file_size(size_in_bytes: int) -> str:
+    """
+    格式化文件大小为人类可读字符串
     
-    kb = size_bytes / 1024
+    Args:
+        size_in_bytes: 字节数
+        
+    Returns:
+        格式化后的大小字符串 (e.g., "1.5KB", "2.3MB")
+    """
+    if size_in_bytes < 1024:
+        return f"{size_in_bytes} bytes"
+    
+    kb = size_in_bytes / 1024
     if kb < 1024:
-        val = f"{kb:.1f}"
-        val = val.rstrip('0').rstrip('.')
-        return f"{val}KB"
+        result = f"{kb:.1f}KB"
+        return result.rstrip('0').rstrip('.')
     
     mb = kb / 1024
     if mb < 1024:
-        val = f"{mb:.1f}"
-        val = val.rstrip('0').rstrip('.')
-        return f"{val}MB"
+        result = f"{mb:.1f}MB"
+        return result.rstrip('0').rstrip('.')
     
     gb = mb / 1024
-    val = f"{gb:.1f}"
-    val = val.rstrip('0').rstrip('.')
-    return f"{val}GB"
+    result = f"{gb:.1f}GB"
+    return result.rstrip('0').rstrip('.')
 
-# ============================================================================
-# 时长
-# ============================================================================
 
-def format_duration(ms: float, most_significant_only: bool = False) -> str:
+def format_seconds_short(ms: float) -> str:
+    """
+    格式化毫秒为秒（保留1位小数）
+    
+    Args:
+        ms: 毫秒数
+        
+    Returns:
+        格式化后的秒数字符串 (e.g., "1.2s")
+    """
+    return f"{(ms / 1000):.1f}s"
+
+
+def format_duration(
+    ms: float,
+    hide_trailing_zeros: bool = False,
+    most_significant_only: bool = False,
+) -> str:
     """
     格式化时长
     
     Args:
-        ms: 毫秒
-        most_significant_only: 只显示最大单位
-    
-    Examples:
-        5000 → "5s"
-        65000 → "1m 5s"
-        3661000 → "1h 1m 1s"
+        ms: 毫秒数
+        hide_trailing_zeros: 隐藏尾部0
+        most_significant_only: 只显示最高单位
+        
+    Returns:
+        格式化后的时长字符串 (e.g., "1h 30m", "2d")
     """
-    if ms <= 0:
-        return "0s"
+    if ms < 60000:  # < 1分钟
+        if ms == 0:
+            return "0s"
+        if ms < 1:
+            return f"{(ms / 1000):.1f}s"
+        return f"{int(ms // 1000)}s"
     
-    if ms < 1000:
-        return f"{ms:.0f}ms"
+    # 计算各单元
+    days = int(ms // 86400000)
+    hours = int((ms % 86400000) // 3600000)
+    minutes = int((ms % 3600000) // 60000)
+    seconds = round((ms % 60000) / 1000)
     
-    seconds = int(ms / 1000)
-    minutes = seconds // 60
-    seconds = seconds % 60
-    hours = minutes // 60
-    minutes = minutes % 60
-    days = hours // 24
-    hours = hours % 24
+    # 处理进位
+    if seconds == 60:
+        seconds = 0
+        minutes += 1
+    if minutes == 60:
+        minutes = 0
+        hours += 1
+    if hours == 24:
+        hours = 0
+        days += 1
     
+    # 只显示最高单位
     if most_significant_only:
         if days > 0:
             return f"{days}d"
@@ -84,232 +99,101 @@ def format_duration(ms: float, most_significant_only: bool = False) -> str:
             return f"{minutes}m"
         return f"{seconds}s"
     
+    # 构建完整格式
+    parts = []
     if days > 0:
-        parts = [f"{days}d"]
-        if hours > 0:
-            parts.append(f"{hours}h")
-        if minutes > 0:
-            parts.append(f"{minutes}m")
-        return " ".join(parts)
-    
+        parts.append(f"{days}d")
     if hours > 0:
-        parts = [f"{hours}h"]
-        if minutes > 0:
-            parts.append(f"{minutes}m")
-        if seconds > 0:
-            parts.append(f"{seconds}s")
-        return " ".join(parts)
-    
+        parts.append(f"{hours}h")
     if minutes > 0:
-        parts = [f"{minutes}m"]
-        if seconds > 0:
-            parts.append(f"{seconds}s")
-        return " ".join(parts)
+        parts.append(f"{minutes}m")
+    if seconds > 0 or not parts:
+        parts.append(f"{seconds}s")
     
-    return f"{seconds}s"
+    return " ".join(parts)
 
-def format_seconds_short(ms: float) -> str:
-    """格式化秒（固定1位小数）"""
-    return f"{ms / 1000:.1f}s"
 
-# ============================================================================
-# 数字
-# ============================================================================
-
-def format_number(n: Union[int, float], decimals: Optional[int] = None) -> str:
+def format_relative_time(
+    timestamp: float | datetime,
+    timezone_str: str = "UTC",
+) -> str:
     """
-    格式化数字（千分位）
+    格式化相对时间
     
-    Examples:
-        1234567 → "1,234,567"
-        1234567.89 → "1,234,567.89"
+    Args:
+        timestamp: Unix时间戳或datetime对象
+        timezone_str: 时区
+        
+    Returns:
+        相对时间字符串 (e.g., "2 hours ago", "in 3 days")
     """
-    if decimals is not None:
-        return f"{n:,.{decimals}f}"
-    return f"{n:,}"
-
-def format_percent(n: float, decimals: int = 1) -> str:
-    """格式化百分比"""
-    return f"{n * 100:.{decimals}f}%"
-
-def format_ratio(numerator: float, denominator: float, decimals: int = 1) -> str:
-    """格式化比率"""
-    if denominator == 0:
-        return "∞"
-    return f"{numerator / denominator:.{decimals}f}x"
-
-# ============================================================================
-# 货币
-# ============================================================================
-
-def format_currency(amount: float, currency: str = "¥", decimals: int = 2) -> str:
-    """
-    格式化货币
-    
-    Examples:
-        1234.5 → "¥1,234.50"
-    """
-    return f"{currency}{amount:,.{decimals}f}"
-
-def format_yuan(amount: float, decimals: int = 2) -> str:
-    """格式化人民币"""
-    return format_currency(amount, "¥", decimals)
-
-def format_commission(amount: float) -> str:
-    """格式化佣金（保留4位小数）"""
-    return format_currency(amount, "¥", 4)
-
-# ============================================================================
-# 股票价格/数量
-# ============================================================================
-
-def format_price(price: float, decimals: int = 2) -> str:
-    """格式化股价"""
-    return f"¥{price:.{decimals}f}"
-
-def format_shares(shares: int) -> str:
-    """格式化股数"""
-    return f"{shares:,}"
-
-def format_amount(shares: int, price: float) -> str:
-    """格式化交易金额"""
-    return f"¥{shares * price:,.2f}"
-
-# ============================================================================
-# 日期时间
-# ============================================================================
-
-def format_datetime(dt: Optional[datetime] = None, tz_hours: int = 8) -> str:
-    """格式化日期时间"""
-    if dt is None:
-        dt = datetime.now(timezone(timedelta(hours=tz_hours)))
-    return dt.strftime("%Y-%m-%d %H:%M:%S")
-
-def format_date(dt: Optional[datetime] = None, tz_hours: int = 8) -> str:
-    """格式化日期"""
-    if dt is None:
-        dt = datetime.now(timezone(timedelta(hours=tz_hours)))
-    return dt.strftime("%Y-%m-%d")
-
-def format_time(dt: Optional[datetime] = None, tz_hours: int = 8) -> str:
-    """格式化时间"""
-    if dt is None:
-        dt = datetime.now(timezone(timedelta(hours=tz_hours)))
-    return dt.strftime("%H:%M:%S")
-
-def format_timestamp(ts: Optional[float] = None, tz_hours: int = 8) -> str:
-    """格式化时间戳"""
-    if ts is None:
-        dt = datetime.now(timezone(timedelta(hours=tz_hours)))
+    if isinstance(timestamp, (int, float)):
+        dt = datetime.fromtimestamp(timestamp, tz=timezone.utc)
     else:
-        dt = datetime.fromtimestamp(ts, timezone(timedelta(hours=tz_hours)))
-    return dt.strftime("%Y-%m-%d %H:%M:%S")
-
-def format_time_short(dt: Optional[datetime] = None, tz_hours: int = 8) -> str:
-    """格式化短时间（仅时分秒）"""
-    if dt is None:
-        dt = datetime.now(timezone(timedelta(hours=tz_hours)))
-    return dt.strftime("%H:%M:%S")
-
-def format_relative_time(dt: datetime, tz_hours: int = 8) -> str:
-    """格式化相对时间"""
-    now = datetime.now(timezone(timedelta(hours=tz_hours)))
+        dt = timestamp
+    
+    now = datetime.now(timezone.utc)
     diff = now - dt
     
     seconds = diff.total_seconds()
-    if seconds < 60:
-        return "刚刚"
-    if seconds < 3600:
-        return f"{int(seconds / 60)}分钟前"
-    if seconds < 86400:
-        return f"{int(seconds / 3600)}小时前"
-    if seconds < 604800:
-        return f"{int(seconds / 86400)}天前"
-    return dt.strftime("%m-%d")
-
-# ============================================================================
-# 交易专用格式化
-# ============================================================================
-
-def format_trade_record(action: str, stock: str, shares: int, price: float, 
-                       reason: str = "") -> str:
-    """格式化交易记录"""
-    amount = shares * price
-    action_emoji = "📈" if action.upper() == "BUY" else "📉"
-    return (
-        f"{action_emoji} {action.upper()} {stock} "
-        f"{shares}股 @ ¥{price:.2f} "
-        f"合计 ¥{amount:,.2f}"
-        + (f"\n📝 {reason}" if reason else "")
-    )
-
-def format_position_summary(stock: str, shares: int, avg_cost: float, 
-                          current_price: float) -> dict:
-    """格式化持仓汇总"""
-    cost = shares * avg_cost
-    market_value = shares * current_price
-    profit = market_value - cost
-    profit_rate = (profit / cost * 100) if cost > 0 else 0
     
-    return {
-        "stock": stock,
-        "shares": f"{shares:,}",
-        "avg_cost": f"¥{avg_cost:.3f}",
-        "current_price": f"¥{current_price:.3f}",
-        "cost": f"¥{cost:,.2f}",
-        "market_value": f"¥{market_value:,.2f}",
-        "profit": f"¥{profit:,.2f}",
-        "profit_rate": f"{profit_rate:+.2f}%",
-        "profit_emoji": "🟢" if profit >= 0 else "🔴"
-    }
+    if seconds < 0:
+        # 未来时间
+        seconds = -seconds
+        if seconds < 60:
+            return "in a moment"
+        if seconds < 3600:
+            mins = int(seconds / 60)
+            return f"in {mins} minute{'s' if mins != 1 else ''}"
+        if seconds < 86400:
+            hours = int(seconds / 3600)
+            return f"in {hours} hour{'s' if hours != 1 else ''}"
+        days = int(seconds / 86400)
+        return f"in {days} day{'s' if days != 1 else ''}"
+    else:
+        # 过去时间
+        if seconds < 60:
+            return "just now"
+        if seconds < 3600:
+            mins = int(seconds / 60)
+            return f"{mins} minute{'s' if mins != 1 else ''} ago"
+        if seconds < 86400:
+            hours = int(seconds / 3600)
+            return f"{hours} hour{'s' if hours != 1 else ''} ago"
+        days = int(seconds / 86400)
+        if days == 1:
+            return "yesterday"
+        if days < 30:
+            return f"{days} days ago"
+        if days < 365:
+            months = int(days / 30)
+            return f"{months} month{'s' if months != 1 else ''} ago"
+        years = int(days / 365)
+        return f"{years} year{'s' if years != 1 else ''} ago"
 
-def format_signal(strategy: str, stock: str, signal: str, strength: float) -> str:
-    """格式化策略信号"""
-    signal_emoji = "🟢" if signal.upper() in ("BUY", "LONG") else \
-                   "🔴" if signal.upper() in ("SELL", "SHORT") else "⚪"
-    return (
-        f"{signal_emoji} [{strategy}] {stock}: {signal} "
-        f"(强度: {strength:.0%})"
-    )
 
-# ============================================================================
-# 颜色输出（ANSI）
-# ============================================================================
-
-class Colors:
-    """ANSI 颜色码"""
-    RESET = "\033[0m"
-    BLACK = "\033[30m"
-    RED = "\033[31m"
-    GREEN = "\033[32m"
-    YELLOW = "\033[33m"
-    BLUE = "\033[34m"
-    MAGENTA = "\033[35m"
-    CYAN = "\033[36m"
-    WHITE = "\033[37m"
+def truncate_string(s: str, max_length: int, suffix: str = "...") -> str:
+    """
+    截断字符串
     
-    BG_RED = "\033[41m"
-    BG_GREEN = "\033[42m"
-    BG_YELLOW = "\033[43m"
+    Args:
+        s: 要截断的字符串
+        max_length: 最大长度
+        suffix: 后缀
+        
+    Returns:
+        截断后的字符串
+    """
+    if len(s) <= max_length:
+        return s
+    return s[:max_length - len(suffix)] + suffix
 
-def color_text(text: str, color: str) -> str:
-    """给文本添加颜色"""
-    return f"{color}{text}{Colors.RESET}"
 
-def green(text: str) -> str:
-    return color_text(text, Colors.GREEN)
-
-def red(text: str) -> str:
-    return color_text(text, Colors.RED)
-
-def yellow(text: str) -> str:
-    return color_text(text, Colors.YELLOW)
-
-def cyan(text: str) -> str:
-    return color_text(text, Colors.CYAN)
-
-def format_profit_loss(value: float, show_sign: bool = True) -> str:
-    """格式化盈亏（带颜色）"""
-    prefix = "+" if show_sign and value > 0 else ""
-    colored = green if value >= 0 else red
-    return colored(f"{prefix}¥{value:,.2f}")
+# 导出
+__all__ = [
+    "format_file_size",
+    "format_seconds_short",
+    "format_duration",
+    "format_relative_time",
+    "truncate_string",
+]

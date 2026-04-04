@@ -107,3 +107,10 @@
 |---|------|---------|------|------|
 | 66 | 会话存储 | `src/utils/sessionStorage.ts` | session_storage.py | ✅ |
 | 67 | 文件历史 | `src/utils/fileHistory.ts` | file_history.py | ✅ |
+
+## 第64批（2026-04-04 08:50）
+| # | 模块 | 源码文件 | 落地 | 状态 |
+|---|------|---------|------|------|
+| 68 | 工作目录 | `src/utils/cwd.ts` | cwd.py | ✅ |
+| 69 | 环境变量 | `src/utils/envUtils.ts` | env_utils.py | ✅ |
+| 70 | 路径工具 | `src/utils/path.ts` | path_utils.py | ✅ |
