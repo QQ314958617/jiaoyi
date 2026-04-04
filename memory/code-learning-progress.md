@@ -563,3 +563,10 @@
 | 217 | 原子化 | `src/utils/atom.ts` | atom.py | ✅ |
 | 218 | 引用 | `src/utils/ref.ts` | ref.py | ✅ |
 | 219 | 信号 | `src/utils/signal.ts` | signal.py | ✅ |
+
+## 第140批（2026-04-04 11:44】
+| # | 模块 | 源码文件 | 落地 | 状态 |
+|---|------|---------|------|------|
+| 220 | 存储 | `src/utils/store.ts` | store.py | ✅ |
+| 221 | 记忆化 | `src/utils/memo.ts` | memo.py | ✅ |
+| 222 | 中间件 | `src/utils/middleware.ts` | middleware.py | ✅ |
