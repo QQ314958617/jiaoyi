@@ -1,8 +1,8 @@
 """
-Function - 函数工具
+Function - 函数
 基于 Claude Code function.ts 设计
 
-函数式工具。
+函数工具。
 """
 from typing import Any, Callable
 
@@ -17,28 +17,32 @@ def curry(fn: Callable) -> Callable:
     Returns:
         柯里化后的函数
     """
+    arity = fn.__code__.co_argcount
+    
     def curried(*args, **kwargs):
-        if len(args) + len(kwargs) >= fn.__code__.co_argcount:
+        if len(args) + len(kwargs) >= arity:
             return fn(*args, **kwargs)
-        def next_curry(*args2, **kwargs2):
-            return curried(*args, *args2, **kwargs, **kwargs2)
+        def next_curry(*more_args, **more_kwargs):
+            return curried(*args, *more_args, **kwargs, **more_kwargs)
         return next_curry
+    
     return curried
 
 
-def partial(fn: Callable, *args, **kwargs) -> Callable:
+def partial(fn: Callable, *preset_args, **preset_kwargs) -> Callable:
     """
     偏函数
     
     Args:
         fn: 函数
-        *args, **kwargs: 预设参数
+        *preset_args: 预设位置参数
+        **preset_kwargs: 预设命名参数
         
     Returns:
         偏函数
     """
-    def partial_fn(*rest_args, **rest_kwargs):
-        return fn(*args, *rest_args, **kwargs, **rest_kwargs)
+    def partial_fn(*args, **kwargs):
+        return fn(*preset_args, *args, **preset_kwargs, **kwargs)
     return partial_fn
 
 
@@ -80,6 +84,35 @@ def pipe(*fns: Callable) -> Callable:
             result = fn(result)
         return result
     return piped
+
+
+def flip(fn: Callable) -> Callable:
+    """
+    翻转参数顺序
+    
+    Args:
+        fn: 函数
+        
+    Returns:
+        翻转后的函数
+    """
+    def flipped(*args, **kwargs):
+        return fn(*reversed(args), **kwargs)
+    return flipped
+
+
+def unary(fn: Callable) -> Callable:
+    """单参数函数"""
+    def unary_fn(arg):
+        return fn(arg)
+    return unary_fn
+
+
+def spread(fn: Callable) -> Callable:
+    """展开参数数组"""
+    def spread_fn(args):
+        return fn(*args)
+    return spread_fn
 
 
 def memoize(fn: Callable) -> Callable:
@@ -126,60 +159,15 @@ def once(fn: Callable) -> Callable:
     return wrapper
 
 
-def flip(fn: Callable) -> Callable:
-    """
-    翻转参数
-    
-    Args:
-        fn: 函数
-        
-    Returns:
-        翻转函数
-    """
-    def flipped(*args, **kwargs):
-        return fn(*reversed(args), **kwargs)
-    return flipped
-
-
-def unary(fn: Callable) -> Callable:
-    """
-    单参数函数
-    
-    Args:
-        fn: 函数
-        
-    Returns:
-        只接收第一个参数的函数
-    """
-    def unary_fn(arg):
-        return fn(arg)
-    return unary_fn
-
-
-def spread(fn: Callable) -> Callable:
-    """
-    展开参数
-    
-    Args:
-        fn: 函数
-        
-    Returns:
-        接受数组并展开的函数
-    """
-    def spread_fn(args):
-        return fn(*args)
-    return spread_fn
-
-
 # 导出
 __all__ = [
     "curry",
     "partial",
     "compose",
     "pipe",
-    "memoize",
-    "once",
     "flip",
     "unary",
     "spread",
+    "memoize",
+    "once",
 ]

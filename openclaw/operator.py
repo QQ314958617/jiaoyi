@@ -2,7 +2,7 @@
 Operator - 操作符
 基于 Claude Code operator.ts 设计
 
-操作符工具。
+操作符函数。
 """
 from typing import Any, Callable
 
@@ -25,21 +25,6 @@ def negate(fn: Callable) -> Callable:
 def property_(name: str) -> Callable:
     """获取属性"""
     return lambda obj: getattr(obj, name, None)
-
-
-def property_in(path: str) -> Callable:
-    """获取嵌套属性"""
-    def getter(obj):
-        result = obj
-        for part in path.split('.'):
-            if isinstance(result, dict):
-                result = result.get(part)
-            else:
-                result = getattr(result, part, None)
-            if result is None:
-                return None
-        return result
-    return getter
 
 
 def method(name: str) -> Callable:
@@ -125,7 +110,6 @@ __all__ = [
     "constant",
     "negate",
     "property_",
-    "property_in",
     "method",
     "eq",
     "ne",
