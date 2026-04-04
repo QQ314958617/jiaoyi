@@ -11,20 +11,10 @@ from typing import Tuple
 class SemVer:
     """
     语义化版本
-    
-    主版本.次版本.修订号 [-预发布版本] [+构建元数据]
     """
     
     def __init__(self, major: int, minor: int, patch: int,
                  prerelease: str = "", build: str = ""):
-        """
-        Args:
-            major: 主版本
-            minor: 次版本
-            patch: 修订号
-            prerelease: 预发布标签
-            build: 构建元数据
-        """
         self.major = major
         self.minor = minor
         self.patch = patch
@@ -33,16 +23,8 @@ class SemVer:
     
     @staticmethod
     def parse(version: str) -> "SemVer":
-        """
-        解析版本字符串
-        
-        Args:
-            version: 版本字符串 (如 "1.2.3-alpha")
-            
-        Returns:
-            SemVer实例
-        """
-        pattern = r'^(\d+)\.(\d+)\.(\d+)(?:-([a-zA-Z0-9.]+))?(?:\+(.+))?$'
+        """解析版本字符串"""
+        pattern = r'^(\d+)\.(\d+)\.(\d+)(?:-([a-zA-Z0-9.-]+))?(?:\+(.+))?$'
         match = re.match(pattern, version)
         
         if not match:
@@ -57,7 +39,6 @@ class SemVer:
         )
     
     def __str__(self) -> str:
-        """转为字符串"""
         v = f"{self.major}.{self.minor}.{self.patch}"
         if self.prerelease:
             v += f"-{self.prerelease}"
@@ -65,12 +46,8 @@ class SemVer:
             v += f"+{self.build}"
         return v
     
-    def __repr__(self) -> str:
-        return f"SemVer({self.major}, {self.minor}, {self.patch})"
-    
     def _compare(self, other: "SemVer") -> int:
-        """比较版本"""
-        # 主次补丁
+        """比较"""
         for v1, v2 in [(self.major, other.major),
                         (self.minor, other.minor),
                         (self.patch, other.patch)]:
@@ -107,15 +84,12 @@ class SemVer:
         return self._compare(other) >= 0
     
     def bump_major(self) -> "SemVer":
-        """主版本+1"""
         return SemVer(self.major + 1, 0, 0)
     
     def bump_minor(self) -> "SemVer":
-        """次版本+1"""
         return SemVer(self.major, self.minor + 1, 0)
     
     def bump_patch(self) -> "SemVer":
-        """修订号+1"""
         return SemVer(self.major, self.minor, self.patch + 1)
 
 
@@ -125,19 +99,9 @@ def compare(a: str, b: str) -> int:
 
 
 def satisfies(version: str, range_: str) -> bool:
-    """
-    检查版本是否满足范围
-    
-    Args:
-        version: 版本
-        range_: 范围（如 ">=1.0.0 <2.0.0"）
-        
-    Returns:
-        是否满足
-    """
+    """检查版本是否满足范围"""
     v = SemVer.parse(version)
     
-    # 简化版，仅支持 ^ ~ >
     range_ = range_.strip()
     
     if range_.startswith('^'):
@@ -148,23 +112,6 @@ def satisfies(version: str, range_: str) -> bool:
         constraint = range_[1:]
         c = SemVer.parse(constraint)
         return v.major == c.major and v.minor == c.minor and v.patch >= c.patch
-    
-    # 简单比较
-    ops = ['>=', '<=', '>', '<', '==']
-    for op in ops:
-        if range_.startswith(op):
-            other_ver = range_[len(op):].strip()
-            other = SemVer.parse(other_ver)
-            if op == '>=':
-                return v >= other
-            elif op == '<=':
-                return v <= other
-            elif op == '>':
-                return v > other
-            elif op == '<':
-                return v < other
-            elif op == '==':
-                return v == other
     
     return False
 
