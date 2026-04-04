@@ -914,3 +914,9 @@
 |---|------|---------|------|------|
 | 353 | 合并 | `src/utils/merge.ts` | merge2.py | ✅ |
 | 354 | 切片 | `src/utils/slice.ts` | slice2.py | ✅ |
+
+## 第194批（2026-04-04 20:01】
+| # | 模块 | 源码文件 | 落地 | 状态 |
+|---|------|---------|------|------|
+| 355 | 浏览器工具 | `src/utils/browser.ts` | browser.py | ✅ |
+| 356 | 代码索引检测 | `src/utils/codeIndexing.ts` | code_indexing.py | ✅ |
