@@ -2,161 +2,117 @@
 Stack - 栈
 基于 Claude Code stack.ts 设计
 
-栈数据结构实现。
+栈数据结构。
 """
-from typing import Generic, List, TypeVar
-
-T = TypeVar('T')
+from typing import Any, List, Optional
 
 
-class Stack(Generic[T]):
+class Stack:
     """
     栈
-    
-    后进先出（LIFO）数据结构。
     """
     
     def __init__(self):
-        self._items: List[T] = []
+        self._data: List = []
     
-    def push(self, item: T) -> None:
-        """压入栈"""
-        self._items.append(item)
+    def push(self, item: Any) -> None:
+        """压栈"""
+        self._data.append(item)
     
-    def pop(self) -> T:
-        """弹出栈顶"""
-        if not self._items:
-            raise IndexError("pop from empty stack")
-        return self._items.pop()
+    def pop(self) -> Optional[Any]:
+        """弹栈"""
+        if self._data:
+            return self._data.pop()
+        return None
     
-    def peek(self) -> T:
+    def peek(self) -> Optional[Any]:
         """查看栈顶"""
-        if not self._items:
-            raise IndexError("peek from empty stack")
-        return self._items[-1]
+        if self._data:
+            return self._data[-1]
+        return None
     
     def is_empty(self) -> bool:
-        """是否为空"""
-        return len(self._items) == 0
+        return len(self._data) == 0
     
     def size(self) -> int:
-        """栈大小"""
-        return len(self._items)
+        return len(self._data)
     
     def clear(self) -> None:
-        """清空栈"""
-        self._items.clear()
+        """清空"""
+        self._data.clear()
     
     def __len__(self) -> int:
-        return len(self._items)
+        return len(self._data)
     
-    def __bool__(self) -> bool:
-        return bool(self._items)
+    def __iter__(self):
+        return reversed(self._data)
     
-    def __repr__(self) -> str:
-        return f"Stack({self._items!r})"
+    def to_list(self) -> List:
+        """转为列表"""
+        return list(self._data)
+    
+    def __repr__(self):
+        return f"Stack({self._data})"
 
 
-class MinStack(Generic[T]):
+def balanced(parentheses: str) -> bool:
     """
-    支持获取最小值的栈
+    检查括号是否平衡
     
-    所有操作都是O(1)。
+    Args:
+        parentheses: 括号字符串
+        
+    Returns:
+        是否平衡
     """
+    stack = Stack()
+    pairs = {')': '(', ']': '[', '}': '{'}
     
-    def __init__(self):
-        self._items: List[T] = []
-        self._min_items: List[T] = []
+    for char in parentheses:
+        if char in '([{':
+            stack.push(char)
+        elif char in ')]}':
+            if stack.is_empty():
+                return False
+            top = stack.pop()
+            if top != pairs[char]:
+                return False
     
-    def push(self, item: T) -> None:
-        """压入栈"""
-        self._items.append(item)
-        
-        if not self._min_items or item <= self._min_items[-1]:
-            self._min_items.append(item)
-    
-    def pop(self) -> T:
-        """弹出栈顶"""
-        if not self._items:
-            raise IndexError("pop from empty stack")
-        
-        item = self._items.pop()
-        
-        if item == self._min_items[-1]:
-            self._min_items.pop()
-        
-        return item
-    
-    def peek(self) -> T:
-        """查看栈顶"""
-        if not self._items:
-            raise IndexError("peek from empty stack")
-        return self._items[-1]
-    
-    def get_min(self) -> T:
-        """获取最小值"""
-        if not self._min_items:
-            raise IndexError("get_min from empty stack")
-        return self._min_items[-1]
-    
-    def is_empty(self) -> bool:
-        """是否为空"""
-        return len(self._items) == 0
-    
-    def size(self) -> int:
-        """栈大小"""
-        return len(self._items)
+    return stack.is_empty()
 
 
-class TwoStacks(Generic[T]):
+def evaluate_postfix(expr: str) -> float:
     """
-    双栈队列
+    后缀表达式求值
     
-    用两个栈实现队列（先进先出）。
+    Args:
+        expr: 后缀表达式（空格分隔）
+        
+    Returns:
+        结果
     """
+    stack = Stack()
+    ops = {
+        '+': lambda a, b: a + b,
+        '-': lambda a, b: a - b,
+        '*': lambda a, b: a * b,
+        '/': lambda a, b: a / b,
+    }
     
-    def __init__(self):
-        self._in_stack: Stack = Stack()
-        self._out_stack: Stack = Stack()
+    for token in expr.split():
+        if token in ops:
+            b = stack.pop()
+            a = stack.pop()
+            stack.push(ops[token](a, b))
+        else:
+            stack.push(float(token))
     
-    def enqueue(self, item: T) -> None:
-        """入队"""
-        self._in_stack.push(item)
-    
-    def dequeue(self) -> T:
-        """出队"""
-        if self._out_stack.is_empty():
-            while not self._in_stack.is_empty():
-                self._out_stack.push(self._in_stack.pop())
-        
-        if self._out_stack.is_empty():
-            raise IndexError("dequeue from empty queue")
-        
-        return self._out_stack.pop()
-    
-    def peek(self) -> T:
-        """查看队首"""
-        if self._out_stack.is_empty():
-            while not self._in_stack.is_empty():
-                self._out_stack.push(self._in_stack.pop())
-        
-        if self._out_stack.is_empty():
-            raise IndexError("peek from empty queue")
-        
-        return self._out_stack.peek()
-    
-    def is_empty(self) -> bool:
-        """是否为空"""
-        return self._in_stack.is_empty() and self._out_stack.is_empty()
-    
-    def size(self) -> int:
-        """队列大小"""
-        return self._in_stack.size() + self._out_stack.size()
+    return stack.pop()
 
 
 # 导出
 __all__ = [
     "Stack",
-    "MinStack",
-    "TwoStacks",
+    "balanced",
+    "evaluate_postfix",
 ]

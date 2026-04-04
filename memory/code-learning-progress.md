@@ -771,3 +771,10 @@
 | 297 | 压缩 | `src/utils/zip.ts` | zip.py | ✅ |
 | 298 | 解码 | `src/utils/decode.ts` | decode.py | ✅ |
 | 299 | 编码 | `src/utils/encode.ts` | encode.py | ✅ |
+
+## 第172批（2026-04-04 15:08】
+| # | 模块 | 源码文件 | 落地 | 状态 |
+|---|------|---------|------|------|
+| 300 | 堆 | `src/utils/heap.ts` | heap2.py | ✅ |
+| 301 | 缓存 | `src/utils/cache.ts` | cache2.py | ✅ |
+| 302 | 计数器 | `src/utils/counter.ts` | counter.py | ✅ |
