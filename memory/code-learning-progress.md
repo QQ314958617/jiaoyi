@@ -521,3 +521,10 @@
 | 199 | JSON工具 | `src/utils/json.ts` | json.py | ✅ |
 | 200 | 文件工具 | `src/utils/file.ts` | file.py | ✅ |
 | 201 | 路径工具 | `src/utils/path.ts` | path.py | ✅ |
+
+## 第134批（2026-04-04 11:32】
+| # | 模块 | 源码文件 | 落地 | 状态 |
+|---|------|---------|------|------|
+| 202 | 控制台 | `src/utils/console.ts` | console.py | ✅ |
+| 203 | 进度条 | `src/utils/progress.ts` | progress.py | ✅ |
+| 204 | 表格 | `src/utils/table.ts` | table.py | ✅ |
