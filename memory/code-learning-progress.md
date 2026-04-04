@@ -764,3 +764,10 @@
 | 294 | 对象池 | `src/utils/pool.ts` | pool.py | ✅ |
 | 295 | 分组 | `src/utils/group.ts` | group.py | ✅ |
 | 296 | 索引 | `src/utils/index.ts` | index.py | ✅ |
+
+## 第171批（2026-04-04 15:05】
+| # | 模块 | 源码文件 | 落地 | 状态 |
+|---|------|---------|------|------|
+| 297 | 压缩 | `src/utils/zip.ts` | zip.py | ✅ |
+| 298 | 解码 | `src/utils/decode.ts` | decode.py | ✅ |
+| 299 | 编码 | `src/utils/encode.ts` | encode.py | ✅ |

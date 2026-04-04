@@ -2,100 +2,113 @@
 Counter - 计数器
 基于 Claude Code counter.ts 设计
 
-线程安全的计数器。
+计数器工具。
 """
-import threading
-from typing import Dict
+from typing import Any, Callable, Dict
 
 
 class Counter:
     """
-    线程安全计数器
-    """
+    计数器
     
-    def __init__(self, initial: int = 0):
-        self._value = initial
-        self._lock = threading.Lock()
-    
-    def increment(self, delta: int = 1) -> int:
-        """递增"""
-        with self._lock:
-            self._value += delta
-            return self._value
-    
-    def decrement(self, delta: int = 1) -> int:
-        """递减"""
-        with self._lock:
-            self._value -= delta
-            return self._value
-    
-    def get(self) -> int:
-        """获取当前值"""
-        with self._lock:
-            return self._value
-    
-    def set(self, value: int) -> None:
-        """设置值"""
-        with self._lock:
-            self._value = value
-    
-    def reset(self) -> int:
-        """重置并返回旧值"""
-        with self._lock:
-            old = self._value
-            self._value = 0
-            return old
-    
-    def __int__(self) -> int:
-        return self.get()
-    
-    def __iadd__(self, delta: int) -> "Counter":
-        self.increment(delta)
-        return self
-
-
-class MultiCounter:
-    """
-    多键计数器
-    
-    支持多个独立计数器。
+    统计出现次数。
     """
     
     def __init__(self):
-        self._counters: Dict[str, Counter] = {}
-        self._lock = threading.Lock()
+        self._counts: Dict[Any, int] = {}
     
-    def get_counter(self, name: str) -> Counter:
-        """获取命名计数器"""
-        with self._lock:
-            if name not in self._counters:
-                self._counters[name] = Counter()
-            return self._counters[name]
+    def inc(self, key: Any, amount: int = 1) -> int:
+        """
+        增加计数
+        
+        Args:
+            key: 键
+            amount: 增量
+            
+        Returns:
+            当前计数
+        """
+        self._counts[key] = self._counts.get(key, 0) + amount
+        return self._counts[key]
     
-    def increment(self, name: str, delta: int = 1) -> int:
-        """递增指定计数器"""
-        return self.get_counter(name).increment(delta)
+    def dec(self, key: Any, amount: int = 1) -> int:
+        """
+        减少计数
+        
+        Args:
+            key: 键
+            amount: 减量
+            
+        Returns:
+            当前计数
+        """
+        return self.inc(key, -amount)
     
-    def decrement(self, name: str, delta: int = 1) -> int:
-        """递减指定计数器"""
-        return self.get_counter(name).decrement(delta)
+    def get(self, key: Any) -> int:
+        """获取计数"""
+        return self._counts.get(key, 0)
     
-    def get(self, name: str) -> int:
-        """获取计数器值"""
-        return self.get_counter(name).get()
+    def set(self, key: Any, value: int) -> None:
+        """设置计数"""
+        self._counts[key] = value
     
-    def reset(self, name: str) -> int:
-        """重置指定计数器"""
-        return self.get_counter(name).reset()
+    def reset(self, key: Any = None) -> None:
+        """重置"""
+        if key:
+            self._counts[key] = 0
+        else:
+            self._counts.clear()
     
-    def names(self) -> list:
-        """获取所有计数器名称"""
-        with self._lock:
-            return list(self._counters.keys())
+    def items(self) -> Dict[Any, int]:
+        """所有计数"""
+        return dict(self._counts)
+    
+    def most_common(self, n: int = None) -> list:
+        """
+        最常见的
+        
+        Args:
+            n: 返回数量
+            
+        Returns:
+            [(key, count)] 列表
+        """
+        sorted_items = sorted(self._counts.items(), key=lambda x: -x[1])
+        if n:
+            sorted_items = sorted_items[:n]
+        return sorted_items
+    
+    def total(self) -> int:
+        """总数"""
+        return sum(self._counts.values())
+    
+    @property
+    def size(self) -> int:
+        return len(self._counts)
+
+
+def count(items: list, key: Callable = None) -> Counter:
+    """
+    统计列表项
+    
+    Args:
+        items: 列表
+        key: 键函数
+        
+    Returns:
+        Counter实例
+    """
+    counter = Counter()
+    
+    for item in items:
+        k = key(item) if key else item
+        counter.inc(k)
+    
+    return counter
 
 
 # 导出
 __all__ = [
     "Counter",
-    "MultiCounter",
+    "count",
 ]
