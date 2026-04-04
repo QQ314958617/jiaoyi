@@ -1,116 +1,177 @@
 """
-Signal - 信号/事件系统
+Signal - 信号
 基于 Claude Code signal.ts 设计
 
-简单的发布-订阅信号系统，用于事件通知。
+信号模式实现。
 """
-import threading
-from typing import Callable, Generic, TypeVar
-from dataclasses import dataclass
+from typing import Any, Callable, Dict, List, Optional
 
 
-T = TypeVar('T')
-
-
-@dataclass
-class Signal(Generic[T]):
-    """信号接口"""
-    subscribe: Callable[[Callable[..., None]], Callable[[], None]]
-    emit: Callable[..., None]
-    clear: Callable[[], None]
-
-
-class SignalImpl(Generic[T]):
+class Signal:
     """
-    信号实现
+    信号
     
-    提供发布-订阅模式，用于事件通知。
+    简单的发布-订阅模式。
     """
     
     def __init__(self):
-        self._listeners: list[Callable[..., None]] = []
-        self._lock = threading.Lock()
+        self._subscribers: List[Callable] = []
     
-    def subscribe(self, listener: Callable[..., None]) -> Callable[[], None]:
+    def subscribe(self, callback: Callable) -> Callable:
         """
         订阅信号
         
         Args:
-            listener: 监听函数
+            callback: 回调函数
             
         Returns:
             取消订阅函数
         """
-        with self._lock:
-            self._listeners.append(listener)
+        self._subscribers.append(callback)
         
         def unsubscribe():
-            with self._lock:
-                if listener in self._listeners:
-                    self._listeners.remove(listener)
+            if callback in self._subscribers:
+                self._subscribers.remove(callback)
         
         return unsubscribe
     
     def emit(self, *args, **kwargs) -> None:
-        """
-        触发信号
-        
-        Args:
-            *args, **kwargs: 传递给监听函数的参数
-        """
-        with self._lock:
-            listeners = list(self._listeners)
-        
-        for listener in listeners:
+        """发射信号"""
+        for callback in self._subscribers[:]:  # 复制避免修改
             try:
-                listener(*args, **kwargs)
+                callback(*args, **kwargs)
             except Exception:
-                # 忽略监听器中的错误
                 pass
     
+    def once(self, callback: Callable) -> None:
+        """订阅一次"""
+        def wrapper(*args, **kwargs):
+            callback(*args, **kwargs)
+            self.unsubscribe(wrapper)
+        
+        self._subscribers.append(wrapper)
+    
+    def unsubscribe(self, callback: Callable) -> bool:
+        """取消订阅"""
+        if callback in self._subscribers:
+            self._subscribers.remove(callback)
+            return True
+        return False
+    
     def clear(self) -> None:
-        """清除所有监听器"""
-        with self._lock:
-            self._listeners.clear()
+        """清空所有订阅"""
+        self._subscribers.clear()
     
-    def __len__(self) -> int:
-        """获取监听器数量"""
-        with self._lock:
-            return len(self._listeners)
+    @property
+    def count(self) -> int:
+        """订阅者数量"""
+        return len(self._subscribers)
 
 
-def create_signal() -> Signal:
+class SignalMap:
     """
-    创建信号
+    信号映射
     
-    Returns:
-        Signal对象
+    管理多个命名信号。
     """
-    impl = SignalImpl()
-    return Signal(
-        subscribe=impl.subscribe,
-        emit=impl.emit,
-        clear=impl.clear,
-    )
+    
+    def __init__(self):
+        self._signals: Dict[str, Signal] = {}
+    
+    def get(self, name: str) -> Signal:
+        """获取或创建信号"""
+        if name not in self._signals:
+            self._signals[name] = Signal()
+        return self._signals[name]
+    
+    def emit(self, name: str, *args, **kwargs) -> None:
+        """发射命名信号"""
+        if name in self._signals:
+            self._signals[name].emit(*args, **kwargs)
+    
+    def subscribe(self, name: str, callback: Callable) -> Callable:
+        """订阅命名信号"""
+        return self.get(name).subscribe(callback)
+    
+    def delete(self, name: str) -> bool:
+        """删除信号"""
+        if name in self._signals:
+            del self._signals[name]
+            return True
+        return False
 
 
-class SignalFactory:
+class Emitter:
     """
-    信号工厂
+    事件发射器
     
-    用于创建类型安全的信号。
+    支持通配符和命名空间。
     """
     
-    @staticmethod
-    def create() -> Signal:
-        """创建无参数信号"""
-        return create_signal()
+    def __init__(self):
+        self._listeners: Dict[str, List[Callable]] = {}
+    
+    def on(self, event: str, callback: Callable) -> Callable:
+        """
+        监听事件
+        
+        Args:
+            event: 事件名
+            callback: 回调
+            
+        Returns:
+            取消监听函数
+        """
+        if event not in self._listeners:
+            self._listeners[event] = []
+        self._listeners[event].append(callback)
+        
+        return lambda: self.off(event, callback)
+    
+    def off(self, event: str, callback: Callable) -> bool:
+        """取消监听"""
+        if event in self._listeners:
+            if callback in self._listeners[event]:
+                self._listeners[event].remove(callback)
+                return True
+        return False
+    
+    def emit(self, event: str, *args, **kwargs) -> None:
+        """发射事件"""
+        # 精确匹配
+        for callback in self._listeners.get(event, [])[:]:
+            try:
+                callback(*args, **kwargs)
+            except Exception:
+                pass
+        
+        # 通配符匹配
+        for pattern, callbacks in self._listeners.items():
+            if pattern != event and self._match(event, pattern):
+                for callback in callbacks[:]:
+                    try:
+                        callback(*args, **kwargs)
+                    except Exception:
+                        pass
+    
+    def _match(self, event: str, pattern: str) -> bool:
+        """通配符匹配"""
+        import re
+        regex = pattern.replace('*', '.*').replace('?', '.')
+        return bool(re.match(f'^{regex}$', event))
+    
+    def once(self, event: str, callback: Callable) -> None:
+        """一次监听"""
+        def wrapper(*args, **kwargs):
+            callback(*args, **kwargs)
+            self.off(event, wrapper)
+        
+        self.on(event, wrapper)
 
 
 # 导出
 __all__ = [
     "Signal",
-    "SignalImpl",
-    "create_signal",
-    "SignalFactory",
+    "SignalMap",
+    "Emitter",
 ]

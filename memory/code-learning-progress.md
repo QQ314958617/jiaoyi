@@ -549,3 +549,10 @@
 | 211 | 切片工具 | `src/utils/slice.ts` | slice.py | ✅ |
 | 212 | 转换工具 | `src/utils/transform2.ts` | transform2.py | ✅ |
 | 213 | 异步迭代 | `src/utils/asyncIter.ts` | async_iter.py | ✅ |
+
+## 第138批（2026-04-04 11:40】
+| # | 模块 | 源码文件 | 落地 | 状态 |
+|---|------|---------|------|------|
+| 214 | 弱引用 | `src/utils/weak.ts` | weak.py | ✅ |
+| 215 | 最终化 | `src/utils/finalization.ts` | finalization.py | ✅ |
+| 216 | 结构体 | `src/utils/struct.ts` | struct.py | ✅ |
