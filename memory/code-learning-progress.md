@@ -785,3 +785,10 @@
 | 303 | 背包 | `src/utils/bag.ts` | bag.py | ✅ |
 | 304 | 栈 | `src/utils/stack.ts` | stack.py | ✅ |
 | 305 | 队列 | `src/utils/queue.ts` | queue2.py | ✅ |
+
+## 第174批（2026-04-04 15:13】
+| # | 模块 | 源码文件 | 落地 | 状态 |
+|---|------|---------|------|------|
+| 306 | 集合 | `src/utils/set.ts` | set2.py | ✅ |
+| 307 | 映射 | `src/utils/map.ts` | map2.py | ✅ |
+| 308 | 双端队列 | `src/utils/deque.ts` | deque.py | ✅ |
