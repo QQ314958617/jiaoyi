@@ -309,3 +309,9 @@
 |---|------|---------|------|------|
 | 124 | 顺序执行 | `src/utils/sequential.ts` | sequential.py | ✅ |
 | 125 | 异步工具 | `src/utils/async.ts` | async_utils.py | ✅ |
+
+## 第100批（2026-04-04 10:15】
+| # | 模块 | 源码文件 | 落地 | 状态 |
+|---|------|---------|------|------|
+| 126 | Result类型 | `src/utils/result.ts` | result.py | ✅ |
+| 127 | Option类型 | `src/utils/option.ts` | option.py | ✅ |
