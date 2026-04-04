@@ -1,5 +1,5 @@
 """
-Base64 - Base64编解码
+Base64 - Base64编码
 基于 Claude Code base64.ts 设计
 
 Base64工具。
@@ -7,20 +7,22 @@ Base64工具。
 import base64 as _base64
 
 
-def encode(data: str) -> str:
+def encode(data: Union[bytes, str]) -> str:
     """
     Base64编码
     
     Args:
-        data: 字符串
+        data: 字符串或字节
         
     Returns:
-        Base64编码字符串
+        Base64字符串
     """
-    return _base64.b64encode(data.encode()).decode()
+    if isinstance(data, str):
+        data = data.encode()
+    return _base64.b64encode(data).decode()
 
 
-def decode(data: str) -> str:
+def decode(data: str) -> bytes:
     """
     Base64解码
     
@@ -28,102 +30,62 @@ def decode(data: str) -> str:
         data: Base64字符串
         
     Returns:
-        原始字符串
+        原始字节
     """
-    return _base64.b64decode(data.encode()).decode()
-
-
-def encode_url_safe(data: str) -> str:
-    """
-    URL安全Base64编码
-    
-    Args:
-        data: 字符串
-        
-    Returns:
-        URL安全Base64字符串
-    """
-    return _base64.urlsafe_b64encode(data.encode()).decode().rstrip('=')
-
-
-def decode_url_safe(data: str) -> str:
-    """
-    URL安全Base64解码
-    
-    Args:
-        data: URL安全Base64字符串
-        
-    Returns:
-        原始字符串
-    """
-    # 补齐padding
+    # 补全padding
     padding = 4 - len(data) % 4
     if padding != 4:
         data += '=' * padding
-    
-    return _base64.urlsafe_b64decode(data.encode()).decode()
+    return _base64.b64decode(data)
 
 
-def encode_bytes(data: bytes) -> str:
+def encode_url(data: Union[bytes, str]) -> str:
     """
-    字节数组Base64编码
+    URL安全的Base64编码
     
     Args:
-        data: 字节数据
+        data: 字符串或字节
         
     Returns:
         Base64字符串
     """
-    return _base64.b64encode(data).decode()
+    if isinstance(data, str):
+        data = data.encode()
+    return _base64.urlsafe_b64encode(data).decode().rstrip('=')
 
 
-def decode_bytes(data: str) -> bytes:
+def decode_url(data: str) -> bytes:
     """
-    Base64解码为字节
+    URL安全的Base64解码
     
     Args:
         data: Base64字符串
         
     Returns:
-        字节数据
+        原始字节
     """
-    return _base64.b64decode(data.encode())
+    padding = 4 - len(data) % 4
+    if padding != 4:
+        data += '=' * padding
+    return _base64.urlsafe_b64decode(data)
 
 
-def encode_file(path: str) -> str:
-    """
-    文件内容Base64编码
-    
-    Args:
-        path: 文件路径
-        
-    Returns:
-        Base64字符串
-    """
-    with open(path, 'rb') as f:
-        return _base64.b64encode(f.read()).decode()
+def to_string(data: bytes) -> str:
+    """Base64转字符串"""
+    return decode(data).decode('utf-8')
 
 
-def decode_to_file(data: str, path: str) -> None:
-    """
-    Base64解码写入文件
-    
-    Args:
-        data: Base64字符串
-        path: 目标文件路径
-    """
-    with open(path, 'wb') as f:
-        f.write(_base64.b64decode(data.encode()))
+def from_string(text: str) -> str:
+    """字符串转Base64"""
+    return encode(text.encode('utf-8'))
 
 
 # 导出
 __all__ = [
     "encode",
     "decode",
-    "encode_url_safe",
-    "decode_url_safe",
-    "encode_bytes",
-    "decode_bytes",
-    "encode_file",
-    "decode_to_file",
+    "encode_url",
+    "decode_url",
+    "to_string",
+    "from_string",
 ]
