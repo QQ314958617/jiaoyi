@@ -1,250 +1,224 @@
 """
-OpenClaw Activity Manager
-====================
-Inspired by Claude Code's src/utils/activityManager.ts.
+Activity Manager - 活动管理器
+基于 Claude Code activityManager.ts 设计
 
-活动管理器，支持：
-1. 用户活动跟踪
-2. CLI 活动跟踪
-3. 重叠活动去重
-4. 用户/CLI 时间分离统计
+跟踪用户和CLI的活动状态。
 """
-
-from __future__ import annotations
-
-import time, threading
+import threading
+import time
 from dataclasses import dataclass, field
-from datetime import datetime, timezone, timedelta
-from typing import Optional, Set
-from collections import defaultdict
+from typing import Callable, Optional
 
-# ============================================================================
-# 配置
-# ============================================================================
-
-USER_ACTIVITY_TIMEOUT_MS = 5000  # 5秒
-
-# ============================================================================
-# 时间计数器
-# ============================================================================
 
 @dataclass
-class TimeCounter:
-    """时间计数器"""
-    user_time: float = 0  # 用户活动时间（秒）
-    cli_time: float = 0    # CLI 活动时间（秒）
-    last_update: Optional[datetime] = None
-    
-    def add(self, seconds: float, type: str = "user") -> None:
-        """添加时间"""
-        if type == "user":
-            self.user_time += seconds
-        else:
-            self.cli_time += seconds
-        self.last_update = datetime.now(timezone(timedelta(hours=8)))
-    
-    @property
-    def total_time(self) -> float:
-        """总时间"""
-        return self.user_time + self.cli_time
-    
-    def to_dict(self) -> dict:
-        return {
-            "user_time": round(self.user_time, 2),
-            "cli_time": round(self.cli_time, 2),
-            "total_time": round(self.total_time, 2)
-        }
+class ActiveTimeEntry:
+    """活动时间条目"""
+    duration: float
+    entry_type: str  # "user" or "cli"
+    timestamp: float
 
-# ============================================================================
-# 活动管理器
-# ============================================================================
+
+class ActiveTimeCounter:
+    """活动时间计数器"""
+    
+    def __init__(self):
+        self._entries: list[ActiveTimeEntry] = []
+        self._lock = threading.Lock()
+    
+    def add(self, duration: float, entry_type: str = "user") -> None:
+        """
+        添加时间条目
+        
+        Args:
+            duration: 持续时间（秒）
+            entry_type: 类型 ("user" 或 "cli")
+        """
+        with self._lock:
+            self._entries.append(ActiveTimeEntry(
+                duration=duration,
+                entry_type=entry_type,
+                timestamp=time.time(),
+            ))
+    
+    def get_total(self, entry_type: Optional[str] = None) -> float:
+        """
+        获取总时间
+        
+        Args:
+            entry_type: 可选的类型过滤
+            
+        Returns:
+            总时间（秒）
+        """
+        with self._lock:
+            if entry_type:
+                return sum(
+                    e.duration for e in self._entries
+                    if e.entry_type == entry_type
+                )
+            return sum(e.duration for e in self._entries)
+    
+    def get_entries(self) -> list[ActiveTimeEntry]:
+        """获取所有条目"""
+        with self._lock:
+            return list(self._entries)
+    
+    def clear(self) -> None:
+        """清空计数器"""
+        with self._lock:
+            self._entries.clear()
+
 
 class ActivityManager:
     """
     活动管理器
     
-    特性：
-    - 用户活动和 CLI 活动分离统计
-    - 自动去重重叠活动
-    - 超时自动结束
-    
-    用法：
-    ```python
-    manager = ActivityManager()
-    
-    # 记录用户活动
-    manager.record_user_activity()
-    
-    # 开始 CLI 活动
-    manager.start_cli_activity("task-1")
-    # ... 执行任务 ...
-    manager.end_cli_activity("task-1")
-    
-    # 获取统计
-    stats = manager.get_stats()
-    ```
+    跟踪用户和CLI的活动，自动去重重叠操作。
     """
     
-    _instance: Optional['ActivityManager'] = None
-    _lock = threading.Lock()
+    # 用户活动超时（5秒）
+    USER_ACTIVITY_TIMEOUT_MS = 5000
     
-    def __init__(self, now_func=None):
-        self._active_operations: Set[str] = set()
+    _instance: Optional["ActivityManager"] = None
+    
+    def __init__(
+        self,
+        get_now: Optional[Callable[[], float]] = None,
+    ):
+        self._get_now = get_now or (lambda: time.time() * 1000)
+        self._active_operations: set = set()
         self._last_user_activity_time: float = 0
-        self._last_cli_recorded_time: float = 0
+        self._last_cli_recorded_time: float = self._get_now()
         self._is_cli_active: bool = False
-        self._time_counter = TimeCounter()
-        self._now = now_func or (lambda: time.time() * 1000)  # 毫秒
+        self._active_time_counter = ActiveTimeCounter()
     
     @classmethod
-    def get_instance(cls) -> 'ActivityManager':
-        """获取单例"""
-        with cls._lock:
-            if cls._instance is None:
-                cls._instance = cls()
-            return cls._instance
+    def get_instance(cls) -> "ActivityManager":
+        """获取单例实例"""
+        if cls._instance is None:
+            cls._instance = cls()
+        return cls._instance
     
     @classmethod
     def reset_instance(cls) -> None:
-        """重置单例（用于测试）"""
-        with cls._lock:
-            cls._instance = None
+        """重置单例（测试用）"""
+        cls._instance = None
     
     @classmethod
-    def create_instance(cls, now_func=None) -> 'ActivityManager':
-        """创建新实例"""
-        cls._instance = cls(now_func)
+    def create_instance(
+        cls,
+        get_now: Optional[Callable[[], float]] = None,
+    ) -> "ActivityManager":
+        """创建新实例（测试用）"""
+        cls._instance = cls(get_now)
         return cls._instance
     
-    # ============================================================================
-    # 用户活动
-    # ============================================================================
-    
     def record_user_activity(self) -> None:
-        """
-        记录用户活动（用户与 CLI 交互：输入命令等）
-        
-        如果 CLI 正在活动，不记录用户时间
-        """
-        if self._is_cli_active and self._last_user_activity_time != 0:
-            return
-        
-        now = self._now()
-        
-        if self._last_user_activity_time != 0:
-            time_since = (now - self._last_user_activity_time) / 1000  # 转换为秒
+        """记录用户活动"""
+        if not self._is_cli_active and self._last_user_activity_time != 0:
+            now = self._get_now()
+            time_since = (now - self._last_user_activity_time) / 1000  # 转为秒
             
-            if 0 < time_since < USER_ACTIVITY_TIMEOUT_MS / 1000:
-                self._time_counter.add(time_since, "user")
+            if time_since > 0:
+                timeout_seconds = self.USER_ACTIVITY_TIMEOUT_MS / 1000
+                
+                # 只在超时窗口内记录
+                if time_since < timeout_seconds:
+                    self._active_time_counter.add(time_since, "user")
         
-        self._last_user_activity_time = now
+        # 更新最后活动时间戳
+        self._last_user_activity_time = self._get_now()
     
-    # ============================================================================
-    # CLI 活动
-    # ============================================================================
+    def record_cli_activity(self) -> None:
+        """记录CLI活动"""
+        now = self._get_now()
+        
+        # 记录CLI未激活期间的用户时间
+        if not self._is_cli_active and self._last_user_activity_time != 0:
+            time_since = (now - self._last_user_activity_time) / 1000
+            if time_since > 0:
+                timeout_seconds = self.USER_ACTIVITY_TIMEOUT_MS / 1000
+                if time_since < timeout_seconds:
+                    self._active_time_counter.add(time_since, "user")
+        
+        self._is_cli_active = True
+        self._last_user_activity_time = 0  # 重置用户活动时间
     
-    def start_cli_activity(self, operation_id: str) -> None:
-        """
-        开始 CLI 活动（工具执行、AI 响应等）
-        
-        Args:
-            operation_id: 操作 ID（用于去重）
-        """
-        # 如果操作已存在，先结束它（防止重复）
-        if operation_id in self._active_operations:
-            self.end_cli_activity(operation_id)
-        
-        was_empty = len(self._active_operations) == 0
-        self._active_operations.add(operation_id)
-        
-        if was_empty:
-            self._is_cli_active = True
-            self._last_cli_recorded_time = self._now()
-    
-    def end_cli_activity(self, operation_id: str) -> None:
-        """
-        结束 CLI 活动
-        
-        Args:
-            operation_id: 操作 ID
-        """
-        if operation_id not in self._active_operations:
-            return
-        
-        self._active_operations.discard(operation_id)
-        
-        if len(self._active_operations) == 0:
-            # 记录经过的时间
-            if self._is_cli_active:
-                now = self._now()
-                elapsed = (now - self._last_cli_recorded_time) / 1000
-                if elapsed > 0:
-                    self._time_counter.add(elapsed, "cli")
+    def end_cli_activity(self) -> None:
+        """结束CLI活动"""
+        if self._is_cli_active:
+            now = self._get_now()
+            time_since = (now - self._last_cli_recorded_time) / 1000
             
+            if time_since > 0:
+                self._active_time_counter.add(time_since, "cli")
+            
+            self._last_cli_recorded_time = now
             self._is_cli_active = False
     
-    def is_cli_active(self) -> bool:
-        """检查 CLI 是否活动"""
-        return self._is_cli_active
-    
-    # ============================================================================
-    # 统计
-    # ============================================================================
-    
-    def get_stats(self) -> dict:
-        """获取统计信息"""
-        # 如果 CLI 还在活动，估算当前经过的时间
-        user_time = self._time_counter.user_time
-        cli_time = self._time_counter.cli_time
+    def start_operation(self, operation: str) -> None:
+        """
+        开始操作
         
-        if self._is_cli_active:
-            now = self._now()
-            elapsed = (now - self._last_cli_recorded_time) / 1000
-            cli_time += elapsed
+        Args:
+            operation: 操作名称
+        """
+        self._active_operations.add(operation)
+    
+    def end_operation(self, operation: str) -> None:
+        """
+        结束操作
         
-        return {
-            "user_time_s": round(user_time, 2),
-            "cli_time_s": round(cli_time, 2),
-            "total_time_s": round(user_time + cli_time, 2),
-            "active_operations": len(self._active_operations),
-            "is_cli_active": self._is_cli_active,
-            "last_user_activity_ago_s": round(
-                (self._now() - self._last_user_activity_time) / 1000, 2
-            ) if self._last_user_activity_time > 0 else None
-        }
+        Args:
+            operation: 操作名称
+        """
+        self._active_operations.discard(operation)
     
-    def get_time_counter(self) -> TimeCounter:
-        """获取时间计数器"""
-        return self._time_counter
+    def is_operation_active(self, operation: str) -> bool:
+        """
+        检查操作是否活跃
+        
+        Args:
+            operation: 操作名称
+            
+        Returns:
+            是否活跃
+        """
+        return operation in self._active_operations
     
-    def reset(self) -> None:
-        """重置所有统计"""
-        self._active_operations.clear()
-        self._last_user_activity_time = 0
-        self._last_cli_recorded_time = 0
-        self._is_cli_active = False
-        self._time_counter = TimeCounter()
+    def get_active_operations(self) -> set:
+        """获取所有活跃操作"""
+        return set(self._active_operations)
+    
+    def get_active_time_counter(self) -> ActiveTimeCounter:
+        """获取活动时间计数器"""
+        return self._active_time_counter
+    
+    def get_user_active_time(self) -> float:
+        """获取用户活动时间（秒）"""
+        return self._active_time_counter.get_total("user")
+    
+    def get_cli_active_time(self) -> float:
+        """获取CLI活动时间（秒）"""
+        return self._active_time_counter.get_total("cli")
 
-# ============================================================================
-# 便捷函数
-# ============================================================================
+
+# 全局实例访问
+_activity_manager: Optional[ActivityManager] = None
+
 
 def get_activity_manager() -> ActivityManager:
-    """获取活动管理器单例"""
-    return ActivityManager.get_instance()
+    """获取全局活动管理器"""
+    global _activity_manager
+    if _activity_manager is None:
+        _activity_manager = ActivityManager.get_instance()
+    return _activity_manager
 
-def record_activity() -> None:
-    """记录用户活动"""
-    get_activity_manager().record_user_activity()
 
-def start_activity(operation_id: str) -> None:
-    """开始活动"""
-    get_activity_manager().start_cli_activity(operation_id)
-
-def end_activity(operation_id: str) -> None:
-    """结束活动"""
-    get_activity_manager().end_cli_activity(operation_id)
-
-def get_activity_stats() -> dict:
-    """获取活动统计"""
-    return get_activity_manager().get_stats()
+# 导出
+__all__ = [
+    "ActivityManager",
+    "ActiveTimeCounter",
+    "ActiveTimeEntry",
+    "get_activity_manager",
+]
