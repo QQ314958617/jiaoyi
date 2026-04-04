@@ -570,3 +570,10 @@
 | 220 | 存储 | `src/utils/store.ts` | store.py | ✅ |
 | 221 | 记忆化 | `src/utils/memo.ts` | memo.py | ✅ |
 | 222 | 中间件 | `src/utils/middleware.ts` | middleware.py | ✅ |
+
+## 第141批（2026-04-04 12:00】
+| # | 模块 | 源码文件 | 落地 | 状态 |
+|---|------|---------|------|------|
+| 223 | LRU缓存 | `src/utils/lruCache.ts` | lru_cache.py | ✅ |
+| 224 | 延迟对象 | `src/utils/deferred.ts` | deferred.py | ✅ |
+| 225 | await工具 | `src/utils/awaiter.ts` | awaiter.py | ✅ |
