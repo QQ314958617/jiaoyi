@@ -161,3 +161,9 @@
 | # | 模块 | 源码文件 | 落地 | 状态 |
 |---|------|---------|------|------|
 | 85 | Beta特性管理 | `src/utils/betas.ts` | betas.py | ✅ |
+
+## 第73批（2026-04-04 09:20）
+| # | 模块 | 源码文件 | 落地 | 状态 |
+|---|------|---------|------|------|
+| 86 | API提供者 | `src/utils/model/providers.ts` | providers.py | ✅ |
+| 87 | 平台检测 | `src/utils/platform.ts` | platform.py | ✅ |
