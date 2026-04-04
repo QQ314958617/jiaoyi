@@ -8,7 +8,7 @@ from typing import Any, get_origin, get_args
 
 
 def is_defined(value: Any) -> bool:
-    """是否为非None定义"""
+    """是否为非None"""
     return value is not None
 
 
@@ -117,11 +117,6 @@ def is_iterable(value: Any) -> bool:
     return hasattr(value, '__iter__')
 
 
-def is_async_iterable(value: Any) -> bool:
-    """是否异步可迭代"""
-    return hasattr(value, '__aiter__')
-
-
 # 导出
 __all__ = [
     "is_defined",
@@ -144,5 +139,4 @@ __all__ = [
     "is_subclass",
     "is_promise",
     "is_iterable",
-    "is_async_iterable",
 ]
