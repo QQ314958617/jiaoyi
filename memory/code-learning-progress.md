@@ -90,3 +90,8 @@
 | 60 | 顾问系统 | `src/utils/advisor.ts` | advisor.py | ✅ |
 | 61 | 智能会话搜索 | `src/utils/agenticSessionSearch.ts` | agentic_search.py | ✅ |
 | 62 | 上下文分析 | `src/utils/analyzeContext.ts` | context_analyzer.py | ✅ |
+
+## 第61批（2026-04-04 08:35）
+| # | 模块 | 源码文件 | 落地 | 状态 |
+|---|------|---------|------|------|
+| 63 | 附件系统 | `src/utils/attachments.ts` | attachments.py | ✅ |
