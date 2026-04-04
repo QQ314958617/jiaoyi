@@ -345,3 +345,9 @@
 |---|------|---------|------|------|
 | 136 | 堆结构 | `src/utils/heap.ts` | heap.py | ✅ |
 | 137 | LRU缓存 | `src/utils/lruCache.ts` | lru_cache.py | ✅ |
+
+## 第106批（2026-04-04 10:26】
+| # | 模块 | 源码文件 | 落地 | 状态 |
+|---|------|---------|------|------|
+| 138 | 限流器 | `src/utils/rateLimit.ts` | rate_limit.py | ✅ |
+| 139 | 单次执行 | `src/utils/once.ts` | once.py | ✅ |
