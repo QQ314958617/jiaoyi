@@ -448,3 +448,9 @@
 |---|------|---------|------|------|
 | 175 | 异步队列 | `src/utils/asyncQueue.ts` | async_queue.py | ✅ |
 | 176 | 异步池 | `src/utils/asyncPool.ts` | async_pool.py | ✅ |
+
+## 第122批（2026-04-04 11:07】
+| # | 模块 | 源码文件 | 落地 | 状态 |
+|---|------|---------|------|------|
+| 177 | 防抖节流 | `src/utils/debounce.ts` | debounce.py | ✅ |
+| 178 | 异步工具2 | `src/utils/asyncUtils2.ts` | async_utils2.py | ✅ |
