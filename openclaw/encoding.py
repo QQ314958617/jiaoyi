@@ -1,127 +1,102 @@
 """
-Encoding - 编码工具
+Encoding - 编码
 基于 Claude Code encoding.ts 设计
 
-各种编码解码工具。
+编码工具。
 """
 import base64
 import json
-import urllib.parse
-from typing import Any, Optional
+import zlib
+from typing import Any
 
 
-def encode_base64(data: str) -> str:
-    """
-    Base64编码
-    
-    Args:
-        data: 字符串
-        
-    Returns:
-        Base64编码字符串
-    """
-    return base64.b64encode(data.encode()).decode()
+def to_base64(data: bytes) -> str:
+    """Base64编码"""
+    return base64.b64encode(data).decode()
 
 
-def decode_base64(data: str) -> str:
-    """
-    Base64解码
-    
-    Args:
-        data: Base64字符串
-        
-    Returns:
-        原始字符串
-    """
-    return base64.b64decode(data.encode()).decode()
+def from_base64(data: str) -> bytes:
+    """Base64解码"""
+    return base64.b64decode(data)
 
 
-def encode_url(data: str) -> str:
-    """
-    URL编码
-    
-    Args:
-        data: 字符串
-        
-    Returns:
-        URL编码字符串
-    """
-    return urllib.parse.quote(data)
+def to_base64url(data: bytes) -> str:
+    """Base64URL编码"""
+    return base64.urlsafe_b64encode(data).decode().rstrip('=')
 
 
-def decode_url(data: str) -> str:
-    """
-    URL解码
-    
-    Args:
-        data: URL编码字符串
-        
-    Returns:
-        原始字符串
-    """
-    return urllib.parse.unquote(data)
+def from_base64url(data: str) -> bytes:
+    """Base64URL解码"""
+    padding = 4 - len(data) % 4
+    if padding != 4:
+        data += '=' * padding
+    return base64.urlsafe_b64decode(data)
 
 
-def encode_hex(data: str) -> str:
-    """
-    十六进制编码
-    
-    Args:
-        data: 字符串
-        
-    Returns:
-        十六进制编码字符串
-    """
-    return data.encode().hex()
+def to_hex(data: bytes) -> str:
+    """十六进制编码"""
+    return data.hex()
 
 
-def decode_hex(data: str) -> str:
-    """
-    十六进制解码
-    
-    Args:
-        data: 十六进制字符串
-        
-    Returns:
-        原始字符串
-    """
-    return bytes.fromhex(data).decode()
+def from_hex(data: str) -> bytes:
+    """十六进制解码"""
+    return bytes.fromhex(data)
 
 
-def encode_json(data: Any) -> str:
-    """
-    JSON编码
-    
-    Args:
-        data: 对象
-        
-    Returns:
-        JSON字符串
-    """
-    return json.dumps(data)
+def to_json(obj: Any) -> str:
+    """JSON编码"""
+    return json.dumps(obj, ensure_ascii=False)
 
 
-def decode_json(data: str) -> Any:
-    """
-    JSON解码
-    
-    Args:
-        data: JSON字符串
-        
-    Returns:
-        对象
-    """
+def from_json(data: str) -> Any:
+    """JSON解码"""
     return json.loads(data)
+
+
+def compress_gzip(data: bytes) -> bytes:
+    """GZIP压缩"""
+    return zlib.compress(data)
+
+
+def decompress_gzip(data: bytes) -> bytes:
+    """GZIP解压"""
+    return zlib.decompress(data)
+
+
+def compress_zlib(data: bytes) -> bytes:
+    """Zlib压缩"""
+    return zlib.compress(data, level=9)
+
+
+def decompress_zlib(data: bytes) -> bytes:
+    """Zlib解压"""
+    return zlib.decompress(data)
+
+
+def crc32(data: bytes) -> int:
+    """CRC32校验"""
+    return zlib.crc32(data)
+
+
+def adler32(data: bytes) -> int:
+    """Adler32校验"""
+    return zlib.adler32(data)
 
 
 # 导出
 __all__ = [
-    "encode_base64",
-    "decode_base64",
-    "encode_url",
-    "decode_url",
-    "encode_hex",
-    "decode_hex",
-    "encode_json",
-    "decode_json",
+    "to_base64",
+    "from_base64",
+    "to_base64url",
+    "from_base64url",
+    "to_hex",
+    "from_hex",
+    "to_json",
+    "from_json",
+    "compress_gzip",
+    "decompress_gzip",
+    "compress_zlib",
+    "decompress_zlib",
+    "crc32",
+    "adler32",
 ]

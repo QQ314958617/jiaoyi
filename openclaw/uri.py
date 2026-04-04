@@ -1,220 +1,156 @@
 """
-URI - URI工具
+URI - 统一资源标识符
 基于 Claude Code uri.ts 设计
 
-URI解析和操作工具。
+URI工具。
 """
 import urllib.parse
-from typing import Any, Dict, Optional
+from typing import Dict
 
 
-class URI:
+def parse(url: str) -> Dict:
     """
-    URI
-    
-    解析和操作URI。
-    """
-    
-    def __init__(self, uri: str):
-        """
-        Args:
-            uri: URI字符串
-        """
-        self._uri = uri
-        self._parsed = urllib.parse.urlparse(uri)
-    
-    @property
-    def scheme(self) -> str:
-        """协议"""
-        return self._parsed.scheme
-    
-    @property
-    def username(self) -> str:
-        """用户名"""
-        return self._parsed.username or ''
-    
-    @property
-    def password(self) -> str:
-        """密码"""
-        return self._parsed.password or ''
-    
-    @property
-    def host(self) -> str:
-        """主机"""
-        return self._parsed.hostname or ''
-    
-    @property
-    def port(self) -> Optional[int]:
-        """端口"""
-        return self._parsed.port
-    
-    @property
-    def path(self) -> str:
-        """路径"""
-        return self._parsed.path
-    
-    @property
-    def query(self) -> Dict[str, str]:
-        """查询参数"""
-        return dict(urllib.parse.parse_qsl(self._parsed.query))
-    
-    @property
-    def fragment(self) -> str:
-        """片段"""
-        return self._parsed.fragment
-    
-    @property
-    def origin(self) -> str:
-        """源（scheme://host[:port]）"""
-        result = f"{self.scheme}://{self.host}"
-        if self.port:
-            result += f":{self.port}"
-        return result
-    
-    @property
-    def authority(self) -> str:
-        """权限（[user:pass@]host[:port]）"""
-        result = ''
-        if self.username:
-            result += self.username
-            if self.password:
-                result += f":{self.password}"
-            result += '@'
-        
-        result += self.host
-        
-        if self.port:
-            result += f":{self.port}"
-        
-        return result
-    
-    def get_param(self, key: str, default: str = None) -> str:
-        """获取查询参数"""
-        return self.query.get(key, default)
-    
-    def with_scheme(self, scheme: str) -> "URI":
-        """设置协议"""
-        return URI(self._update(scheme=scheme))
-    
-    def with_host(self, host: str) -> "URI":
-        """设置主机"""
-        return URI(self._update(host=host))
-    
-    def with_port(self, port: int) -> "URI":
-        """设置端口"""
-        return URI(self._update(port=port))
-    
-    def with_path(self, path: str) -> "URI":
-        """设置路径"""
-        return URI(self._update(path=path))
-    
-    def with_query(self, params: Dict[str, str]) -> "URI":
-        """设置查询参数"""
-        query = urllib.parse.urlencode(params)
-        return URI(self._update(query=query))
-    
-    def add_param(self, key: str, value: str) -> "URI":
-        """添加查询参数"""
-        params = self.query
-        params[key] = value
-        return self.with_query(params)
-    
-    def remove_param(self, key: str) -> "URI":
-        """删除查询参数"""
-        params = self.query
-        params.pop(key, None)
-        return self.with_query(params)
-    
-    def _update(self, **kwargs) -> str:
-        """更新URI组件"""
-        from urllib.parse import urlunparse
-        
-        scheme = kwargs.get('scheme', self._parsed.scheme)
-        netloc = kwargs.get('host', self._parsed.netloc)
-        path = kwargs.get('path', self._parsed.path)
-        params = kwargs.get('params', self._parsed.params)
-        query = kwargs.get('query', self._parsed.query)
-        fragment = kwargs.get('fragment', self._parsed.fragment)
-        
-        # 重建netloc
-        if 'host' in kwargs or 'port' in kwargs:
-            port = kwargs.get('port', self._parsed.port)
-            username = kwargs.get('username', self._parsed.username)
-            password = kwargs.get('password', self._parsed.password)
-            
-            netloc = ''
-            if username:
-                netloc += username
-                if password:
-                    netloc += f":{password}"
-                netloc += '@'
-            
-            netloc += kwargs.get('host', self._parsed.hostname or '')
-            
-            if port:
-                netloc += f":{port}"
-        
-        return urlunparse((scheme, netloc, path, params, query, fragment))
-    
-    def __str__(self) -> str:
-        return self._uri
-    
-    def __repr__(self) -> str:
-        return f"URI({self._uri})"
-
-
-def parse_uri(uri: str) -> URI:
-    """
-    解析URI
+    解析URL
     
     Args:
-        uri: URI字符串
+        url: URL字符串
         
     Returns:
-        URI对象
+        分解的URL部分
     """
-    return URI(uri)
+    parsed = urllib.parse.urlparse(url)
+    return {
+        "scheme": parsed.scheme,
+        "host": parsed.hostname,
+        "port": parsed.port,
+        "path": parsed.path,
+        "query": parsed.query,
+        "fragment": parsed.fragment,
+        "username": parsed.username,
+        "password": parsed.password,
+    }
 
 
-def build_uri(
-    scheme: str = '',
-    host: str = '',
-    port: int = None,
-    path: str = '',
-    params: Dict[str, str] = None,
-) -> str:
+def build(scheme: str = "", host: str = "", path: str = "",
+          query: str = "", port: int = None, fragment: str = "") -> str:
     """
-    构建URI
+    构建URL
     
     Args:
         scheme: 协议
         host: 主机
-        port: 端口
         path: 路径
-        params: 查询参数
+        query: 查询字符串
+        port: 端口
+        fragment: 锚点
         
     Returns:
-        URI字符串
+        URL字符串
     """
-    uri = URI('://')
-    
-    if scheme:
-        uri = uri.with_scheme(scheme)
-    if host:
-        uri = uri.with_host(host)
     if port:
-        uri = uri.with_port(port)
-    if path:
-        uri = uri.with_path(path)
-    if params:
-        uri = uri.with_query(params)
+        host = f"{host}:{port}"
     
-    return str(uri)
+    netloc = host
+    if scheme:
+        return f"{scheme}://{netloc}{path}?{query}#{fragment}".rstrip('#?')
+    return f"{netloc}{path}"
+
+
+def encode(value: str) -> str:
+    """URL编码"""
+    return urllib.parse.quote(value)
+
+
+def decode(value: str) -> str:
+    """URL解码"""
+    return urllib.parse.unquote(value)
+
+
+def encode_params(params: Dict) -> str:
+    """
+    编码参数
+    
+    Args:
+        params: 参数字典
+        
+    Returns:
+        查询字符串
+    """
+    return urllib.parse.urlencode(params)
+
+
+def decode_params(query: str) -> Dict:
+    """
+    解码参数
+    
+    Args:
+        query: 查询字符串
+        
+    Returns:
+        参数字典
+    """
+    return dict(urllib.parse.parse_qsl(query))
+
+
+def add_param(url: str, key: str, value: str) -> str:
+    """
+    添加参数到URL
+    
+    Args:
+        url: URL
+        key: 参数名
+        value: 参数值
+        
+    Returns:
+        新URL
+    """
+    parsed = urllib.parse.urlparse(url)
+    params = decode_params(parsed.query)
+    params[key] = value
+    
+    return urllib.parse.urlunparse((
+        parsed.scheme,
+        parsed.netloc,
+        parsed.path,
+        parsed.params,
+        encode_params(params),
+        parsed.fragment
+    ))
+
+
+def remove_param(url: str, key: str) -> str:
+    """
+    从URL移除参数
+    
+    Args:
+        url: URL
+        key: 参数名
+        
+    Returns:
+        新URL
+    """
+    parsed = urllib.parse.urlparse(url)
+    params = decode_params(parsed.query)
+    params.pop(key, None)
+    
+    return urllib.parse.urlunparse((
+        parsed.scheme,
+        parsed.netloc,
+        parsed.path,
+        parsed.params,
+        encode_params(params),
+        parsed.fragment
+    ))
 
 
 # 导出
 __all__ = [
-    "URI",
-    "parse_uri",
-    "build_uri",
+    "parse",
+    "build",
+    "encode",
+    "decode",
+    "encode_params",
+    "decode_params",
+    "add_param",
+    "remove_param",
 ]
