@@ -634,3 +634,10 @@
 |---|------|---------|------|------|
 | 245 | 矩阵 | `src/utils/matrix.ts` | matrix.py | ✅ |
 | 246 | 区间 | `src/utils/interval.ts` | interval.py | ✅ |
+
+## 第151批（2026-04-04 13:00】
+| # | 模块 | 源码文件 | 落地 | 状态 |
+|---|------|---------|------|------|
+| 247 | 堆 | `src/utils/heap.ts` | heap.py | ✅ |
+| 248 | 版本 | `src/utils/version.ts` | version.py | ✅ |
+| 249 | YAML | `src/utils/yaml.ts` | yaml.py | ✅ |
