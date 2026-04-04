@@ -736,3 +736,10 @@
 | 282 | 断言 | `src/utils/assert.ts` | assert2.py | ✅ |
 | 283 | 延迟 | `src/utils/sleep.ts` | sleep.py | ✅ |
 | 284 | 随机 | `src/utils/random.ts` | random2.py | ✅ |
+
+## 第167批（2026-04-04 14:55】
+| # | 模块 | 源码文件 | 落地 | 状态 |
+|---|------|---------|------|------|
+| 285 | 重试 | `src/utils/retry.ts` | retry2.py | ✅ |
+| 286 | 超时 | `src/utils/timeout.ts` | timeout.py | ✅ |
+| 287 | 加密 | `src/utils/crypto.ts` | crypto2.py | ✅ |
