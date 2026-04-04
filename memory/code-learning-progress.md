@@ -442,3 +442,9 @@
 | 172 | 过滤器 | `src/utils/filter.ts` | filter.py | ✅ |
 | 173 | 键路径 | `src/utils/keyPath.ts` | keypath.py | ✅ |
 | 174 | 函数式 | `src/utils/functools.ts` | functools.py | ✅ |
+
+## 第121批（2026-04-04 11:05】
+| # | 模块 | 源码文件 | 落地 | 状态 |
+|---|------|---------|------|------|
+| 175 | 异步队列 | `src/utils/asyncQueue.ts` | async_queue.py | ✅ |
+| 176 | 异步池 | `src/utils/asyncPool.ts` | async_pool.py | ✅ |
