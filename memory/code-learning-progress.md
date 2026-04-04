@@ -339,3 +339,9 @@
 |---|------|---------|------|------|
 | 134 | 指标收集器 | `src/utils/metrics.ts` | metrics.py | ✅ |
 | 135 | 对象池 | `src/utils/pool.ts` | pool.py | ✅ |
+
+## 第105批（2026-04-04 10:24】
+| # | 模块 | 源码文件 | 落地 | 状态 |
+|---|------|---------|------|------|
+| 136 | 堆结构 | `src/utils/heap.ts` | heap.py | ✅ |
+| 137 | LRU缓存 | `src/utils/lruCache.ts` | lru_cache.py | ✅ |
