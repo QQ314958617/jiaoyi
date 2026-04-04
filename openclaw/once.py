@@ -1,135 +1,128 @@
 """
-Once - 单次执行保证
+Once - 单次执行
 基于 Claude Code once.ts 设计
 
 确保函数只执行一次。
 """
-import threading
-from typing import Callable, TypeVar
-
-T = TypeVar('T')
+from typing import Any, Callable, Optional
 
 
-class Once:
+def once(fn: Callable) -> Callable:
     """
-    保证函数只执行一次
-    
-    第一次调用会执行函数，后续调用返回第一次的结果。
-    """
-    
-    def __init__(self):
-        self._done = False
-        self._result = None
-        self._error = None
-        self._lock = threading.Lock()
-    
-    def call(self, fn: Callable[[], T]) -> T:
-        """
-        调用函数（如果尚未调用）
-        
-        Args:
-            fn: 要执行的函数
-            
-        Returns:
-            函数结果
-        """
-        with self._lock:
-            if self._done:
-                if self._error is not None:
-                    raise self._error
-                return self._result
-            
-            try:
-                self._result = fn()
-                self._done = True
-                return self._result
-            except Exception as e:
-                self._error = e
-                self._done = True
-                raise
-
-
-def once(fn: Callable[[], T]) -> Callable[[], T]:
-    """
-    装饰器：确保函数只执行一次
+    确保函数只执行一次
     
     Args:
         fn: 要包装的函数
         
     Returns:
-        包装后的函数
+        只执行一次的函数
     """
-    once_guard = Once()
+    _called = [False]
+    _result = [None]
     
-    def wrapper() -> T:
-        return once_guard.call(fn)
+    def wrapper(*args, **kwargs):
+        if not _called[0]:
+            _called[0] = True
+            _result[0] = fn(*args, **kwargs)
+        return _result[0]
     
+    wrapper.called = lambda: _called[0]
     return wrapper
 
 
-class OnceAsync:
+class Once:
     """
-    异步版本的Once
+    单次执行封装
     """
     
     def __init__(self):
-        self._done = False
+        self._called = False
         self._result = None
-        self._error = None
-        self._lock = threading.Lock()
     
-    async def call(self, fn: Callable) -> T:
+    def call(self, fn: Callable, *args, **kwargs) -> Any:
         """
-        调用异步函数（如果尚未调用）
+        执行函数
         
         Args:
-            fn: 要执行的异步函数
+            fn: 函数
+            *args, **kwargs: 函数参数
             
         Returns:
             函数结果
         """
-        with self._lock:
-            if self._done:
-                if self._error is not None:
-                    raise self._error
-                return self._result
-            
-            try:
-                import asyncio
-                if asyncio.iscoroutinefunction(fn):
-                    self._result = await fn()
-                else:
-                    self._result = fn()
-                self._done = True
-                return self._result
-            except Exception as e:
-                self._error = e
-                self._done = True
-                raise
+        if not self._called:
+            self._called = True
+            self._result = fn(*args, **kwargs)
+        return self._result
+    
+    @property
+    def result(self) -> Any:
+        """获取结果"""
+        return self._result
+    
+    @property
+    def called(self) -> bool:
+        """是否已调用"""
+        return self._called
+    
+    def reset(self) -> None:
+        """重置"""
+        self._called = False
+        self._result = None
 
 
-async def once_async(fn: Callable) -> Callable:
+def after(times: int, fn: Callable) -> Callable:
     """
-    装饰器：确保异步函数只执行一次
+    函数执行指定次数后触发
     
     Args:
-        fn: 要包装的异步函数
+        times: 执行次数
+        fn: 要包装的函数
         
     Returns:
         包装后的函数
     """
-    once_guard = OnceAsync()
+    _counter = [0]
     
-    async def wrapper() -> T:
-        return await once_guard.call(fn)
+    def wrapper(*args, **kwargs):
+        _counter[0] += 1
+        if _counter[0] >= times:
+            return fn(*args, **kwargs)
+        return None
     
+    wrapper.calls = lambda: _counter[0]
+    return wrapper
+
+
+def throttle(fn: Callable, interval: float) -> Callable:
+    """
+    节流函数
+    
+    Args:
+        fn: 要包装的函数
+        interval: 最小执行间隔(秒)
+        
+    Returns:
+        节流后的函数
+    """
+    import time
+    _last_call = [0.0]
+    
+    def wrapper(*args, **kwargs):
+        now = time.time()
+        if now - _last_call[0] >= interval:
+            _last_call[0] = now
+            return fn(*args, **kwargs)
+        return None
+    
+    wrapper.last_call = lambda: _last_call[0]
     return wrapper
 
 
 # 导出
 __all__ = [
-    "Once",
     "once",
-    "OnceAsync",
-    "once_async",
+    "Once",
+    "after",
+    "throttle",
 ]
