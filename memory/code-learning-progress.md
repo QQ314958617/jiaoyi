@@ -150,3 +150,9 @@
 |---|------|---------|------|------|
 | 81 | 二进制检查 | `src/utils/binaryCheck.ts` | binary_check.py | ✅ |
 | 82 | UUID工具 | `src/utils/uuid.ts` | uuid_utils.py | ✅ |
+
+## 第71批（2026-04-04 09:13）
+| # | 模块 | 源码文件 | 落地 | 状态 |
+|---|------|---------|------|------|
+| 83 | 清理注册表 | `src/utils/cleanupRegistry.ts` | cleanup_registry.py | ✅ |
+| 84 | 错误类 | `src/utils/errors.ts` | errors.py | ✅ |
