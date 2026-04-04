@@ -542,3 +542,10 @@
 | 208 | 批处理 | `src/utils/batch.ts` | batch.py | ✅ |
 | 209 | 合并工具 | `src/utils/merge.ts` | merge.py | ✅ |
 | 210 | 对象池2 | `src/utils/pool2.ts` | pool2.py | ✅ |
+
+## 第137批（2026-04-04 11:38】
+| # | 模块 | 源码文件 | 落地 | 状态 |
+|---|------|---------|------|------|
+| 211 | 切片工具 | `src/utils/slice.ts` | slice.py | ✅ |
+| 212 | 转换工具 | `src/utils/transform2.ts` | transform2.py | ✅ |
+| 213 | 异步迭代 | `src/utils/asyncIter.ts` | async_iter.py | ✅ |
