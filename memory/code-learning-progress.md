@@ -792,3 +792,10 @@
 | 306 | 集合 | `src/utils/set.ts` | set2.py | ✅ |
 | 307 | 映射 | `src/utils/map.ts` | map2.py | ✅ |
 | 308 | 双端队列 | `src/utils/deque.ts` | deque.py | ✅ |
+
+## 第175批（2026-04-04 15:15】
+| # | 模块 | 源码文件 | 落地 | 状态 |
+|---|------|---------|------|------|
+| 309 | 列表 | `src/utils/list.ts` | list2.py | ✅ |
+| 310 | 作用域 | `src/utils/scope.ts` | scope.py | ✅ |
+| 311 | 记忆化 | `src/utils/memo.ts` | memo.py | ✅ |

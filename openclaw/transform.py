@@ -1,181 +1,114 @@
 """
-Transform - 数据转换
+Transform - 变换
 基于 Claude Code transform.ts 设计
 
-常用数据转换工具。
+数据变换工具。
 """
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List
 
 
-def pick(obj: dict, *keys: str) -> dict:
+def map_items(items: List, fn: Callable) -> List:
     """
-    选取对象的部分字段
-    
-    Args:
-        obj: 对象
-        *keys: 要选取的键
-        
-    Returns:
-        新对象
-    """
-    return {k: obj[k] for k in keys if k in obj}
-
-
-def omit(obj: dict, *keys: str) -> dict:
-    """
-    排除对象的部分字段
-    
-    Args:
-        obj: 对象
-        *keys: 要排除的键
-        
-    Returns:
-        新对象
-    """
-    return {k: v for k, v in obj.items() if k not in keys}
-
-
-def deep_merge(base: dict, *updates: dict) -> dict:
-    """
-    深度合并字典
-    
-    Args:
-        base: 基础字典
-        *updates: 更新的字典
-        
-    Returns:
-        合并后的新字典
-    """
-    result = dict(base)
-    
-    for update in updates:
-        for key, value in update.items():
-            if (
-                key in result
-                and isinstance(result[key], dict)
-                and isinstance(value, dict)
-            ):
-                result[key] = deep_merge(result[key], value)
-            else:
-                result[key] = value
-    
-    return result
-
-
-def map_values(
-    obj: dict,
-    fn: Callable[[Any, str], Any],
-) -> dict:
-    """
-    对字典的值应用函数
-    
-    Args:
-        obj: 字典
-        fn: 函数 (value, key) -> new_value
-        
-    Returns:
-        新的字典
-    """
-    return {k: fn(v, k) for k, v in obj.items()}
-
-
-def map_keys(
-    obj: dict,
-    fn: Callable[[str, Any], str],
-) -> dict:
-    """
-    对字典的键应用函数
-    
-    Args:
-        obj: 字典
-        fn: 函数 (key, value) -> new_key
-        
-    Returns:
-        新的字典
-    """
-    return {fn(k, v): v for k, v in obj.items()}
-
-
-def filter_values(
-    obj: dict,
-    fn: Callable[[Any], bool],
-) -> dict:
-    """
-    过滤字典的值
-    
-    Args:
-        obj: 字典
-        fn: 过滤函数
-        
-    Returns:
-        过滤后的字典
-    """
-    return {k: v for k, v in obj.items() if fn(v)}
-
-
-def group_by(
-    items: list,
-    key_fn: Callable[[Any], str],
-) -> dict:
-    """
-    按键分组
+    映射
     
     Args:
         items: 列表
-        key_fn: 键提取函数
+        fn: 变换函数
         
     Returns:
-        分组字典
+        变换后的列表
     """
-    result: dict = {}
-    for item in items:
-        key = key_fn(item)
-        if key not in result:
-            result[key] = []
-        result[key].append(item)
-    return result
+    return [fn(item) for item in items]
 
 
-def flatten(items: list, depth: int = 1) -> list:
+def flat_map(items: List, fn: Callable) -> List:
     """
-    展平嵌套列表
+    扁平映射
     
     Args:
-        items: 嵌套列表
-        depth: 展平深度
+        items: 列表
+        fn: 变换函数（返回列表）
         
     Returns:
-        展平后的列表
+        扁平化结果
     """
     result = []
     for item in items:
-        if depth > 0 and isinstance(item, list):
-            result.extend(flatten(item, depth - 1))
-        else:
-            result.append(item)
+        result.extend(fn(item))
     return result
 
 
-def chunk(items: list, size: int) -> list:
+def pluck(items: List[Dict], key: str) -> List:
     """
-    分块
+    提取键值
     
     Args:
-        items: 列表
-        size: 块大小
+        items: 字典列表
+        key: 键名
         
     Returns:
-        分块后的列表
+        值列表
     """
-    return [items[i:i + size] for i in range(0, len(items), size)]
+    return [item.get(key) for item in items if isinstance(item, dict)]
 
 
-def unique(items: list) -> list:
+def property_map(items: List, source_key: str, target_key: str = None) -> List[Dict]:
     """
-    去重（保持顺序）
+    属性映射
     
     Args:
-        items: 列表
+        items: 字典列表
+        source_key: 源键
+        target_key: 目标键（默认同source_key）
+        
+    Returns:
+        映射后的字典列表
+    """
+    if target_key is None:
+        target_key = source_key
+    
+    return [
+        {**(item if isinstance(item, dict) else {}), target_key: item.get(source_key) if isinstance(item, dict) else getattr(item, source_key, None)}
+        for item in items
+    ]
+
+
+def key_by(items: List[Dict], key: str) -> Dict:
+    """
+    以键索引
+    
+    Args:
+        items: 字典列表
+        key: 键名
+        
+    Returns:
+        { key_value: item }
+    """
+    return {item.get(key): item for item in items if isinstance(item, dict) and key in item}
+
+
+def sort_by(items: List, key: str, reverse: bool = False) -> List:
+    """
+    按键排序
+    
+    Args:
+        items: 字典列表
+        key: 键名
+        reverse: 是否降序
+        
+    Returns:
+        排序后的列表
+    """
+    return sorted(items, key=lambda x: x.get(key) if isinstance(x, dict) else getattr(x, key, None), reverse=reverse)
+
+
+def uniq_by(items: List, key: str) -> List:
+    """
+    按键去重
+    
+    Args:
+        items: 字典列表
+        key: 键名
         
     Returns:
         去重后的列表
@@ -183,40 +116,60 @@ def unique(items: list) -> list:
     seen = set()
     result = []
     for item in items:
-        if item not in seen:
-            seen.add(item)
-            result.append(item)
+        if isinstance(item, dict) and key in item:
+            val = item[key]
+            if val not in seen:
+                seen.add(val)
+                result.append(item)
     return result
 
 
-def key_by(
-    items: list,
-    key_fn: Callable[[Any], str],
-) -> dict:
+def assoc(items: List[Dict], key: str, value: Any) -> List[Dict]:
     """
-    将列表转换为以键索引的字典
+    关联
     
     Args:
-        items: 列表
-        key_fn: 键提取函数
+        items: 字典列表
+        key: 键
+        value: 值或函数
         
     Returns:
-        索引字典
+        新列表
     """
-    return {key_fn(item): item for item in items}
+    result = []
+    for item in items:
+        new_item = dict(item) if isinstance(item, dict) else {}
+        if callable(value):
+            new_item[key] = value(item)
+        else:
+            new_item[key] = value
+        result.append(new_item)
+    return result
+
+
+def dissoc(items: List[Dict], key: str) -> List[Dict]:
+    """
+    解除关联
+    
+    Args:
+        items: 字典列表
+        key: 键
+        
+    Returns:
+        新列表
+    """
+    return [{k: v for k, v in (item.items() if isinstance(item, dict) else {}) if k != key} for item in items]
 
 
 # 导出
 __all__ = [
-    "pick",
-    "omit",
-    "deep_merge",
-    "map_values",
-    "map_keys",
-    "filter_values",
-    "group_by",
-    "flatten",
-    "chunk",
-    "unique",
+    "map_items",
+    "flat_map",
+    "pluck",
+    "property_map",
     "key_by",
+    "sort_by",
+    "uniq_by",
+    "assoc",
+    "dissoc",
 ]

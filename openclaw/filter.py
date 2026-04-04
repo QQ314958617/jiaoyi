@@ -2,20 +2,18 @@
 Filter - 过滤器
 基于 Claude Code filter.ts 设计
 
-数据过滤工具。
+过滤器工具。
 """
-from typing import Any, Callable, List, TypeVar
-
-T = TypeVar('T')
+from typing import Any, Callable, List, Dict
 
 
-def filter_by(items: List[T], predicate: Callable[[T], bool]) -> List[T]:
+def filter_items(items: List, predicate: Callable) -> List:
     """
-    过滤列表
+    过滤
     
     Args:
         items: 列表
-        predicate: 过滤函数
+        predicate: 谓词
         
     Returns:
         过滤后的列表
@@ -23,138 +21,133 @@ def filter_by(items: List[T], predicate: Callable[[T], bool]) -> List[T]:
     return [item for item in items if predicate(item)]
 
 
-def reject_by(items: List[T], predicate: Callable[[T], bool]) -> List[T]:
+def reject(items: List, predicate: Callable) -> List:
     """
-    排除列表中满足条件的项
+    拒绝
     
     Args:
         items: 列表
-        predicate: 排除函数
+        predicate: 谓词
         
     Returns:
-        排除后的列表
+        不满足条件的列表
     """
     return [item for item in items if not predicate(item)]
 
 
-def partition_by(
-    items: List[T],
-    predicate: Callable[[T], bool]
-) -> tuple:
+def find(items: List, predicate: Callable) -> Any:
     """
-    按条件分区
+    查找
     
     Args:
         items: 列表
-        predicate: 条件函数
+        predicate: 谓词
         
     Returns:
-        (满足条件, 不满足条件)
+        第一个满足条件的元素或None
     """
-    yes, no = [], []
     for item in items:
         if predicate(item):
-            yes.append(item)
-        else:
-            no.append(item)
-    return yes, no
+            return item
+    return None
 
 
-def unique_by(items: List[T], key_fn: Callable[[T], Any]) -> List[T]:
+def find_index(items: List, predicate: Callable) -> int:
     """
-    按键去重
+    查找索引
     
     Args:
         items: 列表
-        key_fn: 键提取函数
+        predicate: 谓词
         
     Returns:
-        去重后的列表（保留第一个）
+        索引或-1
     """
-    seen = set()
+    for i, item in enumerate(items):
+        if predicate(item):
+            return i
+    return -1
+
+
+def every(items: List, predicate: Callable) -> bool:
+    """
+    是否所有都满足
+    
+    Args:
+        items: 列表
+        predicate: 谓词
+        
+    Returns:
+        是否所有都满足
+    """
+    for item in items:
+        if not predicate(item):
+            return False
+    return True
+
+
+def some(items: List, predicate: Callable) -> bool:
+    """
+    是否有任意满足
+    
+    Args:
+        items: 列表
+        predicate: 谓词
+        
+    Returns:
+        是否存在满足条件的元素
+    """
+    for item in items:
+        if predicate(item):
+            return True
+    return False
+
+
+def none(items: List, predicate: Callable) -> bool:
+    """
+    是否都不满足
+    
+    Args:
+        items: 列表
+        predicate: 谓词
+        
+    Returns:
+        是否所有都不满足
+    """
+    return not some(items, predicate)
+
+
+def where(items: List[Dict], criteria: Dict) -> List:
+    """
+    按条件过滤字典列表
+    
+    Args:
+        items: 字典列表
+        criteria: 条件
+        
+    Returns:
+        匹配的字典列表
+    """
     result = []
-    
     for item in items:
-        key = key_fn(item)
-        if key not in seen:
-            seen.add(key)
+        match = True
+        for key, value in criteria.items():
+            if item.get(key) != value:
+                match = False
+                break
+        if match:
             result.append(item)
-    
     return result
-
-
-def group_by(items: List[T], key_fn: Callable[[T], Any]) -> dict:
-    """
-    按键分组
-    
-    Args:
-        items: 列表
-        key_fn: 键提取函数
-        
-    Returns:
-        {键: [项列表]}
-    """
-    result = {}
-    
-    for item in items:
-        key = key_fn(item)
-        if key not in result:
-            result[key] = []
-        result[key].append(item)
-    
-    return result
-
-
-def sort_by(items: List[T], key_fn: Callable[[T], Any], reverse: bool = False) -> List[T]:
-    """
-    按键排序
-    
-    Args:
-        items: 列表
-        key_fn: 键提取函数
-        reverse: 是否降序
-        
-    Returns:
-        排序后的列表
-    """
-    return sorted(items, key=key_fn, reverse=reverse)
-
-
-def chunk_by(items: List[T], size: int) -> List[List[T]]:
-    """
-    分块
-    
-    Args:
-        items: 列表
-        size: 块大小
-        
-    Returns:
-        分块后的列表
-    """
-    return [items[i:i+size] for i in range(0, len(items), size)]
-
-
-def compact(items: List[T]) -> List[T]:
-    """
-    移除假值
-    
-    Args:
-        items: 列表
-        
-    Returns:
-        移除None/False/''后的列表
-    """
-    return [item for item in items if item]
 
 
 # 导出
 __all__ = [
-    "filter_by",
-    "reject_by",
-    "partition_by",
-    "unique_by",
-    "group_by",
-    "sort_by",
-    "chunk_by",
-    "compact",
+    "filter_items",
+    "reject",
+    "find",
+    "find_index",
+    "every",
+    "some",
+    "none",
+    "where",
 ]
