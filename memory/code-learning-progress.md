@@ -409,3 +409,9 @@
 | 159 | 压缩 | `src/utils/compression.ts` | compression.py | ✅ |
 | 160 | 加密 | `src/utils/crypto.ts` | crypto.py | ✅ |
 | 161 | 编码 | `src/utils/encoding.ts` | encoding.py | ✅ |
+
+## 第116批（2026-04-04 10:56】
+| # | 模块 | 源码文件 | 落地 | 状态 |
+|---|------|---------|------|------|
+| 162 | 解析器 | `src/utils/parser.ts` | parser.py | ✅ |
+| 163 | 序列化 | `src/utils/serializer.ts` | serializer.py | ✅ |
