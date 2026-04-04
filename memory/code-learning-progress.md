@@ -616,3 +616,9 @@
 |---|------|---------|------|------|
 | 239 | 异步池 | `src/utils/pool3.ts` | pool3.py | ✅ |
 | 240 | 守卫 | `src/utils/guard.ts` | guard.py | ✅ |
+
+## 第148批（2026-04-04 12:18】
+| # | 模块 | 源码文件 | 落地 | 状态 |
+|---|------|---------|------|------|
+| 241 | 可选值 | `src/utils/optional.ts` | optional.py | ✅ |
+| 242 | 结果类型 | `src/utils/result.ts` | result.py | ✅ |
