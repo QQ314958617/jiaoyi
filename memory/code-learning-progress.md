@@ -272,3 +272,8 @@
 |---|------|---------|------|------|
 | 115 | YAML解析 | `src/utils/yaml.ts` | yaml.py | ✅ |
 | 116 | Zod转JSON Schema | `src/utils/zodToJsonSchema.ts` | zod_to_json_schema.py | ✅ |
+
+## 第93批（2026-04-04 10:04】
+| # | 模块 | 源码文件 | 落地 | 状态 |
+|---|------|---------|------|------|
+| 117 | Token计算 | `src/utils/tokens.ts` | tokens.py | ✅ |
