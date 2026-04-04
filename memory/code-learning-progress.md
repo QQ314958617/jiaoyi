@@ -556,3 +556,10 @@
 | 214 | 弱引用 | `src/utils/weak.ts` | weak.py | ✅ |
 | 215 | 最终化 | `src/utils/finalization.ts` | finalization.py | ✅ |
 | 216 | 结构体 | `src/utils/struct.ts` | struct.py | ✅ |
+
+## 第139批（2026-04-04 11:42】
+| # | 模块 | 源码文件 | 落地 | 状态 |
+|---|------|---------|------|------|
+| 217 | 原子化 | `src/utils/atom.ts` | atom.py | ✅ |
+| 218 | 引用 | `src/utils/ref.ts` | ref.py | ✅ |
+| 219 | 信号 | `src/utils/signal.ts` | signal.py | ✅ |
