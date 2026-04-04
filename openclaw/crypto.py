@@ -1,121 +1,123 @@
 """
-Crypto - 加密工具
+Crypto - 加密
 基于 Claude Code crypto.ts 设计
 
-常用加密工具。
+加密工具。
 """
+import base64
 import hashlib
 import hmac
 import secrets
-from typing import Optional
+from cryptography.fernet import Fernet
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2
 
 
-def sha256(data: str) -> str:
+def generate_key() -> str:
+    """生成Fernet密钥"""
+    return Fernet.generate_key().decode()
+
+
+def encrypt(data: str, key: str) -> str:
     """
-    SHA256哈希
+    加密数据
     
     Args:
-        data: 字符串
+        data: 明文
+        key: 密钥
         
     Returns:
-        十六进制哈希
+        密文(base64)
     """
-    return hashlib.sha256(data.encode()).hexdigest()
+    f = Fernet(key.encode())
+    return f.encrypt(data.encode()).decode()
 
 
-def sha512(data: str) -> str:
+def decrypt(data: str, key: str) -> str:
     """
-    SHA512哈希
+    解密数据
     
     Args:
-        data: 字符串
+        data: 密文
+        key: 密钥
         
     Returns:
-        十六进制哈希
+        明文
     """
-    return hashlib.sha512(data.encode()).hexdigest()
+    f = Fernet(key.encode())
+    return f.decrypt(data.encode()).decode()
 
 
-def md5(data: str) -> str:
+def derive_key(password: str, salt: bytes = None) -> tuple:
     """
-    MD5哈希
+    从密码派生密钥
     
     Args:
-        data: 字符串
+        password: 密码
+        salt: 盐值（可选）
         
     Returns:
-        十六进制哈希
+        (密钥, 盐值)
     """
-    return hashlib.md5(data.encode()).hexdigest()
+    if salt is None:
+        salt = secrets.token_bytes(16)
+    
+    kdf = PBKDF2(
+        algorithm=hashes.SHA256(),
+        length=32,
+        salt=salt,
+        iterations=100000,
+    )
+    key = base64.urlsafe_b64encode(kdf.derive(password.encode()))
+    return key.decode(), salt
 
 
-def hmac_sha256(secret: str, message: str) -> str:
+def aes_encrypt(data: str, key: str) -> str:
+    """AES加密（使用Fernet）"""
+    return encrypt(data, key)
+
+
+def aes_decrypt(data: str, key: str) -> str:
+    """AES解密"""
+    return decrypt(data, key)
+
+
+def xor_encrypt(data: str, key: str) -> str:
     """
-    HMAC-SHA256
+    XOR加密（简单）
     
     Args:
-        secret: 密钥
-        message: 消息
+        data: 明文
+        key: 密钥
         
     Returns:
-        十六进制MAC
+        密文
     """
-    return hmac.new(
-        secret.encode(),
-        message.encode(),
-        hashlib.sha256
-    ).hexdigest()
+    result = []
+    for i, c in enumerate(data):
+        k = key[i % len(key)]
+        result.append(chr(ord(c) ^ ord(k)))
+    return base64.b64encode(''.join(result).encode()).decode()
 
 
-def generate_token(length: int = 32) -> str:
-    """
-    生成安全随机Token
-    
-    Args:
-        length: 字节长度
-        
-    Returns:
-        十六进制Token
-    """
-    return secrets.token_hex(length)
-
-
-def generate_url_safe_token(length: int = 32) -> str:
-    """
-    生成URL安全的随机Token
-    
-    Args:
-        length: 字节长度
-        
-    Returns:
-        URL安全Token
-    """
-    return secrets.token_urlsafe(length)
-
-
-def constant_time_compare(a: str, b: str) -> bool:
-    """
-    恒定时间比较
-    
-    防止时序攻击。
-    
-    Args:
-        a: 字符串1
-        b: 字符串2
-        
-    Returns:
-        是否相等
-    """
-    return hmac.compare_digest(a, b)
+def xor_decrypt(data: str, key: str) -> str:
+    """XOR解密"""
+    data = base64.b64decode(data).decode()
+    result = []
+    for i, c in enumerate(data):
+        k = key[i % len(key)]
+        result.append(chr(ord(c) ^ ord(k)))
+    return ''.join(result)
 
 
 # 导出
 __all__ = [
-    "sha256",
-    "sha512",
-    "md5",
-    "hmac_sha256",
-    "generate_token",
-    "generate_url_safe_token",
-    "constant_time_compare",
+    "generate_key",
+    "encrypt",
+    "decrypt",
+    "derive_key",
+    "aes_encrypt",
+    "aes_decrypt",
+    "xor_encrypt",
+    "xor_decrypt",
 ]
