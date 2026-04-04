@@ -1,10 +1,9 @@
 """
-Heap - 堆数据结构
+Heap - 堆
 基于 Claude Code heap.ts 设计
 
-最小堆和最大堆实现。
+二叉堆实现。
 """
-import heapq
 from typing import Any, Callable, List, Optional
 
 
@@ -12,131 +11,107 @@ class MinHeap:
     """
     最小堆
     
-    始终返回最小的元素。
+    O(log n) 插入和删除最小值。
     """
     
-    def __init__(self):
-        self._heap: List[Any] = []
+    def __init__(self, key: Callable[[Any], Any] = None):
+        """
+        Args:
+            key: 比较键函数
+        """
+        self._data: List[Any] = []
+        self._key = key or (lambda x: x)
+    
+    def _compare(self, i: int, j: int) -> bool:
+        """比较两个元素"""
+        return self._key(self._data[i]) < self._key(self._data[j])
+    
+    def _parent(self, i: int) -> int:
+        return (i - 1) // 2
+    
+    def _left(self, i: int) -> int:
+        return 2 * i + 1
+    
+    def _right(self, i: int) -> int:
+        return 2 * i + 2
+    
+    def _swap(self, i: int, j: int) -> None:
+        self._data[i], self._data[j] = self._data[j], self._data[i]
+    
+    def _sift_up(self, i: int) -> None:
+        """向上筛选"""
+        while i > 0:
+            parent = self._parent(i)
+            if self._compare(i, parent):
+                self._swap(i, parent)
+                i = parent
+            else:
+                break
+    
+    def _sift_down(self, i: int) -> None:
+        """向下筛选"""
+        size = len(self._data)
+        
+        while True:
+            smallest = i
+            left = self._left(i)
+            right = self._right(i)
+            
+            if left < size and self._compare(left, smallest):
+                smallest = left
+            
+            if right < size and self._compare(right, smallest):
+                smallest = right
+            
+            if smallest != i:
+                self._swap(i, smallest)
+                i = smallest
+            else:
+                break
     
     def push(self, item: Any) -> None:
         """添加元素"""
-        heapq.heappush(self._heap, item)
+        self._data.append(item)
+        self._sift_up(len(self._data) - 1)
     
-    def pop(self) -> Any:
+    def pop(self) -> Optional[Any]:
         """弹出最小元素"""
-        if not self._heap:
-            raise IndexError("pop from empty heap")
-        return heapq.heappop(self._heap)
+        if not self._data:
+            return None
+        
+        result = self._data[0]
+        last = self._data.pop()
+        
+        if self._data:
+            self._data[0] = last
+            self._sift_down(0)
+        
+        return result
     
     def peek(self) -> Optional[Any]:
         """查看最小元素"""
-        if not self._heap:
-            return None
-        return self._heap[0]
+        return self._data[0] if self._data else None
     
-    def pushpop(self, item: Any) -> Any:
-        """先添加再弹出"""
-        return heapq.heappushpop(self._heap, item)
+    def size(self) -> int:
+        """堆大小"""
+        return len(self._data)
     
-    def replace(self, item: Any) -> Any:
-        """先弹出再添加"""
-        if not self._heap:
-            raise IndexError("replace from empty heap")
-        return heapq.heapreplace(self._heap, item)
+    def is_empty(self) -> bool:
+        """是否为空"""
+        return len(self._data) == 0
     
     def __len__(self) -> int:
-        return len(self._heap)
+        return self.size()
     
-    def __bool__(self) -> bool:
-        return bool(self._heap)
-    
-    def clear(self) -> None:
-        """清空堆"""
-        self._heap.clear()
-    
-    def get_all(self) -> List[Any]:
-        """获取所有元素（无序）"""
-        return list(self._heap)
+    def __iter__(self):
+        return iter(self._data)
 
 
-class MaxHeap:
-    """
-    最大堆
+class MaxHeap(MinHeap):
+    """最大堆"""
     
-    始终返回最大的元素。
-    使用最小堆实现，元素取反。
-    """
-    
-    def __init__(self):
-        self._heap: List[Any] = []
-    
-    def push(self, item: Any) -> None:
-        """添加元素（取反）"""
-        heapq.heappush(self._heap, -item)
-    
-    def pop(self) -> Any:
-        """弹出最大元素"""
-        if not self._heap:
-            raise IndexError("pop from empty heap")
-        return -heapq.heappop(self._heap)
-    
-    def peek(self) -> Optional[Any]:
-        """查看最大元素"""
-        if not self._heap:
-            return None
-        return -self._heap[0]
-    
-    def pushpop(self, item: Any) -> Any:
-        """先添加再弹出"""
-        return -heapq.heappushpop(self._heap, -item)
-    
-    def replace(self, item: Any) -> Any:
-        """先弹出再添加"""
-        if not self._heap:
-            raise IndexError("replace from empty heap")
-        return -heapq.heapreplace(self._heap, -item)
-    
-    def __len__(self) -> int:
-        return len(self._heap)
-    
-    def __bool__(self) -> bool:
-        return bool(self._heap)
-    
-    def clear(self) -> None:
-        """清空堆"""
-        self._heap.clear()
-
-
-class HeapItem:
-    """
-    堆元素包装器
-    
-    用于当元素本身可比较性不足时。
-    """
-    
-    def __init__(self, priority: float, value: Any):
-        self.priority = priority
-        self.value = value
-    
-    def __lt__(self, other: "HeapItem") -> bool:
-        return self.priority < other.priority
-    
-    def __le__(self, other: "HeapItem") -> bool:
-        return self.priority <= other.priority
-    
-    def __gt__(self, other: "HeapItem") -> bool:
-        return self.priority > other.priority
-    
-    def __ge__(self, other: "HeapItem") -> bool:
-        return self.priority >= other.priority
-    
-    def __eq__(self, other: Any) -> bool:
-        if not isinstance(other, HeapItem):
-            return False
-        return self.priority == other.priority
-    
-    def __repr__(self) -> str:
-        return f"HeapItem({self.priority}, {self.value!r})"
+    def _compare(self, i: int, j: int) -> bool:
+        return self._key(self._data[i]) > self._key(self._data[j])
 
 
 def heap_sort(items: List[Any], reverse: bool = False) -> List[Any]:
@@ -148,78 +123,26 @@ def heap_sort(items: List[Any], reverse: bool = False) -> List[Any]:
         reverse: 是否降序
         
     Returns:
-        排序后的新列表
+        排序后的列表
     """
     if reverse:
-        heap = [(-x, x) for x in items]
-        heapq.heapify(heap)
-        return [heapq.heappop(heap)[1] for _ in range(len(heap))]
+        heap = MaxHeap()
     else:
-        heap = [(x, x) for x in items]
-        heapq.heapify(heap)
-        return [heapq.heappop(heap)[0] for _ in range(len(heap))]
-
-
-def find_k_largest(items: List[Any], k: int) -> List[Any]:
-    """
-    找到第k大的元素
+        heap = MinHeap()
     
-    使用堆排序，返回最大的k个元素。
+    for item in items:
+        heap.push(item)
     
-    Args:
-        items: 列表
-        k: k值
-        
-    Returns:
-        最大的k个元素
-    """
-    if k >= len(items):
-        return sorted(items, reverse=True)
+    result = []
+    while not heap.is_empty():
+        result.append(heap.pop())
     
-    # 使用最小堆维护k个最大元素
-    heap = items[:k]
-    heapq.heapify(heap)
-    
-    for item in items[k:]:
-        if item > heap[0]:
-            heapq.heapreplace(heap, item)
-    
-    return sorted(heap, reverse=True)
-
-
-def find_k_smallest(items: List[Any], k: int) -> List[Any]:
-    """
-    找到第k小的元素
-    
-    使用最大堆维护k个最小元素。
-    
-    Args:
-        items: 列表
-        k: k值
-        
-    Returns:
-        最小的k个元素
-    """
-    if k >= len(items):
-        return sorted(items)
-    
-    # 使用最大堆
-    heap = [-x for x in items[:k]]
-    heapq.heapify(heap)
-    
-    for i, item in enumerate(items[k:]):
-        if item < -heap[0]:
-            heapq.heapreplace(heap, -item)
-    
-    return sorted([-x for x in heap])
+    return result
 
 
 # 导出
 __all__ = [
     "MinHeap",
     "MaxHeap",
-    "HeapItem",
     "heap_sort",
-    "find_k_largest",
-    "find_k_smallest",
 ]

@@ -628,3 +628,9 @@
 |---|------|---------|------|------|
 | 243 | 字典树 | `src/utils/trie.ts` | trie.py | ✅ |
 | 244 | 环形缓冲区 | `src/utils/ring.ts` | ring.py | ✅ |
+
+## 第150批（2026-04-04 12:22】
+| # | 模块 | 源码文件 | 落地 | 状态 |
+|---|------|---------|------|------|
+| 245 | 矩阵 | `src/utils/matrix.ts` | matrix.py | ✅ |
+| 246 | 区间 | `src/utils/interval.ts` | interval.py | ✅ |
