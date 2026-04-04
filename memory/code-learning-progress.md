@@ -584,3 +584,10 @@
 | 226 | 归约器 | `src/utils/reducer.ts` | reducer.py | ✅ |
 | 227 | 映射器 | `src/utils/mapper.ts` | mapper.py | ✅ |
 | 228 | 依赖解析 | `src/utils/resolver.ts` | resolver.py | ✅ |
+
+## 第143批（2026-04-04 12:08】
+| # | 模块 | 源码文件 | 落地 | 状态 |
+|---|------|---------|------|------|
+| 229 | 累加器 | `src/utils/accumulator.ts` | accumulator.py | ✅ |
+| 230 | 构建器 | `src/utils/builder.ts` | builder.py | ✅ |
+| 231 | 注册表 | `src/utils/registry.ts` | registry.py | ✅ |
