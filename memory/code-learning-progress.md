@@ -435,3 +435,10 @@
 |---|------|---------|------|------|
 | 170 | 分布式锁 | `src/utils/lock.ts` | lock.py | ✅ |
 | 171 | 令牌桶漏桶 | `src/utils/bucket.ts` | bucket.py | ✅ |
+
+## 第120批（2026-04-04 11:04】
+| # | 模块 | 源码文件 | 落地 | 状态 |
+|---|------|---------|------|------|
+| 172 | 过滤器 | `src/utils/filter.ts` | filter.py | ✅ |
+| 173 | 键路径 | `src/utils/keyPath.ts` | keypath.py | ✅ |
+| 174 | 函数式 | `src/utils/functools.ts` | functools.py | ✅ |
