@@ -254,3 +254,9 @@
 |---|------|---------|------|------|
 | 109 | 国际化 | `src/utils/intl.ts` | intl.py | ✅ |
 | 110 | Diff | `src/utils/diff.ts` | diff.py | ✅ |
+
+## 第90批（2026-04-04 09:58）
+| # | 模块 | 源码文件 | 落地 | 状态 |
+|---|------|---------|------|------|
+| 111 | 文件工具 | `src/utils/file.ts` | file_utils.py | ✅ |
+| 112 | 查找可执行文件 | `src/utils/findExecutable.ts` | find_executable.py | ✅ |
