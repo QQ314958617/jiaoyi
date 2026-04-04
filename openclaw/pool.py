@@ -1,35 +1,29 @@
 """
-Pool - 对象池
+Pool - 连接池
 基于 Claude Code pool.ts 设计
 
-对象池工具。
+通用对象池。
 """
-import threading
-from typing import Any, Callable, Optional
+from typing import Any, Callable, List
 
 
 class Pool:
     """
     对象池
     
-    复用对象，减少分配开销。
+    复用对象减少分配开销。
     """
     
-    def __init__(self, factory: Callable, size: int = 10, max_size: int = 100):
+    def __init__(self, factory: Callable, max_size: int = 10):
         """
         Args:
-            factory: 对象工厂
-            size: 初始大小
-            max_size: 最大大小
+            factory: 对象工厂函数
+            max_size: 最大池大小
         """
         self._factory = factory
         self._max_size = max_size
-        self._pool = []
-        self._lock = threading.Lock()
-        
-        # 预创建
-        for _ in range(size):
-            self._pool.append(factory())
+        self._pool: List[Any] = []
+        self._size = 0
     
     def acquire(self) -> Any:
         """
@@ -38,10 +32,9 @@ class Pool:
         Returns:
             对象
         """
-        with self._lock:
-            if self._pool:
-                return self._pool.pop()
-            return self._factory()
+        if self._pool:
+            return self._pool.pop()
+        return self._factory()
     
     def release(self, obj: Any) -> None:
         """
@@ -50,69 +43,73 @@ class Pool:
         Args:
             obj: 对象
         """
-        with self._lock:
-            if len(self._pool) < self._max_size:
-                self._pool.append(obj)
+        if self._size < self._max_size:
+            self._pool.append(obj)
+            self._size += 1
     
     def clear(self) -> None:
         """清空池"""
-        with self._lock:
-            self._pool.clear()
+        self._pool.clear()
+        self._size = 0
     
     @property
-    def size(self) -> int:
-        """当前池大小"""
+    def available(self) -> int:
+        """可用对象数"""
         return len(self._pool)
     
-    def __enter__(self) -> Any:
-        return self.acquire()
-    
-    def __exit__(self, *args) -> None:
-        pass
+    @property
+    def total(self) -> int:
+        """总对象数"""
+        return self._size
 
 
-class PoolContext:
+class ConnectionPool(Pool):
     """
-    对象池上下文
+    连接池
     
-    使用with语句自动获取/释放。
+    专为数据库连接等资源设计。
     """
     
-    def __init__(self, pool: Pool):
+    def __init__(self, factory: Callable, max_size: int = 10, validator: Callable = None):
         """
         Args:
-            pool: 对象池
+            factory: 连接工厂函数
+            max_size: 最大连接数
+            validator: 连接验证函数
         """
-        self._pool = pool
-        self._obj = None
+        super().__init__(factory, max_size)
+        self._validator = validator or (lambda x: True)
+        self._used: List[Any] = []
     
-    def __enter__(self) -> Any:
-        self._obj = self._pool.acquire()
-        return self._obj
-    
-    def __exit__(self, *args) -> None:
-        if self._obj is not None:
-            self._pool.release(self._obj)
-
-
-def create_pool(factory: Callable, size: int = 10, max_size: int = 100) -> Pool:
-    """
-    创建对象池
-    
-    Args:
-        factory: 工厂函数
-        size: 初始大小
-        max_size: 最大大小
+    def acquire(self) -> Any:
+        """获取连接"""
+        # 先尝试从池中获取
+        conn = super().acquire()
         
-    Returns:
-        Pool实例
-    """
-    return Pool(factory, size, max_size)
+        # 验证连接
+        if not self._validator(conn):
+            # 重新创建
+            conn = self._factory()
+        
+        self._used.append(conn)
+        return conn
+    
+    def release(self, conn: Any) -> None:
+        """释放连接"""
+        if conn in self._used:
+            self._used.remove(conn)
+        
+        if self._validator(conn):
+            super().release(conn)
+    
+    def close_all(self) -> None:
+        """关闭所有连接"""
+        self._used.clear()
+        self.clear()
 
 
 # 导出
 __all__ = [
     "Pool",
-    "PoolContext",
-    "create_pool",
+    "ConnectionPool",
 ]
