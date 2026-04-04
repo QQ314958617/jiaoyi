@@ -388,3 +388,10 @@
 | 150 | 延迟计算 | `src/utils/deferred.ts` | deferred.py | ✅ |
 | 151 | 弱引用缓存 | `src/utils/weakCache.ts` | weak_cache.py | ✅ |
 | 152 | 批量处理 | `src/utils/batch.ts` | batch.py | ✅ |
+
+## 第113批（2026-04-04 10:50】
+| # | 模块 | 源码文件 | 落地 | 状态 |
+|---|------|---------|------|------|
+| 153 | 队列 | `src/utils/queue.ts` | queue.py | ✅ |
+| 154 | 栈 | `src/utils/stack.ts` | stack.py | ✅ |
+| 155 | 树 | `src/utils/tree.ts` | tree.py | ✅ |
