@@ -2,41 +2,56 @@
 Flags - 功能开关
 基于 Claude Code flags.ts 设计
 
-功能开关管理。
+功能开关工具。
 """
-from typing import Callable, Dict, Optional, Any
+from typing import Any, Callable, Dict, Optional
 
 
-class FeatureFlags:
+class Flags:
     """
-    功能开关管理器
+    功能开关
+    
+    控制功能启用/禁用。
     """
     
     def __init__(self):
         self._flags: Dict[str, bool] = {}
+        self._values: Dict[str, Any] = {}
         self._overrides: Dict[str, bool] = {}
-        self._listeners: Dict[str, list] = {}
     
-    def set(self, name: str, value: bool) -> None:
+    def enable(self, name: str, value: Any = True) -> None:
         """
-        设置开关值
+        启用开关
         
         Args:
             name: 开关名
-            value: 值
+            value: 关联值
         """
-        old_value = self._flags.get(name)
-        self._flags[name] = value
-        
-        # 通知监听器
-        if name in self._listeners and old_value != value:
-            for listener in self._listeners[name]:
-                try:
-                    listener(value)
-                except Exception:
-                    pass
+        self._flags[name] = True
+        if value is not True:
+            self._values[name] = value
     
-    def get(self, name: str, default: bool = False) -> bool:
+    def disable(self, name: str) -> None:
+        """禁用开关"""
+        self._flags[name] = False
+    
+    def is_enabled(self, name: str) -> bool:
+        """
+        检查是否启用
+        
+        Args:
+            name: 开关名
+            
+        Returns:
+            是否启用
+        """
+        # 检查override
+        if name in self._overrides:
+            return self._overrides[name]
+        
+        return self._flags.get(name, False)
+    
+    def get(self, name: str, default: Any = None) -> Any:
         """
         获取开关值
         
@@ -45,94 +60,104 @@ class FeatureFlags:
             default: 默认值
             
         Returns:
-            开关值
+            开关值或默认值
         """
-        if name in self._overrides:
-            return self._overrides[name]
-        return self._flags.get(name, default)
+        if name in self._values:
+            return self._values[name]
+        if name in self._flags:
+            return self._flags[name]
+        return default
     
-    def is_enabled(self, name: str) -> bool:
-        """检查开关是否启用"""
-        return self.get(name)
-    
-    def is_disabled(self, name: str) -> bool:
-        """检查开关是否禁用"""
-        return not self.get(name)
-    
-    def enable(self, name: str) -> None:
-        """启用开关"""
-        self.set(name, True)
-    
-    def disable(self, name: str) -> None:
-        """禁用开关"""
-        self.set(name, False)
-    
-    def override(self, name: str, value: bool) -> None:
+    def toggle(self, name: str) -> bool:
         """
-        覆盖开关值（优先级最高）
+        切换开关
         
         Args:
             name: 开关名
-            value: 覆盖值
+            
+        Returns:
+            切换后的状态
         """
-        self._overrides[name] = value
+        current = self.is_enabled(name)
+        if current:
+            self.disable(name)
+        else:
+            self.enable(name)
+        return not current
+    
+    def override(self, name: str, enabled: bool) -> None:
+        """
+        临时覆盖（优先级最高）
+        
+        Args:
+            name: 开关名
+            enabled: 强制状态
+        """
+        self._overrides[name] = enabled
     
     def clear_override(self, name: str) -> None:
-        """清除覆盖"""
+        """清除临时覆盖"""
         if name in self._overrides:
             del self._overrides[name]
     
-    def on_change(self, name: str, listener: Callable[[bool], None]) -> Callable:
-        """
-        监听开关变化
-        
-        Args:
-            name: 开关名
-            listener: 监听函数
-            
-        Returns:
-            取消监听函数
-        """
-        if name not in self._listeners:
-            self._listeners[name] = []
-        self._listeners[name].append(listener)
-        
-        def unsubscribe():
-            if name in self._listeners:
-                self._listeners[name].remove(listener)
-        
-        return unsubscribe
+    def clear_all_overrides(self) -> None:
+        """清除所有临时覆盖"""
+        self._overrides.clear()
+    
+    def remove(self, name: str) -> bool:
+        """删除开关"""
+        if name in self._flags:
+            del self._flags[name]
+        if name in self._values:
+            del self._values[name]
+        return True
+    
+    def list_all(self) -> Dict[str, bool]:
+        """列出所有开关"""
+        result = dict(self._flags)
+        result.update({k: v for k, v in self._overrides.items()})
+        return result
+    
+    def names(self) -> list:
+        """获取所有开关名"""
+        return list(self._flags.keys())
 
 
 # 全局实例
-_global_flags = FeatureFlags()
+_global_flags = Flags()
 
 
-def get_feature_flags() -> FeatureFlags:
-    """获取全局功能开关管理器"""
+def flags() -> Flags:
+    """获取全局Flags实例"""
     return _global_flags
 
 
-def is_feature_enabled(name: str) -> bool:
-    """检查功能是否启用"""
+def enable(name: str, value: Any = True) -> None:
+    """全局启用"""
+    _global_flags.enable(name, value)
+
+
+def disable(name: str) -> None:
+    """全局禁用"""
+    _global_flags.disable(name)
+
+
+def is_enabled(name: str) -> bool:
+    """全局检查"""
     return _global_flags.is_enabled(name)
 
 
-def enable_feature(name: str) -> None:
-    """启用功能"""
-    _global_flags.enable(name)
-
-
-def disable_feature(name: str) -> None:
-    """禁用功能"""
-    _global_flags.disable(name)
+def get(name: str, default: Any = None) -> Any:
+    """全局获取"""
+    return _global_flags.get(name, default)
 
 
 # 导出
 __all__ = [
-    "FeatureFlags",
-    "get_feature_flags",
-    "is_feature_enabled",
-    "enable_feature",
-    "disable_feature",
+    "Flags",
+    "flags",
+    "enable",
+    "disable",
+    "is_enabled",
+    "get",
 ]
