@@ -429,3 +429,9 @@
 | 167 | 计数器 | `src/utils/counter.ts` | counter.py | ✅ |
 | 168 | 限流器 | `src/utils/limiter.ts` | limiter.py | ✅ |
 | 169 | 断路器 | `src/utils/circuitBreaker.ts` | breaker.py | ✅ |
+
+## 第119批（2026-04-04 11:02】
+| # | 模块 | 源码文件 | 落地 | 状态 |
+|---|------|---------|------|------|
+| 170 | 分布式锁 | `src/utils/lock.ts` | lock.py | ✅ |
+| 171 | 令牌桶漏桶 | `src/utils/bucket.ts` | bucket.py | ✅ |
