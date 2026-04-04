@@ -729,3 +729,10 @@
 | 279 | 环境变量 | `src/utils/env.ts` | env.py | ✅ |
 | 280 | 文件系统 | `src/utils/fs.ts` | fs.py | ✅ |
 | 281 | 路径 | `src/utils/path.ts` | path.py | ✅ |
+
+## 第166批（2026-04-04 14:53】
+| # | 模块 | 源码文件 | 落地 | 状态 |
+|---|------|---------|------|------|
+| 282 | 断言 | `src/utils/assert.ts` | assert2.py | ✅ |
+| 283 | 延迟 | `src/utils/sleep.ts` | sleep.py | ✅ |
+| 284 | 随机 | `src/utils/random.ts` | random2.py | ✅ |

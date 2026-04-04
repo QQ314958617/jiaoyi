@@ -1,14 +1,13 @@
 """
-Timeout - 超时工具
+Timeout - 超时
 基于 Claude Code timeout.ts 设计
 
-超时控制工具。
+超时工具。
 """
 import asyncio
-import functools
-from typing import Callable, Optional, TypeVar
-
-T = TypeVar('T')
+import signal
+import time
+from typing import Callable, Optional, Type
 
 
 class TimeoutError(Exception):
@@ -16,87 +15,125 @@ class TimeoutError(Exception):
     pass
 
 
-async def with_timeout(
-    coro,
-    timeout_ms: int,
-    error_message: str = "Operation timed out",
-) -> any:
-    """
-    带超时的协程执行
-    
-    Args:
-        coro: 协程
-        timeout_ms: 超时毫秒
-        error_message: 错误消息
-        
-    Returns:
-        协程结果
-        
-    Raises:
-        TimeoutError: 超时
-    """
-    try:
-        return await asyncio.wait_for(coro, timeout=timeout_ms / 1000)
-    except asyncio.TimeoutError:
-        raise TimeoutError(error_message)
-
-
-def timeout_ms(ms: int) -> Callable:
+def timeout(seconds: float, default: any = None) -> Callable:
     """
     超时装饰器
     
     Args:
-        ms: 超时毫秒
+        seconds: 超时秒数
+        default: 超时默认值
         
     Returns:
-        装饰器
+        装饰器函数
     """
-    def decorator(func: Callable) -> Callable:
-        @functools.wraps(func)
-        async def wrapper(*args, **kwargs):
-            return await with_timeout(
-                func(*args, **kwargs),
-                ms,
-                f"{func.__name__} timed out after {ms}ms"
-            )
+    def decorator(fn: Callable) -> Callable:
+        def wrapper(*args, **kwargs):
+            start = time.time()
+            result = [None]
+            error = [None]
+            
+            def target():
+                try:
+                    result[0] = fn(*args, **kwargs)
+                except Exception as e:
+                    error[0] = e
+            
+            import threading
+            t = threading.Thread(target=target)
+            t.start()
+            t.join(timeout=seconds)
+            
+            if t.is_alive():
+                return default
+            
+            if error[0]:
+                raise error[0]
+            
+            return result[0]
+        
         return wrapper
     return decorator
 
 
-def with_timeout_sync(
-    func: Callable,
-    timeout_ms: int,
-    *args,
-    **kwargs
-) -> any:
+def timeout_sync(fn: Callable, seconds: float, default: any = None):
     """
-    带超时的同步函数执行
+    同步超时包装
     
     Args:
-        func: 函数
-        timeout_ms: 超时毫秒
-        *args, **kwargs: 函数参数
+        fn: 函数
+        seconds: 超时秒数
+        default: 超时默认值
+        
+    Returns:
+        函数结果或默认值
+    """
+    start = time.time()
+    result = [None]
+    error = [None]
+    
+    def target():
+        try:
+            result[0] = fn()
+        except Exception as e:
+            error[0] = e
+    
+    import threading
+    t = threading.Thread(target=target)
+    t.start()
+    t.join(timeout=seconds)
+    
+    if t.is_alive():
+        return default
+    
+    if error[0]:
+        raise error[0]
+    
+    return result[0]
+
+
+async def timeout_async(fn: Callable, seconds: float):
+    """
+    异步超时包装
+    
+    Args:
+        fn: 异步函数
+        seconds: 超时秒数
         
     Returns:
         函数结果
         
     Raises:
-        TimeoutError: 超时
+        asyncio.TimeoutError: 超时
     """
-    import concurrent.futures
+    return await asyncio.wait_for(fn(), timeout=seconds)
+
+
+def with_timeout(seconds: float, fn: Callable, *args, **kwargs):
+    """
+    带超时的函数执行
     
-    with concurrent.futures.ThreadPoolExecutor() as executor:
-        future = executor.submit(func, *args, **kwargs)
-        try:
-            return future.result(timeout=timeout_ms / 1000)
-        except concurrent.futures.TimeoutError:
-            raise TimeoutError(f"Operation timed out after {timeout_ms}ms")
+    Args:
+        seconds: 超时秒数
+        fn: 函数
+        *args, **kwargs: 函数参数
+        
+    Returns:
+        (success, result)
+    """
+    start = time.time()
+    
+    try:
+        result = timeout_sync(lambda: fn(*args, **kwargs), seconds)
+        return True, result
+    except Exception as e:
+        return False, e
 
 
 # 导出
 __all__ = [
     "TimeoutError",
+    "timeout",
+    "timeout_sync",
+    "timeout_async",
     "with_timeout",
-    "timeout_ms",
-    "with_timeout_sync",
 ]
