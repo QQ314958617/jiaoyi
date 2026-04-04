@@ -478,3 +478,9 @@
 |---|------|---------|------|------|
 | 185 | 指标 | `src/utils/metric.ts` | metric.py | ✅ |
 | 186 | 事件发射 | `src/utils/emit.ts` | emit.py | ✅ |
+
+## 第127批（2026-04-04 11:17】
+| # | 模块 | 源码文件 | 落地 | 状态 |
+|---|------|---------|------|------|
+| 187 | 限流2 | `src/utils/rateLimit2.ts` | ratelimit2.py | ✅ |
+| 188 | 限流3 | `src/utils/rateLimit3.ts` | ratelimit3.py | ✅ |
