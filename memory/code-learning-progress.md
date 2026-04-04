@@ -666,3 +666,9 @@
 |---|------|---------|------|------|
 | 257 | JWT | `src/utils/jwt.ts` | jwt.py | ✅ |
 | 258 | UUID | `src/utils/uuid.ts` | uuid.py | ✅ |
+
+## 第156批（2026-04-04 13:20】
+| # | 模块 | 源码文件 | 落地 | 状态 |
+|---|------|---------|------|------|
+| 259 | 功能开关 | `src/utils/flags.ts` | flags.py | ✅ |
+| 260 | 配置管理 | `src/utils/config.ts` | config.py | ✅ |
