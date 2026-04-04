@@ -266,3 +266,9 @@
 |---|------|---------|------|------|
 | 113 | Git工具 | `src/utils/git.ts` | git_utils.py | ✅ |
 | 114 | Frontmatter解析 | `src/utils/frontmatterParser.ts` | frontmatter_parser.py | ✅ |
+
+## 第92批（2026-04-04 10:02）
+| # | 模块 | 源码文件 | 落地 | 状态 |
+|---|------|---------|------|------|
+| 115 | YAML解析 | `src/utils/yaml.ts` | yaml.py | ✅ |
+| 116 | Zod转JSON Schema | `src/utils/zodToJsonSchema.ts` | zod_to_json_schema.py | ✅ |
