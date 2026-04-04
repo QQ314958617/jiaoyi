@@ -402,3 +402,10 @@
 | 156 | 图 | `src/utils/graph.ts` | graph.py | ✅ |
 | 157 | 跳表 | `src/utils/skipList.ts` | skiplist.py | ✅ |
 | 158 | 布隆过滤器 | `src/utils/bloomFilter.ts` | bloomfilter.py | ✅ |
+
+## 第115批（2026-04-04 10:54】
+| # | 模块 | 源码文件 | 落地 | 状态 |
+|---|------|---------|------|------|
+| 159 | 压缩 | `src/utils/compression.ts` | compression.py | ✅ |
+| 160 | 加密 | `src/utils/crypto.ts` | crypto.py | ✅ |
+| 161 | 编码 | `src/utils/encoding.ts` | encoding.py | ✅ |
