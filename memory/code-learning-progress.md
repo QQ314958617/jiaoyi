@@ -333,3 +333,9 @@
 |---|------|---------|------|------|
 | 132 | 上下文窗口 | `src/utils/context.ts` | context.py | ✅ |
 | 133 | 事件系统 | `src/utils/events.ts` | events.py | ✅ |
+
+## 第104批（2026-04-04 10:22】
+| # | 模块 | 源码文件 | 落地 | 状态 |
+|---|------|---------|------|------|
+| 134 | 指标收集器 | `src/utils/metrics.ts` | metrics.py | ✅ |
+| 135 | 对象池 | `src/utils/pool.ts` | pool.py | ✅ |
