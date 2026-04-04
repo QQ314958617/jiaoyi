@@ -357,3 +357,9 @@
 |---|------|---------|------|------|
 | 140 | 采样器 | `src/utils/sampler.ts` | sampler.py | ✅ |
 | 141 | 限流状态管理 | `src/utils/rateLimitReset.ts` | rate_limit_reset.py | ✅ |
+
+## 第108批（2026-04-04 10:30】
+| # | 模块 | 源码文件 | 落地 | 状态 |
+|---|------|---------|------|------|
+| 142 | 异步流 | `src/utils/stream.ts` | stream.py | ✅ |
+| 143 | 缓冲区 | `src/utils/buffer.ts` | buffer.py | ✅ |
