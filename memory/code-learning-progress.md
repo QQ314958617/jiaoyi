@@ -126,3 +126,9 @@
 |---|------|---------|------|------|
 | 73 | JSON工具 | `src/utils/json.ts` | json_utils.py | ✅ |
 | 74 | 日志工具 | `src/utils/log.ts` | log.py | ✅ |
+
+## 第67批（2026-04-04 09:00）
+| # | 模块 | 源码文件 | 落地 | 状态 |
+|---|------|---------|------|------|
+| 75 | 缓存工具 | `src/utils/memoize.ts` | memoize.py | ✅ |
+| 76 | 中断控制器 | `src/utils/abortController.ts` | abort_controller.py | ✅ |
