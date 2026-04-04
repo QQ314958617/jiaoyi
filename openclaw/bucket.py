@@ -2,38 +2,43 @@
 Bucket - 令牌桶
 基于 Claude Code bucket.ts 设计
 
-令牌桶算法实现。
+令牌桶限流工具。
 """
 import time
 from threading import Lock
 
 
-class TokenBucket:
+class Bucket:
     """
     令牌桶
     
-    漏桶算法的变体。
+    用于速率限制。
     """
     
-    def __init__(self, capacity: int, refill_rate: float):
+    def __init__(self, rate: float, capacity: int):
         """
         Args:
+            rate: 每秒补充的令牌数
             capacity: 桶容量
-            refill_rate: 每秒补充的令牌数
         """
+        self._rate = rate
         self._capacity = capacity
-        self._refill_rate = refill_rate
-        self._tokens = float(capacity)
+        self._tokens = capacity
         self._last_refill = time.time()
         self._lock = Lock()
     
-    def try_consume(self, tokens: int = 1) -> bool:
+    def _refill(self):
+        """补充令牌"""
+        now = time.time()
+        elapsed = now - self._last_refill
+        refill = elapsed * self._rate
+        self._tokens = min(self._capacity, self._tokens + refill)
+        self._last_refill = now
+    
+    def consume(self, tokens: int = 1) -> bool:
         """
         尝试消费令牌
         
-        Args:
-            tokens: 要消费的令牌数
-            
         Returns:
             是否成功
         """
@@ -45,106 +50,51 @@ class TokenBucket:
                 return True
             return False
     
-    def consume(self, tokens: int = 1, timeout: float = None) -> bool:
+    def wait_for(self, tokens: int = 1) -> float:
         """
-        消费令牌（阻塞）
+        等待直到获得令牌
         
-        Args:
-            tokens: 要消费的令牌数
-            timeout: 超时秒数
-            
         Returns:
-            是否成功
+            等待秒数
         """
-        start = time.time()
-        
         while True:
-            if self.try_consume(tokens):
-                return True
+            with self._lock:
+                self._refill()
+                
+                if self._tokens >= tokens:
+                    self._tokens -= tokens
+                    return 0.0
             
-            if timeout is not None and time.time() - start >= timeout:
-                return False
-            
-            # 等待一点时间再试
-            wait_time = (tokens - self._tokens) / self._refill_rate
+            # 计算需要等待多久
+            needed = tokens - self._tokens
+            wait_time = needed / self._rate
             time.sleep(min(wait_time, 0.1))
-    
-    def _refill(self) -> None:
-        """补充令牌"""
-        now = time.time()
-        elapsed = now - self._last_refill
-        tokens_to_add = elapsed * self._refill_rate
-        
-        self._tokens = min(
-            self._capacity,
-            self._tokens + tokens_to_add
-        )
-        self._last_refill = now
-    
-    @property
-    def tokens(self) -> float:
-        """当前令牌数"""
-        with self._lock:
-            self._refill()
-            return self._tokens
 
 
-class LeakyBucket:
-    """
-    漏桶
+class RateLimiter:
+    """简单速率限制器"""
     
-    固定速率输出。
-    """
-    
-    def __init__(self, capacity: int, leak_rate: float):
+    def __init__(self, rate: float, capacity: int = None):
         """
         Args:
-            capacity: 桶容量
-            leak_rate: 每秒漏出的速率
+            rate: 每秒请求数
+            capacity: 桶容量（默认=rate）
         """
-        self._capacity = capacity
-        self._leak_rate = leak_rate
-        self._water = 0.0
-        self._last_leak = time.time()
-        self._lock = Lock()
+        if capacity is None:
+            capacity = int(rate)
+        self._bucket = Bucket(rate, capacity)
     
-    def try_add(self, water: float = 1.0) -> bool:
-        """
-        尝试添加水
-        
-        Args:
-            water: 水量
-            
-        Returns:
-            是否成功（桶未满）
-        """
-        with self._lock:
-            self._leak()
-            
-            if self._water + water <= self._capacity:
-                self._water += water
-                return True
-            return False
+    def allow(self) -> bool:
+        """是否允许"""
+        return self._bucket.consume()
     
-    def _leak(self) -> None:
-        """漏水"""
-        now = time.time()
-        elapsed = now - self._last_leak
-        leaked = elapsed * self._leak_rate
-        
-        self._water = max(0, self._water - leaked)
-        self._last_leak = now
-    
-    @property
-    def water(self) -> float:
-        """当前水量"""
-        with self._lock:
-            self._leak()
-            return self._water
+    def wait_for(self):
+        """等待许可"""
+        self._bucket.wait_for()
 
 
 # 导出
 __all__ = [
-    "TokenBucket",
-    "LeakyBucket",
+    "Bucket",
+    "RateLimiter",
 ]
