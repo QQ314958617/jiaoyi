@@ -2,110 +2,105 @@
 Path - 路径
 基于 Claude Code path.ts 设计
 
-路径操作工具。
+路径工具。
 """
 import os
-from pathlib import Path
 from typing import List
 
 
-def join(*paths: str) -> str:
-    """
-    连接路径
-    
-    Args:
-        *paths: 路径片段
-        
-    Returns:
-        连接后的路径
-    """
-    return str(Path(*paths))
+def basename(path: str) -> str:
+    """文件名"""
+    return os.path.basename(path)
 
 
 def dirname(path: str) -> str:
-    """获取目录名"""
-    return str(Path(path).parent)
-
-
-def basename(path: str) -> str:
-    """获取文件名"""
-    return Path(path).name
+    """目录名"""
+    return os.path.dirname(path)
 
 
 def extname(path: str) -> str:
-    """获取扩展名（含点）"""
-    return Path(path).suffix
+    """扩展名"""
+    return os.path.splitext(path)[1]
 
 
-def stem(path: str) -> str:
-    """获取文件名（不含扩展名）"""
-    return Path(path).stem
+def join(*paths: str) -> str:
+    """拼接路径"""
+    return os.path.join(*paths)
 
 
 def resolve(*paths: str) -> str:
-    """
-    解析为绝对路径
-    
-    Args:
-        *paths: 路径
-        
-    Returns:
-        绝对路径
-    """
-    return str(Path(*paths).resolve())
-
-
-def relative(from_path: str, to: str) -> str:
-    """
-    计算相对路径
-    
-    Args:
-        from_path: 起始路径
-        to: 目标路径
-        
-    Returns:
-        相对路径
-    """
-    return str(Path(from_path).relative_to(to))
+    """解析为绝对路径"""
+    return os.path.abspath(os.path.join(*paths))
 
 
 def normalize(path: str) -> str:
     """规范化路径"""
-    return str(Path(path).resolve())
+    return os.path.normpath(path)
 
 
 def is_absolute(path: str) -> bool:
     """是否为绝对路径"""
-    return Path(path).is_absolute()
+    return os.path.isabs(path)
 
 
 def is_relative(path: str) -> bool:
     """是否为相对路径"""
-    return not Path(path).is_absolute()
+    return not os.path.isabs(path)
+
+
+def relative(from_path: str, to_path: str) -> str:
+    """相对路径"""
+    return os.path.relpath(to_path, from_path)
 
 
 def split(path: str) -> List[str]:
-    """分割路径为各部分"""
-    return list(Path(path).parts)
+    """分割路径为目录列表"""
+    parts = []
+    while True:
+        path, part = os.path.split(path)
+        if part:
+            parts.insert(0, part)
+        else:
+            if path:
+                parts.insert(0, path)
+            break
+    return parts
 
 
-def with_ext(path: str, ext: str) -> str:
-    """
-    替换扩展名
-    
-    Args:
-        path: 路径
-        ext: 新扩展名（可含点或不含）
-        
-    Returns:
-        新路径
-    """
-    p = Path(path)
+def extname_without_dot(path: str) -> str:
+    """扩展名（不带点）"""
+    ext = extname(path)
+    return ext[1:] if ext.startswith('.') else ext
+
+
+def change_ext(path: str, new_ext: str) -> str:
+    """更换扩展名"""
+    base = os.path.splitext(path)[0]
+    if not new_ext.startswith('.'):
+        new_ext = '.' + new_ext
+    return base + new_ext
+
+
+def join_ext(path: str, ext: str) -> str:
+    """添加扩展名"""
     if not ext.startswith('.'):
         ext = '.' + ext
-    return str(p.with_suffix(ext))
+    return path + ext
 
 
-def without_ext(path: str) -> str:
-    """移除扩展名"""
-    return str(Path(path).with_suffix(''))
+# 导出
+__all__ = [
+    "basename",
+    "dirname",
+    "extname",
+    "join",
+    "resolve",
+    "normalize",
+    "is_absolute",
+    "is_relative",
+    "relative",
+    "split",
+    "extname_without_dot",
+    "change_ext",
+    "join_ext",
+]
