@@ -132,3 +132,9 @@
 |---|------|---------|------|------|
 | 75 | 缓存工具 | `src/utils/memoize.ts` | memoize.py | ✅ |
 | 76 | 中断控制器 | `src/utils/abortController.ts` | abort_controller.py | ✅ |
+
+## 第68批（2026-04-04 09:03）
+| # | 模块 | 源码文件 | 落地 | 状态 |
+|---|------|---------|------|------|
+| 77 | 命令查找 | `src/utils/which.ts` | which.py | ✅ |
+| 78 | 进程执行 | `src/utils/execFileNoThrow.ts` | exec_utils.py | ✅ |
