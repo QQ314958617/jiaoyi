@@ -303,3 +303,9 @@
 |---|------|---------|------|------|
 | 122 | 模型别名 | `src/utils/modelStrings.ts` | model_strings.py | ✅ |
 | 123 | 模型允许列表 | `src/utils/modelAllowlist.ts` | model_allowlist.py | ✅ |
+
+## 第99批（2026-04-04 10:14】
+| # | 模块 | 源码文件 | 落地 | 状态 |
+|---|------|---------|------|------|
+| 124 | 顺序执行 | `src/utils/sequential.ts` | sequential.py | ✅ |
+| 125 | 异步工具 | `src/utils/async.ts` | async_utils.py | ✅ |
