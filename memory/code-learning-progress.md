@@ -297,3 +297,9 @@
 | # | 模块 | 源码文件 | 落地 | 状态 |
 |---|------|---------|------|------|
 | 121 | 文件操作分析 | `src/utils/fileOperationAnalytics.ts` | file_operation_analytics.py | ✅ |
+
+## 第98批（2026-04-04 10:12】
+| # | 模块 | 源码文件 | 落地 | 状态 |
+|---|------|---------|------|------|
+| 122 | 模型别名 | `src/utils/modelStrings.ts` | model_strings.py | ✅ |
+| 123 | 模型允许列表 | `src/utils/modelAllowlist.ts` | model_allowlist.py | ✅ |
