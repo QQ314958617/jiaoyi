@@ -757,3 +757,10 @@
 | 291 | 缓冲区 | `src/utils/buffer.ts` | buffer.py | ✅ |
 | 292 | 插槽 | `src/utils/slot.ts` | slot.py | ✅ |
 | 293 | 等待 | `src/utils/wait.ts` | wait.py | ✅ |
+
+## 第170批（2026-04-04 15:03】
+| # | 模块 | 源码文件 | 落地 | 状态 |
+|---|------|---------|------|------|
+| 294 | 对象池 | `src/utils/pool.ts` | pool.py | ✅ |
+| 295 | 分组 | `src/utils/group.ts` | group.py | ✅ |
+| 296 | 索引 | `src/utils/index.ts` | index.py | ✅ |
