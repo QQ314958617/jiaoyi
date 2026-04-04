@@ -813,3 +813,10 @@
 | 315 | 比较 | `src/utils/compare.ts` | compare.py | ✅ |
 | 316 | 排序 | `src/utils/sort.ts` | sort.py | ✅ |
 | 317 | 搜索 | `src/utils/search.ts` | search.py | ✅ |
+
+## 第178批（2026-04-04 15:23】
+| # | 模块 | 源码文件 | 落地 | 状态 |
+|---|------|---------|------|------|
+| 318 | 克隆 | `src/utils/clone.ts` | clone.py | ✅ |
+| 319 | 属性操作 | `src/utils/omit.ts` | omit.py | ✅ |
+| 320 | 字符串 | `src/utils/string.ts` | string2.py | ✅ |
