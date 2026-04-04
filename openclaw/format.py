@@ -7,208 +7,170 @@ Format - 格式化
 from typing import Any
 
 
-def format_size(bytes: int) -> str:
-    """
-    格式化字节大小
-    
-    Args:
-        bytes: 字节数
-        
-    Returns:
-        格式化字符串 (如 "1.5 MB")
-    """
-    units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB']
-    size = float(bytes)
-    unit_index = 0
-    
-    while size >= 1024 and unit_index < len(units) - 1:
-        size /= 1024
-        unit_index += 1
-    
-    if unit_index == 0:
-        return f"{int(size)} {units[unit_index]}"
-    
-    return f"{size:.2f} {units[unit_index]}"
-
-
-def format_duration(seconds: float) -> str:
-    """
-    格式化时长
-    
-    Args:
-        seconds: 秒数
-        
-    Returns:
-        格式化字符串 (如 "1h 30m")
-    """
-    if seconds < 60:
-        return f"{seconds:.1f}s"
-    
-    minutes = int(seconds // 60)
-    seconds = seconds % 60
-    
-    if minutes < 60:
-        return f"{minutes}m {seconds:.0f}s"
-    
-    hours = minutes // 60
-    minutes = minutes % 60
-    
-    if hours < 24:
-        return f"{hours}h {minutes}m"
-    
-    days = hours // 24
-    hours = hours % 24
-    
-    return f"{days}d {hours}h"
-
-
-def format_number(num: float, decimals: int = 2) -> str:
+def format_number(n: float, decimals: int = 2) -> str:
     """
     格式化数字
     
     Args:
-        num: 数字
+        n: 数字
         decimals: 小数位数
         
     Returns:
         格式化字符串
     """
-    return f"{num:,.{decimals}f}"
+    return f"{n:.{decimals}f}"
 
 
-def format_percent(value: float, decimals: int = 1) -> str:
+def format_percent(n: float, decimals: int = 2) -> str:
     """
     格式化百分比
     
     Args:
-        value: 值 (0-1 或 0-100)
+        n: 数字（0-1）
         decimals: 小数位数
         
     Returns:
         百分比字符串
     """
-    if value <= 1:
-        value *= 100
-    return f"{value:.{decimals}f}%"
+    return f"{n * 100:.{decimals}f}%"
 
 
-def format_currency(
-    amount: float,
-    symbol: str = '¥',
-    decimals: int = 2,
-) -> str:
+def format_currency(n: float, symbol: str = '$', decimals: int = 2) -> str:
     """
     格式化货币
     
     Args:
-        amount: 金额
+        n: 数字
         symbol: 货币符号
         decimals: 小数位数
         
     Returns:
         货币字符串
     """
-    return f"{symbol}{amount:,.{decimals}f}"
+    return f"{symbol}{n:,.{decimals}f}"
 
 
-def format_date(date_obj, fmt: str = '%Y-%m-%d') -> str:
+def format_bytes(bytes_count: int, decimals: int = 2) -> str:
+    """
+    格式化字节数
+    
+    Args:
+        bytes_count: 字节数
+        decimals: 小数位数
+        
+    Returns:
+        格式化字符串
+    """
+    for unit in ['B', 'KB', 'MB', 'GB', 'TB', 'PB']:
+        if bytes_count < 1024:
+            return f"{bytes_count:.{decimals}f} {unit}"
+        bytes_count /= 1024
+    return f"{bytes_count:.{decimals}f} PB"
+
+
+def format_date(dt, fmt: str = "%Y-%m-%d") -> str:
     """
     格式化日期
     
     Args:
-        date_obj: 日期对象
+        dt: datetime对象
         fmt: 格式字符串
         
     Returns:
         格式化字符串
     """
-    return date_obj.strftime(fmt)
+    return dt.strftime(fmt)
 
 
-def format_list(items: list, separator: str = ', ', last_separator: str = ' and ') -> str:
+def format_time(timestamp: float, fmt: str = "%H:%M:%S") -> str:
     """
-    格式化列表为可读字符串
+    格式化时间
     
     Args:
-        items: 项目列表
-        separator: 分隔符
-        last_separator: 最后一个分隔符
+        timestamp: 时间戳
+        fmt: 格式字符串
         
     Returns:
         格式化字符串
     """
-    if not items:
-        return ''
-    
-    if len(items) == 1:
-        return str(items[0])
-    
-    if len(items) == 2:
-        return f"{items[0]}{last_separator}{items[1]}"
-    
-    return separator.join(str(item) for item in items[:-1]) + last_separator + str(items[-1])
+    from datetime import datetime
+    return datetime.fromtimestamp(timestamp).strftime(fmt)
 
 
-def format_phone(phone: str) -> str:
+def format_relative(dt) -> str:
     """
-    格式化手机号
+    相对时间格式化
     
     Args:
-        phone: 手机号
+        dt: datetime对象
         
     Returns:
-        格式化字符串 (如 "138-1234-5678")
+        相对时间字符串
     """
-    digits = ''.join(c for c in phone if c.isdigit())
+    from datetime import datetime, timezone
     
-    if len(digits) == 11:
-        return f"{digits[:3]}-{digits[3:7]}-{digits[7:]}"
+    now = datetime.now(timezone.utc)
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
     
-    return phone
+    diff = now - dt
+    seconds = diff.total_seconds()
+    
+    if seconds < 60:
+        return "刚刚"
+    if seconds < 3600:
+        return f"{int(seconds / 60)}分钟前"
+    if seconds < 86400:
+        return f"{int(seconds / 3600)}小时前"
+    if seconds < 604800:
+        return f"{int(seconds / 86400)}天前"
+    return dt.strftime("%Y-%m-%d")
 
 
-def truncate(text: str, length: int, suffix: str = '...') -> str:
+def pluralize(word: str, count: int, plural: str = None) -> str:
     """
-    截断文本
+    复数化
+    
+    Args:
+        word: 单数形式
+        count: 数量
+        plural: 复数形式（默认加s）
+        
+    Returns:
+        复数字符串
+    """
+    if count == 1:
+        return word
+    return plural or f"{word}s"
+
+
+def truncate_words(text: str, length: int, suffix: str = '...') -> str:
+    """
+    按单词截断
     
     Args:
         text: 文本
-        length: 最大长度
+        length: 最大单词数
         suffix: 后缀
         
     Returns:
-        截断后的字符串
+        截断后的文本
     """
-    if len(text) <= length:
+    words = text.split()
+    if len(words) <= length:
         return text
-    
-    return text[:length - len(suffix)] + suffix
-
-
-def camel_to_snake(text: str) -> str:
-    """驼峰转蛇形"""
-    import re
-    s1 = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', text)
-    return re.sub('([a-z0-9])([A-Z])', r'\1_\2', s1).lower()
-
-
-def snake_to_camel(text: str) -> str:
-    """蛇形转驼峰"""
-    components = text.split('_')
-    return components[0] + ''.join(x.title() for x in components[1:])
+    return ' '.join(words[:length]) + suffix
 
 
 # 导出
 __all__ = [
-    "format_size",
-    "format_duration",
     "format_number",
     "format_percent",
     "format_currency",
+    "format_bytes",
     "format_date",
-    "format_list",
-    "format_phone",
-    "truncate",
-    "camel_to_snake",
-    "snake_to_camel",
+    "format_time",
+    "format_relative",
+    "pluralize",
+    "truncate_words",
 ]

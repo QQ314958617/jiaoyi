@@ -1,161 +1,129 @@
 """
-Progress - 进度条
+Progress - 进度
 基于 Claude Code progress.ts 设计
 
-进度条工具。
+进度工具。
 """
-import sys
-import time
 from typing import Optional
 
 
-class ProgressBar:
+class Progress:
     """
     进度条
     """
     
-    def __init__(
-        self,
-        total: int,
-        desc: str = '',
-        width: int = 40,
-        show_percent: bool = True,
-        show_count: bool = True,
-    ):
+    def __init__(self, total: int = 100, width: int = 40, show_percent: bool = True):
         """
         Args:
             total: 总数
-            desc: 描述
             width: 进度条宽度
             show_percent: 显示百分比
-            show_count: 显示计数
         """
-        self.total = total
-        self.desc = desc
-        self.width = width
-        self.show_percent = show_percent
-        self.show_count = show_count
-        
-        self.current = 0
-        self._start_time = time.time()
+        self._total = total
+        self._current = 0
+        self._width = width
+        self._show_percent = show_percent
     
-    def update(self, n: int = 1) -> None:
-        """更新进度"""
-        self.current += n
-        self.render()
+    def update(self, current: int) -> None:
+        """
+        更新进度
+        
+        Args:
+            current: 当前进度
+        """
+        self._current = min(current, self._total)
     
-    def set(self, value: int) -> None:
-        """设置进度"""
-        self.current = value
-        self.render()
+    def increment(self, delta: int = 1) -> None:
+        """增加进度"""
+        self._current = min(self._current + delta, self._total)
     
-    def render(self) -> None:
-        """渲染进度条"""
-        if self.total == 0:
-            percent = 100
-        else:
-            percent = int(100 * self.current / self.total)
-        
-        filled = int(self.width * self.current / self.total) if self.total > 0 else 0
-        bar = '=' * filled + '-' * (self.width - filled)
-        
-        parts = []
-        if self.desc:
-            parts.append(self.desc)
-        
-        parts.append(f"[{bar}]")
-        
-        if self.show_percent:
-            parts.append(f"{percent}%")
-        
-        if self.show_count:
-            parts.append(f"{self.current}/{self.total}")
-        
-        elapsed = time.time() - self._start_time
-        if elapsed > 0:
-            rate = self.current / elapsed
-            parts.append(f"{rate:.1f}it/s")
-        
-        line = ' '.join(parts)
-        sys.stdout.write('\r' + line)
-        sys.stdout.flush()
-        
-        if self.current >= self.total:
-            sys.stdout.write('\n')
+    @property
+    def percent(self) -> float:
+        """完成百分比"""
+        if self._total == 0:
+            return 0
+        return (self._current / self._total) * 100
     
-    def finish(self) -> None:
-        """完成"""
-        self.current = self.total
-        self.render()
+    @property
+    def filled(self) -> int:
+        """已填充宽度"""
+        return int(self._width * self._current / self._total) if self._total > 0 else 0
+    
+    @property
+    def empty(self) -> int:
+        """未填充宽度"""
+        return self._width - self.filled
+    
+    def __str__(self) -> str:
+        """格式化输出"""
+        bar = '█' * self.filled + '░' * self.empty
+        if self._show_percent:
+            return f"[{bar}] {self.percent:.1f}%"
+        return f"[{bar}]"
+    
+    def __repr__(self) -> str:
+        return f"Progress({self._current}/{self._total})"
 
 
-class Spinner:
+class MultiProgress:
     """
-    旋转器
+    多进度条
     """
     
-    def __init__(self, desc: str = ''):
-        self.desc = desc
-        self.frames = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏']
-        self.current = 0
-        self._running = False
+    def __init__(self):
+        self._bars = []
     
-    def start(self) -> None:
-        """开始"""
-        self._running = True
-        self._spin()
-    
-    def _spin(self) -> None:
-        """旋转"""
-        if not self._running:
-            return
+    def add(self, total: int = 100, label: str = "") -> Progress:
+        """
+        添加进度条
         
-        frame = self.frames[self.current % len(self.frames)]
-        line = f"\r{frame} {self.desc}" if self.desc else f"\r{frame}"
-        sys.stdout.write(line)
-        sys.stdout.flush()
-        self.current += 1
-        
-        if self._running:
-            time.sleep(0.1)
+        Args:
+            total: 总数
+            label: 标签
+            
+        Returns:
+            Progress实例
+        """
+        bar = Progress(total)
+        bar._label = label
+        self._bars.append(bar)
+        return bar
     
-    def stop(self) -> None:
-        """停止"""
-        self._running = False
-        sys.stdout.write('\r' + ' ' * (len(self.desc) + 3) + '\r')
-        sys.stdout.flush()
+    def remove(self, bar: Progress) -> None:
+        """移除进度条"""
+        if bar in self._bars:
+            self._bars.remove(bar)
+    
+    def render(self) -> str:
+        """渲染所有进度条"""
+        return '\n'.join(str(bar) for bar in self._bars)
+    
+    def clear(self) -> None:
+        """清空"""
+        self._bars.clear()
 
 
-def progress_callback(
-    iterable,
-    desc: str = '',
-    total: int = None,
-):
+def progress_bar(current: int, total: int, width: int = 40) -> str:
     """
-    进度回调迭代器
+    简单进度条字符串
     
-    Usage:
-        for item in progress_callback(items, "Processing"):
-            process(item)
+    Args:
+        current: 当前进度
+        total: 总数
+        width: 宽度
+        
+    Returns:
+        进度条字符串
     """
-    if total is None:
-        try:
-            total = len(iterable)
-        except TypeError:
-            total = None
-    
-    bar = ProgressBar(total or 100, desc=desc, show_count=False)
-    
-    for i, item in enumerate(iterable):
-        yield item
-        bar.set(i + 1)
-    
-    bar.finish()
+    filled = int(width * current / total) if total > 0 else 0
+    empty = width - filled
+    percent = (current / total * 100) if total > 0 else 0
+    return f"[{'█' * filled}{'░' * empty}] {percent:.1f}%"
 
 
 # 导出
 __all__ = [
-    "ProgressBar",
-    "Spinner",
-    "progress_callback",
+    "Progress",
+    "MultiProgress",
+    "progress_bar",
 ]

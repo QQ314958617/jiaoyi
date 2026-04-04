@@ -827,3 +827,10 @@
 | 321 | 类型检查 | `src/utils/type.ts` | type.py | ✅ |
 | 322 | 类型守卫 | `src/utils/guard.ts` | guard.py | ✅ |
 | 323 | 验证 | `src/utils/validate.ts` | validate.py | ✅ |
+
+## 第180批（2026-04-04 15:28】
+| # | 模块 | 源码文件 | 落地 | 状态 |
+|---|------|---------|------|------|
+| 324 | 函数工具 | `src/utils/function.ts` | function.py | ✅ |
+| 325 | 操作符 | `src/utils/operator.ts` | operator.py | ✅ |
+| 326 | 数学 | `src/utils/math.ts` | math2.py | ✅ |
