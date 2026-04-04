@@ -848,3 +848,9 @@
 | 330 | 控制台 | `src/utils/console.ts` | console.py | ✅ |
 | 331 | 颜色 | `src/utils/color.ts` | color.py | ✅ |
 | 332 | 表情 | `src/utils/emoji.ts` | emoji.py | ✅ |
+
+## 第183批（2026-04-04 17:30】
+| # | 模块 | 源码文件 | 落地 | 状态 |
+|---|------|---------|------|------|
+| 333 | 图表 | `src/utils/chart.ts` | chart.py | ✅ |
+| 334 | 边框 | `src/utils/box.ts` | box.py | ✅ |
