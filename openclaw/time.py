@@ -4,18 +4,18 @@ Time - 时间
 
 时间工具。
 """
-import time
 from datetime import datetime, timedelta, timezone
-from typing import Optional
 
 
 def now_ms() -> int:
-    """当前时间戳(毫秒)"""
+    """当前时间戳（毫秒）"""
+    import time
     return int(time.time() * 1000)
 
 
 def now_seconds() -> float:
-    """当前时间戳(秒)"""
+    """当前时间戳（秒）"""
+    import time
     return time.time()
 
 
@@ -40,32 +40,14 @@ def to_timestamp(dt: datetime) -> int:
 
 
 def format_time(dt: datetime = None, fmt: str = "%Y-%m-%d %H:%M:%S") -> str:
-    """
-    格式化时间
-    
-    Args:
-        dt: 日期时间(默认当前)
-        fmt: 格式字符串
-        
-    Returns:
-        格式化字符串
-    """
+    """格式化时间"""
     if dt is None:
         dt = datetime.now()
     return dt.strftime(fmt)
 
 
 def parse_time(time_str: str, fmt: str = "%Y-%m-%d %H:%M:%S") -> datetime:
-    """
-    解析时间字符串
-    
-    Args:
-        time_str: 时间字符串
-        fmt: 格式字符串
-        
-    Returns:
-        datetime对象
-    """
+    """解析时间字符串"""
     return datetime.strptime(time_str, fmt)
 
 
@@ -105,42 +87,33 @@ def end_of_day(dt: datetime) -> datetime:
 
 
 class Timer:
-    """
-    计时器
-    """
+    """计时器"""
     
     def __init__(self):
-        self._start: Optional[float] = None
-        self._end: Optional[float] = None
+        import time
+        self._start = None
+        self._end = None
     
     def start(self) -> "Timer":
-        """开始"""
+        import time
         self._start = time.time()
         return self
     
     def stop(self) -> float:
-        """停止并返回耗时(秒)"""
+        import time
         self._end = time.time()
         return self.elapsed()
     
     def elapsed(self) -> float:
-        """已过时间(秒)"""
+        import time
         if self._start is None:
             return 0
         end = self._end if self._end else time.time()
         return end - self._start
     
-    def reset(self) -> None:
-        """重置"""
+    def reset(self):
         self._start = None
         self._end = None
-    
-    def __enter__(self) -> "Timer":
-        self.start()
-        return self
-    
-    def __exit__(self, *args) -> None:
-        self.stop()
 
 
 # 导出
