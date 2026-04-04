@@ -799,3 +799,10 @@
 | 309 | 列表 | `src/utils/list.ts` | list2.py | ✅ |
 | 310 | 作用域 | `src/utils/scope.ts` | scope.py | ✅ |
 | 311 | 记忆化 | `src/utils/memo.ts` | memo.py | ✅ |
+
+## 第176批（2026-04-04 15:18】
+| # | 模块 | 源码文件 | 落地 | 状态 |
+|---|------|---------|------|------|
+| 312 | 过滤器 | `src/utils/filter.ts` | filter.py | ✅ |
+| 313 | 归约 | `src/utils/reduce.ts` | reduce.py | ✅ |
+| 314 | 变换 | `src/utils/transform.ts` | transform.py | ✅ |
