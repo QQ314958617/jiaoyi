@@ -484,3 +484,9 @@
 |---|------|---------|------|------|
 | 187 | 限流2 | `src/utils/rateLimit2.ts` | ratelimit2.py | ✅ |
 | 188 | 限流3 | `src/utils/rateLimit3.ts` | ratelimit3.py | ✅ |
+
+## 第128批（2026-04-04 11:19】
+| # | 模块 | 源码文件 | 落地 | 状态 |
+|---|------|---------|------|------|
+| 189 | 严格模式 | `src/utils/strict.ts` | strict.py | ✅ |
+| 190 | 克隆 | `src/utils/clone.ts` | clone.py | ✅ |
