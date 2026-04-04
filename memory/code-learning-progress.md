@@ -672,3 +672,9 @@
 |---|------|---------|------|------|
 | 259 | 功能开关 | `src/utils/flags.ts` | flags.py | ✅ |
 | 260 | 配置管理 | `src/utils/config.ts` | config.py | ✅ |
+
+## 第157批（2026-04-04 13:22】
+| # | 模块 | 源码文件 | 落地 | 状态 |
+|---|------|---------|------|------| 
+| 261 | 环境配置 | `src/utils/envConfig.ts` | env_config.py | ✅ |
+| 262 | 模式验证 | `src/utils/schema.ts` | schema.py | ✅ |
