@@ -1,252 +1,128 @@
 """
-OpenClaw Process Utilities
-====================
-Inspired by Claude Code's src/utils/process.ts.
+Process Utilities - 进程工具
+基于 Claude Code process.ts 设计
 
-进程工具，支持：
-1. 进程信息
-2. 信号处理
-3. 退出管理
-4. 环境变量
+进程输出处理工具。
 """
+import sys
+import signal
+from typing import Optional
 
-from __future__ import annotations
 
-import os, sys, signal, atexit, resource
-from typing import Callable, Optional
-
-# ============================================================================
-# 进程信息
-# ============================================================================
-
-def get_pid() -> int:
-    """获取当前进程 ID"""
-    return os.getpid()
-
-def get_parent_pid() -> int:
-    """获取父进程 ID"""
-    return os.getppid()
-
-def get_uid() -> int:
-    """获取当前用户 ID"""
-    return os.getuid()
-
-def get_username() -> str:
-    """获取当前用户名"""
-    return os.getlogin()
-
-def is_running_as_root() -> bool:
-    """检查是否以 root 运行"""
-    return os.getuid() == 0
-
-# ============================================================================
-# 环境信息
-# ============================================================================
-
-def get_platform() -> str:
-    """获取平台"""
-    return sys.platform
-
-def get_python_executable() -> str:
-    """获取 Python 解释器路径"""
-    return sys.executable
-
-def get_python_version() -> str:
-    """获取 Python 版本"""
-    return f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
-
-def get_os_version() -> str:
-    """获取操作系统版本"""
-    import platform
-    return platform.platform()
-
-# ============================================================================
-# 资源限制
-# ============================================================================
-
-def set_max_open_files(limit: int) -> None:
-    """设置最大打开文件数"""
-    try:
-        soft, hard = resource.getrlimit(resource.RLIMIT_NOFILE)
-        resource.setrlimit(resource.RLIMIT_NOFILE, (min(limit, hard), hard))
-    except (ValueError, OSError):
-        pass
-
-def get_max_open_files() -> tuple:
-    """获取最大打开文件数限制"""
-    try:
-        return resource.getrlimit(resource.RLIMIT_NOFILE)
-    except (ValueError, OSError):
-        return (-1, -1)
-
-def get_memory_usage() -> dict:
-    """获取内存使用情况"""
-    try:
-        import psutil
-        process = psutil.Process()
-        mem = process.memory_info()
-        return {
-            "rss": mem.rss,  # 物理内存
-            "vms": mem.vms,  # 虚拟内存
-            "percent": process.memory_percent(),
-        }
-    except ImportError:
-        # 使用 resource 模块的简单估算
-        usage = resource.getrusage(resource.RUSAGE_SELF)
-        return {
-            "maxrss": usage.maxrss,  # Linux: KB, macOS: bytes
-        }
-
-# ============================================================================
-# 信号处理
-# ============================================================================
-
-_signal_handlers: dict = {}
-
-def signal_handler(signum: int, callback: Callable) -> None:
+def handle_epipe(stream) -> callable:
     """
-    注册信号处理器
+    处理EPIPE错误
     
     Args:
-        signum: 信号编号
-        callback: 回调函数
-    """
-    def wrapper(signum, frame):
-        callback()
-    
-    signal.signal(signum, wrapper)
-
-def ignore_signal(signum: int) -> None:
-    """忽略信号"""
-    signal.signal(signum, signal.SIG_IGN)
-
-def default_signal(signum: int) -> None:
-    """恢复信号默认行为"""
-    signal.signal(signum, signal.SIG_DFL)
-
-# 常用信号常量
-SIGTERM = signal.SIGTERM  # 终止信号
-SIGINT = signal.SIGINT   # 中断信号 (Ctrl+C)
-SIGKILL = signal.SIGKILL # 杀死信号
-SIGUSR1 = signal.SIGUSR1 # 用户自定义信号1
-SIGUSR2 = signal.SIGUSR2 # 用户自定义信号2
-SIGHUP = signal.SIGHUP    # 挂起信号
-
-# ============================================================================
-# 退出管理
-# ============================================================================
-
-_exit_handlers: list[Callable] = []
-_registered_atexit = False
-
-def _run_exit_handlers():
-    """运行所有退出处理器"""
-    for handler in _exit_handlers:
-        try:
-            handler()
-        except Exception:
-            pass
-
-def register_exit_handler(callback: Callable) -> None:
-    """
-    注册退出处理器
-    
-    Args:
-        callback: 退出时调用的函数
-    """
-    global _registered_atexit
-    
-    if callback not in _exit_handlers:
-        _exit_handlers.append(callback)
-    
-    if not _registered_atexit:
-        atexit.register(_run_exit_handlers)
-        _registered_atexit = True
-
-def unregister_exit_handler(callback: Callable) -> bool:
-    """移除退出处理器"""
-    if callback in _exit_handlers:
-        _exit_handlers.remove(callback)
-        return True
-    return False
-
-def exit_with_code(code: int = 0) -> None:
-    """带代码退出"""
-    sys.exit(code)
-
-def abort() -> None:
-    """异常终止"""
-    os.abort()
-
-# ============================================================================
-# 子进程管理
-# ============================================================================
-
-def kill_process(pid: int, signum: int = SIGTERM) -> bool:
-    """
-    向进程发送信号
-    
+        stream: 输出流
+        
     Returns:
-        True if successful
+        错误处理器函数
+    """
+    def handler(err: Exception):
+        if hasattr(err, 'errno') and getattr(err, 'errno', None) == 'EPIPE':
+            if hasattr(stream, 'destroy'):
+                stream.destroy()
+    return handler
+
+
+def register_process_output_error_handlers() -> None:
+    """注册进程输出错误处理器"""
+    handle_epipe_stdout = handle_epipe(sys.stdout)
+    handle_epipe_stderr = handle_epipe(sys.stderr)
+    
+    sys.stdout.on = lambda event, handler: None  # 简化
+    sys.stderr.on = lambda event, handler: None
+
+
+def write_to_stdout(data: str) -> None:
+    """
+    写入stdout
+    
+    Args:
+        data: 数据
+    """
+    if hasattr(sys.stdout, 'destroyed') and sys.stdout.destroyed:
+        return
+    sys.stdout.write(data)
+    sys.stdout.flush()
+
+
+def write_to_stderr(data: str) -> None:
+    """
+    写入stderr
+    
+    Args:
+        data: 数据
+    """
+    if hasattr(sys.stderr, 'destroyed') and sys.stderr.destroyed:
+        return
+    sys.stderr.write(data)
+    sys.stderr.flush()
+
+
+def exit_with_error(message: str) -> None:
+    """
+    输出错误并退出
+    
+    Args:
+        message: 错误消息
+    """
+    print(message, file=sys.stderr)
+    sys.exit(1)
+
+
+def peek_for_stdin_data(ms: int) -> bool:
+    """
+    等待stdin数据
+    
+    Args:
+        ms: 超时毫秒数
+        
+    Returns:
+        是否收到数据
+    """
+    import select
+    import sys
+    
+    if hasattr(sys.stdin, 'closed') and sys.stdin.closed:
+        return False
+    
+    # 使用select检查stdin
+    try:
+        readable, _, _ = select.select([sys.stdin], [], [], ms / 1000)
+        return len(readable) > 0
+    except Exception:
+        return False
+
+
+def write_data_to_stream(stream, data: str) -> bool:
+    """
+    写入数据到流
+    
+    Args:
+        stream: 输出流
+        data: 数据
+        
+    Returns:
+        是否成功
     """
     try:
-        os.kill(pid, signum)
+        if hasattr(stream, 'destroyed') and stream.destroyed:
+            return False
+        stream.write(data)
         return True
-    except OSError:
+    except Exception:
         return False
 
-def is_process_alive(pid: int) -> bool:
-    """检查进程是否存活"""
-    try:
-        os.kill(pid, 0)  # 发送空信号
-        return True
-    except OSError:
-        return False
 
-# ============================================================================
-# 环境变量
-# ============================================================================
-
-def get_env(key: str, default: Optional[str] = None) -> Optional[str]:
-    """获取环境变量"""
-    return os.environ.get(key, default)
-
-def set_env(key: str, value: str) -> None:
-    """设置环境变量"""
-    os.environ[key] = value
-
-def unset_env(key: str) -> None:
-    """删除环境变量"""
-    os.environ.pop(key, None)
-
-def get_all_env() -> dict:
-    """获取所有环境变量"""
-    return dict(os.environ)
-
-# ============================================================================
-# 工作目录
-# ============================================================================
-
-def get_cwd() -> str:
-    """获取当前工作目录"""
-    return os.getcwd()
-
-def set_cwd(path: str) -> None:
-    """设置当前工作目录"""
-    os.chdir(path)
-
-# ============================================================================
-# 命令行参数
-# ============================================================================
-
-def get_args() -> list[str]:
-    """获取命令行参数"""
-    return sys.argv
-
-def get_argv0() -> str:
-    """获取程序名称"""
-    return sys.argv[0] if sys.argv else ""
-
-def get_argv1() -> Optional[str]:
-    """获取第一个参数"""
-    return sys.argv[1] if len(sys.argv) > 1 else None
+# 导出
+__all__ = [
+    "handle_epipe",
+    "register_process_output_error_handlers",
+    "write_to_stdout",
+    "write_to_stderr",
+    "exit_with_error",
+    "peek_for_stdin_data",
+    "write_data_to_stream",
+]

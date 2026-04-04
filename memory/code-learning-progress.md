@@ -236,3 +236,9 @@
 |---|------|---------|------|------|
 | 103 | AWS工具 | `src/utils/aws.ts` | aws_utils.py | ✅ |
 | 104 | Claude桌面配置 | `src/utils/claudeDesktop.ts` | claude_desktop.py | ✅ |
+
+## 第87批（2026-04-04 09:52）
+| # | 模块 | 源码文件 | 落地 | 状态 |
+|---|------|---------|------|------|
+| 105 | 运行时检测 | `src/utils/bundledMode.ts` | bundled_mode.py | ✅ |
+| 106 | 记忆文件加载 | `src/utils/claudemd.ts` | claude_md.py | ✅ |
