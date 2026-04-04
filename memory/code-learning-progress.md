@@ -577,3 +577,10 @@
 | 223 | LRU缓存 | `src/utils/lruCache.ts` | lru_cache.py | ✅ |
 | 224 | 延迟对象 | `src/utils/deferred.ts` | deferred.py | ✅ |
 | 225 | await工具 | `src/utils/awaiter.ts` | awaiter.py | ✅ |
+
+## 第142批（2026-04-04 12:05】
+| # | 模块 | 源码文件 | 落地 | 状态 |
+|---|------|---------|------|------|
+| 226 | 归约器 | `src/utils/reducer.ts` | reducer.py | ✅ |
+| 227 | 映射器 | `src/utils/mapper.ts` | mapper.py | ✅ |
+| 228 | 依赖解析 | `src/utils/resolver.ts` | resolver.py | ✅ |
