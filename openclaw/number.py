@@ -1,15 +1,16 @@
 """
-Number - 数字工具
+Number - 数字
 基于 Claude Code number.ts 设计
 
-数字处理工具。
+数字工具。
 """
-from typing import Optional
+import re
+from typing import Union
 
 
 def clamp(value: float, min_val: float, max_val: float) -> float:
     """
-    限制范围
+    限制在范围内
     
     Args:
         value: 值
@@ -22,219 +23,153 @@ def clamp(value: float, min_val: float, max_val: float) -> float:
     return max(min_val, min(max_val, value))
 
 
-def round_decimal(value: float, decimals: int = 2) -> float:
+def lerp(a: float, b: float, t: float) -> float:
     """
-    四舍五入
+    线性插值
+    
+    Args:
+        a: 起始值
+        b: 结束值
+        t: 插值因子(0-1)
+        
+    Returns:
+        插值结果
+    """
+    return a + (b - a) * t
+
+
+def inverse_lerp(a: float, b: float, value: float) -> float:
+    """
+    逆向线性插值
+    
+    Args:
+        a: 起始值
+        b: 结束值
+        value: 当前值
+        
+    Returns:
+        插值因子
+    """
+    if a == b:
+        return 0.0
+    return (value - a) / (b - a)
+
+
+def remap(value: float, in_min: float, in_max: float, 
+          out_min: float, out_max: float) -> float:
+    """
+    重映射
     
     Args:
         value: 值
-        decimals: 小数位数
+        in_min, in_max: 输入范围
+        out_min, out_max: 输出范围
+        
+    Returns:
+        重映射后的值
+    """
+    t = inverse_lerp(in_min, in_max, value)
+    return lerp(out_min, out_max, t)
+
+
+def round_to(value: float, precision: int) -> float:
+    """
+    四舍五入到指定精度
+    
+    Args:
+        value: 值
+        precision: 小数位数
         
     Returns:
         舍入后的值
     """
-    multiplier = 10 ** decimals
+    multiplier = 10 ** precision
     return round(value * multiplier) / multiplier
 
 
-def floor_decimal(value: float, decimals: int = 2) -> float:
+def floor_to(value: float, precision: int) -> float:
     """
-    向下取整
+    向下取整到指定精度
     
     Args:
         value: 值
-        decimals: 小数位数
+        precision: 小数位数
         
     Returns:
         向下取整后的值
     """
-    multiplier = 10 ** decimals
-    return int(value * multiplier) / multiplier
+    import math
+    multiplier = 10 ** precision
+    return math.floor(value * multiplier) / multiplier
 
 
-def ceil_decimal(value: float, decimals: int = 2) -> float:
+def ceil_to(value: float, precision: int) -> float:
     """
-    向上取整
+    向上取整到指定精度
     
     Args:
         value: 值
-        decimals: 小数位数
+        precision: 小数位数
         
     Returns:
         向上取整后的值
     """
-    multiplier = 10 ** decimals
     import math
+    multiplier = 10 ** precision
     return math.ceil(value * multiplier) / multiplier
 
 
-def format_number(value: float, decimals: int = 0) -> str:
-    """
-    格式化数字
-    
-    Args:
-        value: 值
-        decimals: 小数位数
-        
-    Returns:
-        格式化字符串
-    """
-    return f"{value:,.{decimals}f}"
-
-
-def format_currency(
-    value: float,
-    symbol: str = '¥',
-    decimals: int = 2,
-) -> str:
-    """
-    格式化货币
-    
-    Args:
-        value: 值
-        symbol: 货币符号
-        decimals: 小数位数
-        
-    Returns:
-        货币字符串
-    """
-    return f"{symbol}{value:,.{decimals}f}"
-
-
-def format_percent(value: float, decimals: int = 1) -> str:
-    """
-    格式化百分比
-    
-    Args:
-        value: 值 (0-1 或 0-100)
-        decimals: 小数位数
-        
-    Returns:
-        百分比字符串
-    """
-    if value <= 1:
-        value *= 100
-    return f"{value:.{decimals}f}%"
-
-
-def parse_number(text: str) -> Optional[float]:
-    """
-    解析数字
-    
-    Args:
-        text: 字符串
-        
-    Returns:
-        数字或None
-    """
-    try:
-        return float(text.replace(',', ''))
-    except (ValueError, AttributeError):
-        return None
-
-
-def is_even(value: int) -> bool:
+def is_even(n: int) -> bool:
     """是否为偶数"""
-    return value % 2 == 0
+    return n % 2 == 0
 
 
-def is_odd(value: int) -> bool:
+def is_odd(n: int) -> bool:
     """是否为奇数"""
-    return value % 2 != 0
+    return n % 2 != 0
 
 
-def is_positive(value: float) -> bool:
-    """是否为正数"""
-    return value > 0
-
-
-def is_negative(value: float) -> bool:
-    """是否为负数"""
-    return value < 0
-
-
-def is_zero(value: float) -> bool:
-    """是否为零"""
-    return value == 0
-
-
-def abs(value: float) -> float:
-    """绝对值"""
-    return abs(value) if value >= 0 else -value
-
-
-def sign(value: float) -> int:
-    """符号 (-1, 0, 1)"""
-    if value > 0: return 1
-    if value < 0: return -1
-    return 0
-
-
-def in_range(value: float, min_val: float, max_val: float) -> bool:
+def is_between(value: float, min_val: float, max_val: float) -> bool:
     """是否在范围内"""
     return min_val <= value <= max_val
 
 
-def random_int(min_val: int, max_val: int) -> int:
-    """随机整数"""
-    import random
-    return random.randint(min_val, max_val)
+def sign(value: float) -> int:
+    """符号"""
+    if value > 0:
+        return 1
+    if value < 0:
+        return -1
+    return 0
 
 
-# 数字缩放
-def kilo(value: float) -> float:
-    """转千"""
-    return value / 1000
-
-
-def mega(value: float) -> float:
-    """转百万"""
-    return value / 1000000
-
-
-def giga(value: float) -> float:
-    """转十亿"""
-    return value / 1000000000
-
-
-# 字节缩放
-def bytes_to_kb(bytes_val: float) -> float:
-    """字节转KB"""
-    return bytes_val / 1024
-
-
-def bytes_to_mb(bytes_val: float) -> float:
-    """字节转MB"""
-    return bytes_val / (1024 * 1024)
-
-
-def bytes_to_gb(bytes_val: float) -> float:
-    """字节转GB"""
-    return bytes_val / (1024 * 1024 * 1024)
+def truncate(value: float, precision: int = 0) -> float:
+    """
+    截断
+    
+    Args:
+        value: 值
+        precision: 小数位数
+        
+    Returns:
+        截断后的值
+    """
+    multiplier = 10 ** precision
+    return int(value * multiplier) / multiplier
 
 
 # 导出
 __all__ = [
     "clamp",
-    "round_decimal",
-    "floor_decimal",
-    "ceil_decimal",
-    "format_number",
-    "format_currency",
-    "format_percent",
-    "parse_number",
+    "lerp",
+    "inverse_lerp",
+    "remap",
+    "round_to",
+    "floor_to",
+    "ceil_to",
     "is_even",
     "is_odd",
-    "is_positive",
-    "is_negative",
-    "is_zero",
+    "is_between",
     "sign",
-    "in_range",
-    "random_int",
-    "kilo",
-    "mega",
-    "giga",
-    "bytes_to_kb",
-    "bytes_to_mb",
-    "bytes_to_gb",
+    "truncate",
 ]
