@@ -95,3 +95,9 @@
 | # | 模块 | 源码文件 | 落地 | 状态 |
 |---|------|---------|------|------|
 | 63 | 附件系统 | `src/utils/attachments.ts` | attachments.py | ✅ |
+
+## 第62批（2026-04-04 08:40）
+| # | 模块 | 源码文件 | 落地 | 状态 |
+|---|------|---------|------|------|
+| 64 | 边查询API | `src/utils/sideQuery.ts` | side_query.py | ✅ |
+| 65 | 慢操作日志 | `src/utils/slowOperations.ts` | slow_operations.py | ✅ |
