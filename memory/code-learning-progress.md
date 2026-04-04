@@ -454,3 +454,9 @@
 |---|------|---------|------|------|
 | 177 | 防抖节流 | `src/utils/debounce.ts` | debounce.py | ✅ |
 | 178 | 异步工具2 | `src/utils/asyncUtils2.ts` | async_utils2.py | ✅ |
+
+## 第123批（2026-04-04 11:09】
+| # | 模块 | 源码文件 | 落地 | 状态 |
+|---|------|---------|------|------|
+| 179 | 连接管理 | `src/utils/connection.ts` | connection.py | ✅ |
+| 180 | 退避策略 | `src/utils/backoff.ts` | backoff.py | ✅ |
