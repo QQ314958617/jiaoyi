@@ -890,3 +890,9 @@
 |---|------|---------|------|------|
 | 345 | 广播 | `src/utils/broadcast.ts` | broadcast.py | ✅ |
 | 346 | 响应式 | `src/utils/observable.ts` | observable.py | ✅ |
+
+## 第190批（2026-04-04 17:48】
+| # | 模块 | 源码文件 | 落地 | 状态 |
+|---|------|---------|------|------|
+| 347 | 流处理 | `src/utils/stream.ts` | stream.py | ✅ |
+| 348 | 迭代器 | `src/utils/iter.ts` | iter.py | ✅ |
