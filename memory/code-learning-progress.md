@@ -604,3 +604,9 @@
 |---|------|---------|------|------|
 | 235 | 模板2 | `src/utils/template2.ts` | template2.py | ✅ |
 | 236 | 格式化 | `src/utils/format.ts` | format.py | ✅ |
+
+## 第146批（2026-04-04 12:14】
+| # | 模块 | 源码文件 | 落地 | 状态 |
+|---|------|---------|------|------|
+| 237 | 解析 | `src/utils/parse.ts` | parse.py | ✅ |
+| 238 | 转换 | `src/utils/convert.ts` | convert.py | ✅ |
