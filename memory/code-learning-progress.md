@@ -514,3 +514,10 @@
 |---|------|---------|------|------|
 | 197 | 验证器 | `src/utils/validate.ts` | validate.py | ✅ |
 | 198 | 环境变量 | `src/utils/env.ts` | env.py | ✅ |
+
+## 第133批（2026-04-04 11:30】
+| # | 模块 | 源码文件 | 落地 | 状态 |
+|---|------|---------|------|------|
+| 199 | JSON工具 | `src/utils/json.ts` | json.py | ✅ |
+| 200 | 文件工具 | `src/utils/file.ts` | file.py | ✅ |
+| 201 | 路径工具 | `src/utils/path.ts` | path.py | ✅ |
