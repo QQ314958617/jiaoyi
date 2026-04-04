@@ -260,3 +260,9 @@
 |---|------|---------|------|------|
 | 111 | 文件工具 | `src/utils/file.ts` | file_utils.py | ✅ |
 | 112 | 查找可执行文件 | `src/utils/findExecutable.ts` | find_executable.py | ✅ |
+
+## 第91批（2026-04-04 10:00）
+| # | 模块 | 源码文件 | 落地 | 状态 |
+|---|------|---------|------|------|
+| 113 | Git工具 | `src/utils/git.ts` | git_utils.py | ✅ |
+| 114 | Frontmatter解析 | `src/utils/frontmatterParser.ts` | frontmatter_parser.py | ✅ |
