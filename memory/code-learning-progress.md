@@ -778,3 +778,10 @@
 | 300 | 堆 | `src/utils/heap.ts` | heap2.py | ✅ |
 | 301 | 缓存 | `src/utils/cache.ts` | cache2.py | ✅ |
 | 302 | 计数器 | `src/utils/counter.ts` | counter.py | ✅ |
+
+## 第173批（2026-04-04 15:10】
+| # | 模块 | 源码文件 | 落地 | 状态 |
+|---|------|---------|------|------|
+| 303 | 背包 | `src/utils/bag.ts` | bag.py | ✅ |
+| 304 | 栈 | `src/utils/stack.ts` | stack.py | ✅ |
+| 305 | 队列 | `src/utils/queue.ts` | queue2.py | ✅ |
