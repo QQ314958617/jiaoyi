@@ -535,3 +535,10 @@
 | 205 | 断言 | `src/utils/assert.ts` | assert.py | ✅ |
 | 206 | 错误 | `src/utils/error.ts` | error.py | ✅ |
 | 207 | 调试 | `src/utils/debug.ts` | debug.py | ✅ |
+
+## 第136批（2026-04-04 11:36】
+| # | 模块 | 源码文件 | 落地 | 状态 |
+|---|------|---------|------|------|
+| 208 | 批处理 | `src/utils/batch.ts` | batch.py | ✅ |
+| 209 | 合并工具 | `src/utils/merge.ts` | merge.py | ✅ |
+| 210 | 对象池2 | `src/utils/pool2.ts` | pool2.py | ✅ |
