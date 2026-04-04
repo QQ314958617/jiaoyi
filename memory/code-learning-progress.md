@@ -878,3 +878,9 @@
 |---|------|---------|------|------|
 | 341 | 缓存 | `src/utils/cache.ts` | cache3.py | ✅ |
 | 342 | 超时 | `src/utils/timeout.ts` | timeout2.py | ✅ |
+
+## 第188批（2026-04-04 17:42】
+| # | 模块 | 源码文件 | 落地 | 状态 |
+|---|------|---------|------|------|
+| 343 | 限流桶 | `src/utils/bucket.ts` | bucket2.py | ✅ |
+| 344 | 断路器 | `src/utils/breaker.ts` | breaker2.py | ✅ |
