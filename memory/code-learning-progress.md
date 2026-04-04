@@ -750,3 +750,10 @@
 | 288 | 防抖 | `src/utils/debounce.ts` | debounce.py | ✅ |
 | 289 | 节流 | `src/utils/throttle.ts` | throttle2.py | ✅ |
 | 290 | 批处理 | `src/utils/batch.ts` | batch2.py | ✅ |
+
+## 第169批（2026-04-04 15:00】
+| # | 模块 | 源码文件 | 落地 | 状态 |
+|---|------|---------|------|------|
+| 291 | 缓冲区 | `src/utils/buffer.ts` | buffer.py | ✅ |
+| 292 | 插槽 | `src/utils/slot.ts` | slot.py | ✅ |
+| 293 | 等待 | `src/utils/wait.ts` | wait.py | ✅ |
