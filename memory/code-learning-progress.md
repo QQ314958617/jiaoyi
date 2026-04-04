@@ -138,3 +138,9 @@
 |---|------|---------|------|------|
 | 77 | 命令查找 | `src/utils/which.ts` | which.py | ✅ |
 | 78 | 进程执行 | `src/utils/execFileNoThrow.ts` | exec_utils.py | ✅ |
+
+## 第69批（2026-04-04 09:06）
+| # | 模块 | 源码文件 | 落地 | 状态 |
+|---|------|---------|------|------|
+| 79 | 显示标签 | `src/utils/displayTags.ts` | display_tags.py | ✅ |
+| 80 | 数组工具 | `src/utils/array.ts` | array_utils.py | ✅ |
