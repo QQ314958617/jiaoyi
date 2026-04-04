@@ -841,3 +841,10 @@
 | 327 | 格式化 | `src/utils/format.ts` | format.py | ✅ |
 | 328 | 表格 | `src/utils/table.ts` | table.py | ✅ |
 | 329 | 进度 | `src/utils/progress.ts` | progress.py | ✅ |
+
+## 第182批（2026-04-04 17:28】
+| # | 模块 | 源码文件 | 落地 | 状态 |
+|---|------|---------|------|------|
+| 330 | 控制台 | `src/utils/console.ts` | console.py | ✅ |
+| 331 | 颜色 | `src/utils/color.ts` | color.py | ✅ |
+| 332 | 表情 | `src/utils/emoji.ts` | emoji.py | ✅ |
