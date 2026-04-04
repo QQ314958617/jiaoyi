@@ -381,3 +381,10 @@
 |---|------|---------|------|------|
 | 148 | 文件监控 | `src/utils/watch.ts` | watch.py | ✅ |
 | 149 | 确保执行一次 | `src/utils/onceMore.ts` | once_more.py | ✅ |
+
+## 第112批（2026-04-04 10:48】
+| # | 模块 | 源码文件 | 落地 | 状态 |
+|---|------|---------|------|------|
+| 150 | 延迟计算 | `src/utils/deferred.ts` | deferred.py | ✅ |
+| 151 | 弱引用缓存 | `src/utils/weakCache.ts` | weak_cache.py | ✅ |
+| 152 | 批量处理 | `src/utils/batch.ts` | batch.py | ✅ |
