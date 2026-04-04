@@ -167,3 +167,8 @@
 |---|------|---------|------|------|
 | 86 | API提供者 | `src/utils/model/providers.ts` | providers.py | ✅ |
 | 87 | 平台检测 | `src/utils/platform.ts` | platform.py | ✅ |
+
+## 第74批（2026-04-04 09:22）
+| # | 模块 | 源码文件 | 落地 | 状态 |
+|---|------|---------|------|------|
+| 88 | 缓存路径 | `src/utils/cachePaths.ts` | cache_paths.py | ✅ |
