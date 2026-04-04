@@ -4,140 +4,67 @@ Spinner - 加载动画
 
 加载动画工具。
 """
-import itertools
+import sys
 import time
-from typing import Optional
 
 
 class Spinner:
-    """
-    加载动画
+    """加载动画"""
     
-    显示旋转的加载指示器。
-    """
+    FRAMES = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏']
     
-    def __init__(
-        self,
-        frames: str = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏",
-        interval: float = 0.1,
-        prefix: str = ""
-    ):
-        """
-        Args:
-            frames: 动画帧
-            interval: 帧间隔（秒）
-            prefix: 前缀文本
-        """
-        self._frames = frames
-        self._interval = interval
-        self._prefix = prefix
-        self._index = 0
+    def __init__(self, message: str = "Loading"):
+        self.message = message
         self._running = False
-        self._last_output = ""
+        self._frame = 0
     
-    def spin(self) -> str:
-        """
-        下一帧
-        
-        Returns:
-            当前帧
-        """
-        frame = self._frames[self._index % len(self._frames)]
-        self._index += 1
-        return f"{self._prefix}{frame}"
-    
-    def update(self) -> None:
-        """更新显示"""
-        import sys
-        frame = self.spin()
-        clear_len = len(self._last_output)
-        output = f"\r{frame}{' ' * max(0, clear_len - len(frame))}"
-        sys.stdout.write(output)
-        sys.stdout.flush()
-        self._last_output = frame
-    
-    def run(self, duration: float = None) -> None:
-        """
-        运行动画
-        
-        Args:
-            duration: 持续时间（秒）
-        """
+    def start(self):
+        """开始动画"""
         self._running = True
-        start = time.time()
-        
-        while self._running:
-            if duration and (time.time() - start) >= duration:
-                break
-            self.update()
-            time.sleep(self._interval)
+        self._spin()
     
-    def stop(self) -> None:
+    def stop(self):
         """停止动画"""
         self._running = False
-        import sys
-        sys.stdout.write('\r' + ' ' * len(self._last_output) + '\r')
-        sys.stdout.flush()
-
-
-class MultiSpinner:
-    """
-    多行加载动画
-    """
+        print('\r' + ' ' * (len(self.message) + 10) + '\r', end='')
     
-    def __init__(self):
-        self._spinners = []
-        self._running = False
-    
-    def add(self, id: str, frames: str = None) -> Spinner:
-        """
-        添加加载动画
+    def _spin(self):
+        """转动一帧"""
+        if not self._running:
+            return
         
-        Args:
-            id: 唯一标识
-            frames: 动画帧
-            
-        Returns:
-            Spinner实例
-        """
-        spinner = Spinner(frames=frames or "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏")
-        spinner._id = id
-        self._spinners.append(spinner)
-        return spinner
-    
-    def remove(self, id: str) -> None:
-        """移除加载动画"""
-        self._spinners = [s for s in self._spinners if s._id != id]
-    
-    def spin(self) -> None:
-        """更新所有动画"""
-        import sys
-        lines = []
-        for spinner in self._spinners:
-            lines.append(f"{spinner.spin()} {spinner._id}")
+        frame = self.FRAMES[self._frame % len(self.FRAMES)]
+        print(f'\r{frame} {self.message}', end='', flush=True)
+        self._frame += 1
         
-        output = '\n'.join(lines)
-        sys.stdout.write('\033[K\r' + output + '\033[K\r')
-        sys.stdout.flush()
+        if self._running:
+            import threading
+            threading.Timer(0.1, self._spin).start()
 
 
-# 内置加载动画
-SPIFFY = Spinner("⠄⠆⠇⠈⠉⠊⠋⠌⠍⠎⠏⠐⠑⠒⠓⠔⠕⠖⠗⠘⠙⠚⠛⠜⠝⠞⠟⠠⠡⠢⠣⠤⠥⠦⠧⠨⠩⠪⠫⠬⠭⠮⠯⠰⠱⠲⠳⠴⠵⠶⠷⠸⠹⠺⠻⠼⠽⠾⠿")
-DOTS = Spinner("⠋⠙⠹⠸⠼⠴")
-ARROW = Spinner("◐◓◑◒")
-SQUARES = Spinner("◢◣◤◥")
-CIRCLES = Spinner("◓◐◑◒")
-SQUARE_BOUNCE = Spinner("◫◧◨◩")
+def spin(duration: float = 1.0, message: str = "Loading"):
+    """
+    显示指定时长的加载动画
+    
+    Args:
+        duration: 时长（秒）
+        message: 消息
+    """
+    frames = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏']
+    start = time.time()
+    i = 0
+    
+    while time.time() - start < duration:
+        frame = frames[i % len(frames)]
+        print(f'\r{frame} {message}', end='', flush=True)
+        i += 1
+        time.sleep(0.1)
+    
+    print('\r' + ' ' * (len(message) + 10) + '\r', end='')
 
 
 # 导出
 __all__ = [
     "Spinner",
-    "MultiSpinner",
-    "SPIFFY",
-    "DOTS",
-    "ARROW",
-    "SQUARES",
-    "CIRCLES",
-    "SQUARE_BOUNCE",
+    "spin",
 ]
