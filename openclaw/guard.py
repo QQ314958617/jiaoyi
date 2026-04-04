@@ -1,25 +1,16 @@
 """
-Guard - 类型守卫
+Guard - 守卫
 基于 Claude Code guard.ts 设计
 
 类型守卫工具。
 """
-from typing import Any, Callable, List, Type, TypeVar
+from typing import Any, TypeVar
 
 T = TypeVar('T')
 
 
-def is_type(value: Any, type_or_tuple: Type or tuple) -> bool:
-    """
-    类型检查
-    
-    Args:
-        value: 值
-        type_or_tuple: 类型或类型元组
-        
-    Returns:
-        是否为指定类型
-    """
+def is_type(value: Any, type_or_tuple) -> bool:
+    """类型检查"""
     return isinstance(value, type_or_tuple)
 
 
@@ -56,16 +47,7 @@ def has_method(obj: Any, method: str) -> bool:
 
 
 def validate(obj: Any, schema: dict) -> tuple:
-    """
-    简单验证
-    
-    Args:
-        obj: 对象
-        schema: {属性: 类型或函数}
-        
-    Returns:
-        (is_valid, errors)
-    """
+    """简单验证"""
     errors = []
     
     for prop, check in schema.items():
@@ -80,14 +62,14 @@ def validate(obj: Any, schema: dict) -> tuple:
     return len(errors) == 0, errors
 
 
-def required(*props: str) -> Callable:
+def required(*props: str) -> callable:
     """生成必填检查函数"""
     def checker(obj: dict) -> bool:
         return all(p in obj for p in props)
     return checker
 
 
-def optional(type_or_check) -> Callable:
+def optional(type_or_check) -> callable:
     """生成可选检查函数"""
     def checker(value: Any) -> bool:
         if value is None:

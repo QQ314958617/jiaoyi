@@ -4,7 +4,7 @@ Validate - 验证
 
 验证工具。
 """
-from typing import Any, Callable, List
+from typing import Any, Callable
 
 
 def required(value: Any) -> bool:
@@ -34,24 +34,6 @@ def max_length(length: int) -> Callable:
     return validator
 
 
-def min_value(min_val: Any) -> Callable:
-    """最小值"""
-    def validator(value: Any) -> bool:
-        if value is None:
-            return True
-        return value >= min_val
-    return validator
-
-
-def max_value(max_val: Any) -> Callable:
-    """最大值"""
-    def validator(value: Any) -> bool:
-        if value is None:
-            return True
-        return value <= max_val
-    return validator
-
-
 def pattern(regex: str) -> Callable:
     """正则验证"""
     import re
@@ -78,30 +60,22 @@ def url(value: str) -> bool:
     return bool(re.match(pattern, str(value))) if value else False
 
 
-def credit_card(value: str) -> bool:
-    """信用卡验证（Luhn算法）"""
-    if not value:
-        return False
-    
-    # 移除空格和破折号
-    digits = ''.join(c for c in value if c.isdigit())
-    
-    if not digits.isdigit() or len(digits) < 13:
-        return False
-    
-    # Luhn算法
-    total = 0
-    reverse_digits = digits[::-1]
-    
-    for i, digit in enumerate(reverse_digits):
-        n = int(digit)
-        if i % 2 == 1:
-            n *= 2
-            if n > 9:
-                n -= 9
-        total += n
-    
-    return total % 10 == 0
+def min_value(min_val: Any) -> Callable:
+    """最小值"""
+    def validator(value: Any) -> bool:
+        if value is None:
+            return True
+        return value >= min_val
+    return validator
+
+
+def max_value(max_val: Any) -> Callable:
+    """最大值"""
+    def validator(value: Any) -> bool:
+        if value is None:
+            return True
+        return value <= max_val
+    return validator
 
 
 def in_range(min_val: Any, max_val: Any) -> Callable:
@@ -121,12 +95,10 @@ def one_of(*choices) -> Callable:
 
 
 class Validator:
-    """
-    验证器
-    """
+    """验证器"""
     
     def __init__(self):
-        self._rules: List[Callable] = []
+        self._rules = []
     
     def add(self, rule: Callable) -> "Validator":
         """添加规则"""
@@ -134,18 +106,11 @@ class Validator:
         return self
     
     def validate(self, value: Any) -> tuple:
-        """
-        验证
-        
-        Returns:
-            (is_valid, errors)
-        """
+        """验证"""
         errors = []
-        
         for rule in self._rules:
             if not rule(value):
-                errors.append(f"Validation failed for rule")
-        
+                errors.append("Validation failed")
         return len(errors) == 0, errors
     
     def __call__(self, value: Any) -> bool:
@@ -159,12 +124,11 @@ __all__ = [
     "required",
     "min_length",
     "max_length",
-    "min_value",
-    "max_value",
     "pattern",
     "email",
     "url",
-    "credit_card",
+    "min_value",
+    "max_value",
     "in_range",
     "one_of",
     "Validator",
