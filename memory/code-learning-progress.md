@@ -860,3 +860,9 @@
 |---|------|---------|------|------|
 | 335 | ANSI转义 | `src/utils/ansi.ts` | ansi.py | ✅ |
 | 336 | 加载动画 | `src/utils/spinner.ts` | spinner.py | ✅ |
+
+## 第185批（2026-04-04 17:35】
+| # | 模块 | 源码文件 | 落地 | 状态 |
+|---|------|---------|------|------|
+| 337 | 任务 | `src/utils/task.ts` | task.py | ✅ |
+| 338 | 调度 | `src/utils/schedule.ts` | schedule.py | ✅ |
