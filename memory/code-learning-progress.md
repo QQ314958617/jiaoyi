@@ -422,3 +422,10 @@
 | 164 | ID生成器 | `src/utils/idGenerator.ts` | id_generator.py | ✅ |
 | 165 | 缓存 | `src/utils/cache.ts` | cache.py | ✅ |
 | 166 | 调度器 | `src/utils/scheduler.ts` | scheduler.py | ✅ |
+
+## 第118批（2026-04-04 11:00】
+| # | 模块 | 源码文件 | 落地 | 状态 |
+|---|------|---------|------|------|
+| 167 | 计数器 | `src/utils/counter.ts` | counter.py | ✅ |
+| 168 | 限流器 | `src/utils/limiter.ts` | limiter.py | ✅ |
+| 169 | 断路器 | `src/utils/circuitBreaker.ts` | breaker.py | ✅ |
