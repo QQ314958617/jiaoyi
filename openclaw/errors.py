@@ -1,193 +1,192 @@
 """
-OpenClaw Error Utilities
-========================
-Inspired by Claude Code's src/utils/errors.ts (238 lines).
+Errors - 错误类定义
+基于 Claude Code errors.ts 设计
 
-统一错误处理工具，支持：
-1. 错误类型分类
-2. 错误消息提取
-3. errno 代码提取
-4. 错误堆栈裁剪
-5. 错误规范化
+定义各种错误类型。
 """
+from typing import Optional
 
-from __future__ import annotations
 
-import asyncio, traceback, sys
-from dataclasses import dataclass
-from enum import Enum
-from typing import Optional, Any
-
-# ============================================================================
-# 错误类型
-# ============================================================================
-
-class ErrnoCode(Enum):
-    ENOENT = "ENOENT"
-    EACCES = "EACCES"
-    EPERM = "EPERM"
-    ENOTDIR = "ENOTDIR"
-    ELOOP = "ELOOP"
-    ECONNRESET = "ECONNRESET"
-    ETIMEDOUT = "ETIMEDOUT"
-    ECONNREFUSED = "ECONNREFUSED"
-    ENOTFOUND = "ENOTFOUND"
-    EHOSTUNREACH = "EHOSTUNREACH"
-
-class HTTPErrorKind(Enum):
-    AUTH = "auth"
-    TIMEOUT = "timeout"
-    NETWORK = "network"
-    HTTP = "http"
-    OTHER = "other"
-
-# ============================================================================
-# 异常类
-# ============================================================================
-
-class OpenClawError(Exception):
+class ClaudeError(Exception):
+    """基础Claude错误"""
     def __init__(self, message: str):
-        self.message = message
         super().__init__(message)
+        self.name = self.__class__.__name__
 
-class AbortError(OpenClawError):
-    def __init__(self, message: str = "Aborted"):
-        super().__init__(message)
 
-class ConfigParseError(OpenClawError):
-    def __init__(self, message: str, file_path: str = ""):
+class MalformedCommandError(ClaudeError):
+    """命令格式错误"""
+    pass
+
+
+class AbortError(ClaudeError):
+    """中断错误"""
+    def __init__(self, message: str = ""):
         super().__init__(message)
+        self.name = "AbortError"
+
+
+def is_abort_error(e: Exception) -> bool:
+    """
+    判断是否为中断错误
+    
+    Args:
+        e: 异常
+        
+    Returns:
+        是否为中断错误
+    """
+    return (
+        isinstance(e, AbortError) or
+        (isinstance(e, Exception) and e.name == "AbortError")
+    )
+
+
+class ConfigParseError(ClaudeError):
+    """配置文件解析错误"""
+    
+    def __init__(
+        self,
+        message: str,
+        file_path: str,
+        default_config: Optional[dict] = None,
+    ):
+        super().__init__(message)
+        self.name = "ConfigParseError"
         self.file_path = file_path
+        self.default_config = default_config
 
-class ShellError(OpenClawError):
-    def __init__(self, message: str, stdout: str = "", stderr: str = "", code: int = 1):
-        super().__init__(message)
+
+class ShellError(ClaudeError):
+    """Shell命令错误"""
+    
+    def __init__(
+        self,
+        stdout: str,
+        stderr: str,
+        code: int,
+        interrupted: bool = False,
+    ):
+        super().__init__("Shell command failed")
+        self.name = "ShellError"
         self.stdout = stdout
         self.stderr = stderr
         self.code = code
+        self.interrupted = interrupted
 
-class NetworkError(OpenClawError):
-    def __init__(self, message: str, kind: HTTPErrorKind = HTTPErrorKind.OTHER):
+
+class TelportOperationError(ClaudeError):
+    """远程操作错误"""
+    
+    def __init__(self, message: str, formatted_message: str = ""):
         super().__init__(message)
-        self.kind = kind
+        self.name = "TeleportOperationError"
+        self.formatted_message = formatted_message or message
 
-class APIError(OpenClawError):
-    def __init__(self, message: str, status: Optional[int] = None):
+
+class TelemetrySafeError(ClaudeError):
+    """
+    可安全记录到遥测的错误
+    
+    验证错误消息不包含敏感数据。
+    """
+    
+    def __init__(
+        self,
+        message: str,
+        telemetry_message: Optional[str] = None,
+    ):
         super().__init__(message)
-        self.status = status
+        self.name = "TelemetrySafeError"
+        self.telemetry_message = telemetry_message or message
 
-class ValidationError(OpenClawError):
-    def __init__(self, message: str):
+
+class APIError(ClaudeError):
+    """API错误"""
+    
+    def __init__(
+        self,
+        message: str,
+        status_code: Optional[int] = None,
+        response: Optional[dict] = None,
+    ):
         super().__init__(message)
+        self.name = "APIError"
+        self.status_code = status_code
+        self.response = response
 
-# ============================================================================
-# 错误检查函数
-# ============================================================================
 
-def is_abort_error(e: BaseException) -> bool:
-    if isinstance(e, (KeyboardInterrupt, SystemExit, asyncio.CancelledError)):
-        return True
-    if isinstance(e, AbortError):
-        return True
-    if hasattr(e, '__class__') and e.__class__.__name__ in ('KeyboardInterrupt', 'SystemExit'):
-        return True
-    return False
+class ToolError(ClaudeError):
+    """工具执行错误"""
+    pass
 
-def get_errno_code(e: BaseException) -> Optional[str]:
-    if hasattr(e, 'errno') and isinstance(e.errno, int):
-        import errno as _errno
-        for name in dir(_errno):
-            if name.startswith('E') and getattr(_errno, name) == e.errno:
-                return name
-        return str(e.errno)
-    if hasattr(e, 'code') and isinstance(e.code, str):
-        return e.code
-    return None
 
-def is_enoent(e: BaseException) -> bool:
-    return get_errno_code(e) == 'ENOENT'
+class PermissionError(ClaudeError):
+    """权限错误"""
+    pass
 
-def is_eacces(e: BaseException) -> bool:
-    return get_errno_code(e) == 'EACCES'
 
-def is_fs_inaccessible(e: BaseException) -> bool:
-    code = get_errno_code(e)
-    return code in ('ENOENT', 'EACCES', 'EPERM', 'ENOTDIR', 'ELOOP')
+# 错误日志
+_error_log: list[dict] = []
 
-def is_network_error(e: BaseException) -> bool:
-    code = get_errno_code(e)
-    return code in ('ECONNRESET', 'ETIMEDOUT', 'ECONNREFUSED', 'ENOTFOUND', 'EHOSTUNREACH')
 
-# ============================================================================
-# 错误消息处理
-# ============================================================================
+def log_error(error: Exception | str) -> None:
+    """
+    记录错误
+    
+    Args:
+        error: 异常或错误字符串
+    """
+    import traceback
+    from datetime import datetime, timezone
+    
+    if isinstance(error, str):
+        _error_log.append({
+            "error": error,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "type": "string",
+        })
+    else:
+        _error_log.append({
+            "error": str(error),
+            "type": type(error).__name__,
+            "traceback": traceback.format_exc(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        })
 
-def error_message(e: BaseException) -> str:
-    if isinstance(e, Exception):
-        return str(e)
-    return repr(e)
 
-def to_error(e: Any) -> BaseException:
-    if isinstance(e, BaseException):
-        return e
-    return Exception(str(e))
+def get_error_log(limit: int = 100) -> list[dict]:
+    """
+    获取错误日志
+    
+    Args:
+        limit: 返回数量限制
+        
+    Returns:
+        错误日志列表
+    """
+    return _error_log[-limit:]
 
-def short_error_stack(e: BaseException, max_frames: int = 5) -> str:
-    if not isinstance(e, Exception):
-        return str(e)
-    stack = traceback.format_exception(type(e), e, e.__traceback__)
-    stack_str = ''.join(stack)
-    if stack_str.count('\n') <= max_frames + 2:
-        return stack_str
-    lines = stack_str.split('\n')
-    header_lines = []
-    frame_lines = []
-    in_frames = False
-    for line in lines:
-        if line.startswith('  '):
-            in_frames = True
-        if in_frames:
-            if line.strip().startswith('File ') or line.strip().startswith('  '):
-                frame_lines.append(line)
-        else:
-            header_lines.append(line)
-    frames = frame_lines[:max_frames]
-    return '\n'.join(header_lines + frames)
 
-# ============================================================================
-# HTTP 错误分类
-# ============================================================================
+def clear_error_log() -> None:
+    """清空错误日志"""
+    _error_log.clear()
 
-@dataclass
-class HTTPErrorInfo:
-    kind: HTTPErrorKind
-    status: Optional[int]
-    message: str
 
-def classify_axios_error(e: BaseException) -> HTTPErrorInfo:
-    message = error_message(e)
-    if hasattr(e, 'response') and isinstance(e.response, dict):
-        status = e.response.get('status')
-        if status in (401, 403):
-            return HTTPErrorInfo(HTTPErrorKind.AUTH, status, message)
-    code = get_errno_code(e)
-    if code in ('ECONNABORTED', 'ETIMEDOUT'):
-        return HTTPErrorInfo(HTTPErrorKind.TIMEOUT, None, message)
-    if code in ('ECONNREFUSED', 'ENOTFOUND', 'EHOSTUNREACH', 'ECONNRESET'):
-        return HTTPErrorInfo(HTTPErrorKind.NETWORK, None, message)
-    if hasattr(e, 'status') and isinstance(e.status, int):
-        return HTTPErrorInfo(HTTPErrorKind.HTTP, e.status, message)
-    return HTTPErrorInfo(HTTPErrorKind.OTHER, None, message)
-
-def wrap_network_error(e: BaseException, context: str = "") -> NetworkError:
-    info = classify_axios_error(e)
-    msg = f"{context}: {info.message}" if context else info.message
-    return NetworkError(msg, info.kind)
-
-def wrap_api_error(e: BaseException, context: str = "") -> APIError:
-    message = error_message(e)
-    status = None
-    if hasattr(e, 'response') and isinstance(e.response, dict):
-        status = e.response.get('status')
-    msg = f"{context}: {message}" if context else message
-    return APIError(msg, status)
+# 导出
+__all__ = [
+    "ClaudeError",
+    "MalformedCommandError",
+    "AbortError",
+    "is_abort_error",
+    "ConfigParseError",
+    "ShellError",
+    "TeleportOperationError",
+    "TelemetrySafeError",
+    "APIError",
+    "ToolError",
+    "PermissionError",
+    "log_error",
+    "get_error_log",
+    "clear_error_log",
+]

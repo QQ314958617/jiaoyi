@@ -144,3 +144,9 @@
 |---|------|---------|------|------|
 | 79 | 显示标签 | `src/utils/displayTags.ts` | display_tags.py | ✅ |
 | 80 | 数组工具 | `src/utils/array.ts` | array_utils.py | ✅ |
+
+## 第70批（2026-04-04 09:10）
+| # | 模块 | 源码文件 | 落地 | 状态 |
+|---|------|---------|------|------|
+| 81 | 二进制检查 | `src/utils/binaryCheck.ts` | binary_check.py | ✅ |
+| 82 | UUID工具 | `src/utils/uuid.ts` | uuid_utils.py | ✅ |
