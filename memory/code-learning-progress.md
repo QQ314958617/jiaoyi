@@ -591,3 +591,10 @@
 | 229 | 累加器 | `src/utils/accumulator.ts` | accumulator.py | ✅ |
 | 230 | 构建器 | `src/utils/builder.ts` | builder.py | ✅ |
 | 231 | 注册表 | `src/utils/registry.ts` | registry.py | ✅ |
+
+## 第144批（2026-04-04 12:10】
+| # | 模块 | 源码文件 | 落地 | 状态 |
+|---|------|---------|------|------|
+| 232 | 观察者 | `src/utils/observer.ts` | observer.py | ✅ |
+| 233 | 状态机 | `src/utils/state.ts` | state.py | ✅ |
+| 234 | 流程控制 | `src/utils/flow.ts` | flow.py | ✅ |

@@ -1,199 +1,214 @@
 """
-Format Utilities - 格式化工具
+Format - 格式化
 基于 Claude Code format.ts 设计
 
-提供各种格式化函数：文件大小、时长、日期等。
+格式化工具。
 """
-from datetime import datetime, timezone, timedelta
-from typing import Optional
+from typing import Any
 
 
-def format_file_size(size_in_bytes: int) -> str:
+def format_size(bytes: int) -> str:
     """
-    格式化文件大小为人类可读字符串
+    格式化字节大小
     
     Args:
-        size_in_bytes: 字节数
+        bytes: 字节数
         
     Returns:
-        格式化后的大小字符串 (e.g., "1.5KB", "2.3MB")
+        格式化字符串 (如 "1.5 MB")
     """
-    if size_in_bytes < 1024:
-        return f"{size_in_bytes} bytes"
+    units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB']
+    size = float(bytes)
+    unit_index = 0
     
-    kb = size_in_bytes / 1024
-    if kb < 1024:
-        result = f"{kb:.1f}KB"
-        return result.rstrip('0').rstrip('.')
+    while size >= 1024 and unit_index < len(units) - 1:
+        size /= 1024
+        unit_index += 1
     
-    mb = kb / 1024
-    if mb < 1024:
-        result = f"{mb:.1f}MB"
-        return result.rstrip('0').rstrip('.')
+    if unit_index == 0:
+        return f"{int(size)} {units[unit_index]}"
     
-    gb = mb / 1024
-    result = f"{gb:.1f}GB"
-    return result.rstrip('0').rstrip('.')
+    return f"{size:.2f} {units[unit_index]}"
 
 
-def format_seconds_short(ms: float) -> str:
-    """
-    格式化毫秒为秒（保留1位小数）
-    
-    Args:
-        ms: 毫秒数
-        
-    Returns:
-        格式化后的秒数字符串 (e.g., "1.2s")
-    """
-    return f"{(ms / 1000):.1f}s"
-
-
-def format_duration(
-    ms: float,
-    hide_trailing_zeros: bool = False,
-    most_significant_only: bool = False,
-) -> str:
+def format_duration(seconds: float) -> str:
     """
     格式化时长
     
     Args:
-        ms: 毫秒数
-        hide_trailing_zeros: 隐藏尾部0
-        most_significant_only: 只显示最高单位
+        seconds: 秒数
         
     Returns:
-        格式化后的时长字符串 (e.g., "1h 30m", "2d")
+        格式化字符串 (如 "1h 30m")
     """
-    if ms < 60000:  # < 1分钟
-        if ms == 0:
-            return "0s"
-        if ms < 1:
-            return f"{(ms / 1000):.1f}s"
-        return f"{int(ms // 1000)}s"
+    if seconds < 60:
+        return f"{seconds:.1f}s"
     
-    # 计算各单元
-    days = int(ms // 86400000)
-    hours = int((ms % 86400000) // 3600000)
-    minutes = int((ms % 3600000) // 60000)
-    seconds = round((ms % 60000) / 1000)
+    minutes = int(seconds // 60)
+    seconds = seconds % 60
     
-    # 处理进位
-    if seconds == 60:
-        seconds = 0
-        minutes += 1
-    if minutes == 60:
-        minutes = 0
-        hours += 1
-    if hours == 24:
-        hours = 0
-        days += 1
+    if minutes < 60:
+        return f"{minutes}m {seconds:.0f}s"
     
-    # 只显示最高单位
-    if most_significant_only:
-        if days > 0:
-            return f"{days}d"
-        if hours > 0:
-            return f"{hours}h"
-        if minutes > 0:
-            return f"{minutes}m"
-        return f"{seconds}s"
+    hours = minutes // 60
+    minutes = minutes % 60
     
-    # 构建完整格式
-    parts = []
-    if days > 0:
-        parts.append(f"{days}d")
-    if hours > 0:
-        parts.append(f"{hours}h")
-    if minutes > 0:
-        parts.append(f"{minutes}m")
-    if seconds > 0 or not parts:
-        parts.append(f"{seconds}s")
+    if hours < 24:
+        return f"{hours}h {minutes}m"
     
-    return " ".join(parts)
+    days = hours // 24
+    hours = hours % 24
+    
+    return f"{days}d {hours}h"
 
 
-def format_relative_time(
-    timestamp: float | datetime,
-    timezone_str: str = "UTC",
+def format_number(num: float, decimals: int = 2) -> str:
+    """
+    格式化数字
+    
+    Args:
+        num: 数字
+        decimals: 小数位数
+        
+    Returns:
+        格式化字符串
+    """
+    return f"{num:,.{decimals}f}"
+
+
+def format_percent(value: float, decimals: int = 1) -> str:
+    """
+    格式化百分比
+    
+    Args:
+        value: 值 (0-1 或 0-100)
+        decimals: 小数位数
+        
+    Returns:
+        百分比字符串
+    """
+    if value <= 1:
+        value *= 100
+    return f"{value:.{decimals}f}%"
+
+
+def format_currency(
+    amount: float,
+    symbol: str = '¥',
+    decimals: int = 2,
 ) -> str:
     """
-    格式化相对时间
+    格式化货币
     
     Args:
-        timestamp: Unix时间戳或datetime对象
-        timezone_str: 时区
+        amount: 金额
+        symbol: 货币符号
+        decimals: 小数位数
         
     Returns:
-        相对时间字符串 (e.g., "2 hours ago", "in 3 days")
+        货币字符串
     """
-    if isinstance(timestamp, (int, float)):
-        dt = datetime.fromtimestamp(timestamp, tz=timezone.utc)
-    else:
-        dt = timestamp
-    
-    now = datetime.now(timezone.utc)
-    diff = now - dt
-    
-    seconds = diff.total_seconds()
-    
-    if seconds < 0:
-        # 未来时间
-        seconds = -seconds
-        if seconds < 60:
-            return "in a moment"
-        if seconds < 3600:
-            mins = int(seconds / 60)
-            return f"in {mins} minute{'s' if mins != 1 else ''}"
-        if seconds < 86400:
-            hours = int(seconds / 3600)
-            return f"in {hours} hour{'s' if hours != 1 else ''}"
-        days = int(seconds / 86400)
-        return f"in {days} day{'s' if days != 1 else ''}"
-    else:
-        # 过去时间
-        if seconds < 60:
-            return "just now"
-        if seconds < 3600:
-            mins = int(seconds / 60)
-            return f"{mins} minute{'s' if mins != 1 else ''} ago"
-        if seconds < 86400:
-            hours = int(seconds / 3600)
-            return f"{hours} hour{'s' if hours != 1 else ''} ago"
-        days = int(seconds / 86400)
-        if days == 1:
-            return "yesterday"
-        if days < 30:
-            return f"{days} days ago"
-        if days < 365:
-            months = int(days / 30)
-            return f"{months} month{'s' if months != 1 else ''} ago"
-        years = int(days / 365)
-        return f"{years} year{'s' if years != 1 else ''} ago"
+    return f"{symbol}{amount:,.{decimals}f}"
 
 
-def truncate_string(s: str, max_length: int, suffix: str = "...") -> str:
+def format_date(date_obj, fmt: str = '%Y-%m-%d') -> str:
     """
-    截断字符串
+    格式化日期
     
     Args:
-        s: 要截断的字符串
-        max_length: 最大长度
+        date_obj: 日期对象
+        fmt: 格式字符串
+        
+    Returns:
+        格式化字符串
+    """
+    return date_obj.strftime(fmt)
+
+
+def format_list(items: list, separator: str = ', ', last_separator: str = ' and ') -> str:
+    """
+    格式化列表为可读字符串
+    
+    Args:
+        items: 项目列表
+        separator: 分隔符
+        last_separator: 最后一个分隔符
+        
+    Returns:
+        格式化字符串
+    """
+    if not items:
+        return ''
+    
+    if len(items) == 1:
+        return str(items[0])
+    
+    if len(items) == 2:
+        return f"{items[0]}{last_separator}{items[1]}"
+    
+    return separator.join(str(item) for item in items[:-1]) + last_separator + str(items[-1])
+
+
+def format_phone(phone: str) -> str:
+    """
+    格式化手机号
+    
+    Args:
+        phone: 手机号
+        
+    Returns:
+        格式化字符串 (如 "138-1234-5678")
+    """
+    digits = ''.join(c for c in phone if c.isdigit())
+    
+    if len(digits) == 11:
+        return f"{digits[:3]}-{digits[3:7]}-{digits[7:]}"
+    
+    return phone
+
+
+def truncate(text: str, length: int, suffix: str = '...') -> str:
+    """
+    截断文本
+    
+    Args:
+        text: 文本
+        length: 最大长度
         suffix: 后缀
         
     Returns:
         截断后的字符串
     """
-    if len(s) <= max_length:
-        return s
-    return s[:max_length - len(suffix)] + suffix
+    if len(text) <= length:
+        return text
+    
+    return text[:length - len(suffix)] + suffix
+
+
+def camel_to_snake(text: str) -> str:
+    """驼峰转蛇形"""
+    import re
+    s1 = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', text)
+    return re.sub('([a-z0-9])([A-Z])', r'\1_\2', s1).lower()
+
+
+def snake_to_camel(text: str) -> str:
+    """蛇形转驼峰"""
+    components = text.split('_')
+    return components[0] + ''.join(x.title() for x in components[1:])
 
 
 # 导出
 __all__ = [
-    "format_file_size",
-    "format_seconds_short",
+    "format_size",
     "format_duration",
-    "format_relative_time",
-    "truncate_string",
+    "format_number",
+    "format_percent",
+    "format_currency",
+    "format_date",
+    "format_list",
+    "format_phone",
+    "truncate",
+    "camel_to_snake",
+    "snake_to_camel",
 ]
