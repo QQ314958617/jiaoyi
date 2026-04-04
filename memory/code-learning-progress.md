@@ -641,3 +641,10 @@
 | 247 | 堆 | `src/utils/heap.ts` | heap.py | ✅ |
 | 248 | 版本 | `src/utils/version.ts` | version.py | ✅ |
 | 249 | YAML | `src/utils/yaml.ts` | yaml.py | ✅ |
+
+## 第152批（2026-04-04 13:05】
+| # | 模块 | 源码文件 | 落地 | 状态 |
+|---|------|---------|------|------|
+| 250 | TOML解析 | `src/utils/toml.ts` | toml.py | ✅ |
+| 251 | URI工具 | `src/utils/uri.ts` | uri.py | ✅ |
+| 252 | Base64 | `src/utils/base64.ts` | base64.py | ✅ |
