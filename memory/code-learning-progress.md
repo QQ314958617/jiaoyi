@@ -920,3 +920,8 @@
 |---|------|---------|------|------|
 | 355 | 浏览器工具 | `src/utils/browser.ts` | browser.py | ✅ |
 | 356 | 代码索引检测 | `src/utils/codeIndexing.ts` | code_indexing.py | ✅ |
+
+## 第195批（2026-04-05 20:01】
+| # | 模块 | 源码文件 | 落地 | 状态 |
+|---|------|---------|------|------|
+| 357 | 启动分析器 | `src/utils/startupProfiler.ts` | startup_profiler.py | ✅ |
