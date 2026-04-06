@@ -925,3 +925,8 @@
 | # | 模块 | 源码文件 | 落地 | 状态 |
 |---|------|---------|------|------|
 | 357 | 启动分析器 | `src/utils/startupProfiler.ts` | startup_profiler.py | ✅ |
+
+## 第196批（2026-04-06 20:01】
+| # | 模块 | 源码文件 | 落地 | 状态 |
+|---|------|---------|------|------|
+| 358 | Perfetto追踪 | `src/utils/telemetry/perfettoTracing.ts` | perfetto_tracing.py | ✅ |
