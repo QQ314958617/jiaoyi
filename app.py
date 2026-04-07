@@ -1562,55 +1562,69 @@ def get_multi_indices():
 @app.route('/api/market/hot-sectors', methods=['GET'])
 def get_hot_sectors():
     """
-    获取实时热点板块
-    优先使用真实数据，失败时返回代表性示例数据
+    获取实时热点板块 - 使用新浪API
     """
     try:
-        # 使用东方财富板块排行API
-        url = "https://push2.eastmoney.com/api/qt/clist/get"
-        params = {
-            'pn': 1,
-            'pz': 50,
-            'po': 1,
-            'np': 1,
-            'ut': 'bd1d9ddb04089700cf9c27f6f7426281',
-            'fltt': 2,
-            'invt': 2,
-            'fid': 'f3',
-            'fs': 'm:90+t:2+f:!50',  # 行业板块，按涨幅排序
-            'fields': 'f12,f14,f3,f5',
-        }
+        # 使用新浪行业板块API
+        url = "https://vip.stock.finance.sina.com.cn/q/view/newFLJK.php"
+        params = {'param': 'class=hy'}
         
         headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
-            'Referer': 'https://quote.eastmoney.com/'
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            'Referer': 'https://finance.sina.com.cn/'
         }
         
         r = requests.get(url, params=params, headers=headers, timeout=5)
-        data = r.json()
+        text = r.text
         
-        sectors = data.get('data', {}).get('diff', [])
+        # 解析JavaScript格式数据
+        import re
+        # 格式: var S_Finance_bankuai_class=hy = {...}
+        match = re.search(r'S_Finance_bankuai_class=hy\s*=\s*(\{.*\})', text)
+        if not match:
+            raise ValueError("无法解析板块数据")
+        
+        import ast
+        # 将JavaScript对象转换为Python dict
+        js_str = match.group(1)
+        # 简单解析：提取各板块数据
+        sectors_raw = re.findall(r'hangye_(\w+)"[^"]*"([^"]*)', js_str)
+        
+        sectors = []
+        for prefix, data_str in sectors_raw:
+            parts = data_str.split(',')
+            if len(parts) >= 5:
+                name = parts[1]  # 板块名
+                try:
+                    change_pct = float(parts[4]) if parts[4] else 0  # 涨跌幅
+                except:
+                    change_pct = 0
+                
+                if name and len(name) > 1:  # 过滤无效
+                    sectors.append({
+                        'name': name,
+                        'change_pct': change_pct,
+                    })
+        
+        # 按涨跌幅排序
+        sectors.sort(key=lambda x: abs(x['change_pct']), reverse=True)
+        
+        # 取前10
         result = []
-        
         for i, s in enumerate(sectors[:10]):
-            code = s.get('f12', '')
-            name = s.get('f14', '')
-            change_pct = s.get('f3', 0)
-            
-            if name:
-                result.append({
-                    'rank': i + 1,
-                    'code': code,
-                    'name': name,
-                    'change_pct': change_pct,
-                    'direction': 'up' if change_pct > 0 else 'down',
-                })
+            result.append({
+                'rank': i + 1,
+                'code': '',
+                'name': s['name'],
+                'change_pct': round(s['change_pct'], 2),
+                'direction': 'up' if s['change_pct'] > 0 else 'down',
+            })
         
         return jsonify({
             'success': True,
             'timestamp': datetime.now().strftime('%H:%M:%S'),
             'sectors': result,
-            'source': 'eastmoney',
+            'source': 'sina',
         })
         
     except Exception as e:
