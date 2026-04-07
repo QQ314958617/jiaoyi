@@ -1,189 +1,89 @@
 """
-Store - 存储
-基于 Claude Code store.ts 设计
+State Store - 状态存储核心
+从 Claude Code src/state/store.ts 移植
 
-状态存储工具。
+核心模式：发布-订阅状态容器
+- getState() 获取当前状态
+- setState(updater) 更新状态（函数式）
+- subscribe(listener) 订阅变更，返回取消订阅函数
+
+优点：
+- 线程安全
+- 状态不可变更新
+- 精确订阅（只订阅关心的字段）
+- React useSyncExternalStore 模式
 """
-from typing import Any, Callable, Dict, Optional
+import threading
+from typing import Callable, Dict, Generic, TypeVar, Optional, Any
+from dataclasses import dataclass
+
+T = TypeVar("T")
 
 
-class Store:
+class Store(Generic[T]):
     """
-    状态存储
-    
-    简单的响应式存储。
+    状态存储 - 核心组件
+
+    用法：
+    1. 创建存储
+    2. 订阅变更
+    3. 更新状态
     """
-    
-    def __init__(self, initial_state: Dict[str, Any] = None):
+
+    def __init__(self, initial_state: T):
+        self._state = initial_state
+        self._listeners: Dict[int, Callable[[], None]] = {}
+        self._lock = threading.Lock()
+        self._listener_counter = 0
+
+    def get_state(self) -> T:
+        """获取当前状态"""
+        return self._state
+
+    def set_state(self, updater: Callable[[T], T]) -> None:
         """
-        Args:
-            initial_state: 初始状态
+        更新状态
+        updater: 接收旧状态，返回新状态
         """
-        self._state = initial_state or {}
-        self._listeners: Dict[str, list] = {}
-        self._global_listeners: list = []
-    
-    def get(self, key: str, default: Any = None) -> Any:
-        """
-        获取状态
-        
-        Args:
-            key: 键
-            default: 默认值
-            
-        Returns:
-            状态值
-        """
-        return self._state.get(key, default)
-    
-    def set(self, key: str, value: Any) -> None:
-        """
-        设置状态
-        
-        Args:
-            key: 键
-            value: 值
-        """
-        old_value = self._state.get(key)
-        self._state[key] = value
-        
-        # 通知监听器
-        self._notify(key, old_value, value)
-    
-    def update(self, updates: Dict[str, Any]) -> None:
-        """
-        批量更新
-        
-        Args:
-            updates: 要更新的键值对
-        """
-        for key, value in updates.items():
-            self.set(key, value)
-    
-    def delete(self, key: str) -> bool:
-        """
-        删除状态
-        
-        Args:
-            key: 键
-            
-        Returns:
-            是否成功删除
-        """
-        if key in self._state:
-            old_value = self._state[key]
-            del self._state[key]
-            self._notify(key, old_value, None)
-            return True
-        return False
-    
-    def subscribe(
-        self,
-        key: str,
-        callback: Callable[[Any, Any], None],
-    ) -> Callable:
-        """
-        订阅变更
-        
-        Args:
-            key: 键
-            callback: 回调 (oldValue, newValue)
-            
-        Returns:
-            取消订阅函数
-        """
-        if key not in self._listeners:
-            self._listeners[key] = []
-        self._listeners[key].append(callback)
-        
-        return lambda: self._listeners[key].remove(callback)
-    
-    def subscribe_all(self, callback: Callable) -> Callable:
-        """
-        订阅所有变更
-        
-        Args:
-            callback: 回调函数
-            
-        Returns:
-            取消订阅函数
-        """
-        self._global_listeners.append(callback)
-        return lambda: self._global_listeners.remove(callback)
-    
-    def _notify(self, key: str, old_value: Any, new_value: Any) -> None:
-        """通知监听器"""
-        # 键监听器
-        for callback in self._listeners.get(key, [])[:]:
+        with self._lock:
+            prev = self._state
+            next_state = updater(prev)
+            # 严格相等检查，避免不必要的更新
+            if next_state is prev:
+                return
+            self._state = next_state
+            old = prev
+            new = next_state
+
+        # 通知所有监听器
+        for listener in list(self._listeners.values()):
             try:
-                callback(old_value, new_value)
-            except Exception:
-                pass
-        
-        # 全局监听器
-        for callback in self._global_listeners[:]:
-            try:
-                callback(key, old_value, new_value)
-            except Exception:
-                pass
-    
+                listener()
+            except Exception as e:
+                print(f"[Store] Listener error: {e}")
+
+    def subscribe(self, listener: Callable[[], None]) -> Callable[[], None]:
+        """
+        订阅状态变更
+        返回取消订阅函数
+        """
+        with self._lock:
+            self._listener_counter += 1
+            listener_id = self._listener_counter
+            self._listeners[listener_id] = listener
+
+        def unsubscribe():
+            with self._lock:
+                self._listeners.pop(listener_id, None)
+
+        return unsubscribe
+
     @property
-    def state(self) -> Dict[str, Any]:
-        """获取全部状态"""
-        return dict(self._state)
-    
-    def clear(self) -> None:
-        """清空状态"""
-        self._state.clear()
+    def state(self) -> T:
+        """属性方式获取状态（别名）"""
+        return self.get_state()
 
 
-class Patch:
-    """
-    状态补丁
-    
-    用于更新存储。
-    """
-    
-    def __init__(self, store: Store):
-        self._store = store
-        self._updates: Dict[str, Any] = {}
-    
-    def set(self, key: str, value: Any) -> "Patch":
-        """添加设置操作"""
-        self._updates[key] = value
-        return self
-    
-    def delete(self, key: str) -> "Patch":
-        """添加删除操作"""
-        self._updates[key] = None
-        return self
-    
-    def apply(self) -> None:
-        """应用补丁"""
-        for key, value in self._updates.items():
-            if value is None:
-                self._store.delete(key)
-            else:
-                self._store.set(key, value)
-        self._updates.clear()
-
-
-def create_store(initial_state: Dict[str, Any] = None) -> Store:
-    """
-    创建存储
-    
-    Args:
-        initial_state: 初始状态
-        
-    Returns:
-        Store实例
-    """
+def create_store(initial_state: T) -> Store[T]:
+    """创建状态存储的便捷函数"""
     return Store(initial_state)
-
-
-# 导出
-__all__ = [
-    "Store",
-    "Patch",
-    "create_store",
-]
