@@ -422,6 +422,121 @@
         }
         .btn-ai:hover { opacity: 0.9; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(59,130,246,0.3); }
 
+        /* Market Analysis Panel */
+        .indices-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        @media (max-width: 992px) {
+            .indices-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+        @media (max-width: 576px) {
+            .indices-grid { grid-template-columns: 1fr; }
+        }
+        
+        .index-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1rem;
+            text-align: center;
+        }
+        .index-card.up { border-color: var(--accent-green); }
+        .index-card.down { border-color: var(--accent-red); }
+        .index-name { font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.5rem; }
+        .index-price { font-size: 1.5rem; font-weight: 700; color: var(--text-primary); }
+        .index-change { font-size: 0.875rem; font-weight: 600; margin-top: 0.25rem; }
+        .index-change.up { color: var(--accent-green); }
+        .index-change.down { color: var(--accent-red); }
+        .index-ma { font-size: 0.7rem; color: var(--text-muted); margin-top: 0.5rem; }
+        .index-status { font-size: 0.7rem; margin-top: 0.25rem; }
+        .index-status.yes { color: var(--accent-green); }
+        .index-status.no { color: var(--accent-red); }
+        .loading-card { display: flex; align-items: center; justify-content: center; min-height: 120px; }
+        .index-loading { color: var(--text-muted); }
+        
+        .analysis-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        @media (max-width: 768px) {
+            .analysis-grid { grid-template-columns: 1fr; }
+        }
+        
+        .section-title {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid var(--border);
+        }
+        
+        .analysis-section { margin-bottom: 1rem; }
+        .analysis-label { font-size: 0.75rem; color: var(--accent-blue); font-weight: 600; margin-bottom: 0.5rem; }
+        .analysis-item { font-size: 0.8rem; color: var(--text-secondary); padding: 0.25rem 0; }
+        .analysis-conclusion {
+            background: var(--bg-primary);
+            border-radius: 8px;
+            padding: 1rem;
+            text-align: center;
+            margin-top: 1rem;
+        }
+        .conclusion-signal { font-size: 1.25rem; margin-right: 0.5rem; }
+        .conclusion-text { font-size: 0.875rem; color: var(--text-secondary); }
+        
+        .hot-list { max-height: 280px; overflow-y: auto; }
+        .hot-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid var(--border);
+        }
+        .hot-item:last-child { border-bottom: none; }
+        .hot-rank { 
+            width: 1.5rem; height: 1.5rem; border-radius: 50%; 
+            background: var(--bg-primary); 
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.7rem; font-weight: 700; margin-right: 0.75rem;
+        }
+        .hot-rank.top { background: var(--accent-orange); color: white; }
+        .hot-name { flex: 1; font-size: 0.875rem; font-weight: 500; }
+        .hot-change { font-size: 0.875rem; font-weight: 600; }
+        .hot-change.up { color: var(--accent-green); }
+        .hot-change.down { color: var(--accent-red); }
+        .hot-loading { text-align: center; padding: 2rem; color: var(--text-muted); }
+        
+        .comments-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        @media (max-width: 768px) {
+            .comments-grid { grid-template-columns: 1fr; }
+        }
+        
+        .comment-card { min-height: 200px; }
+        .comment-time { font-size: 0.75rem; color: var(--text-muted); font-weight: normal; }
+        .comment-content { font-size: 0.875rem; color: var(--text-secondary); line-height: 1.6; margin: 1rem 0; }
+        .comment-placeholder { color: var(--text-muted); font-style: italic; }
+        .btn-comment {
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-comment:hover { border-color: var(--accent-blue); color: var(--accent-blue); }
+
         /* Market List */
         .market-item {
             display: flex;
@@ -590,6 +705,7 @@
             <button class="nav-tab active" onclick="switchTab('positions')">📊 持仓</button>
             <button class="nav-tab" onclick="switchTab('trades')">📜 交易</button>
             <button class="nav-tab" onclick="switchTab('market')">🔥 市场</button>
+            <button class="nav-tab" onclick="switchTab('market-analysis')">📈 大盘</button>
             <button class="nav-tab" onclick="switchTab('review')">📝 复盘</button>
             <button class="nav-tab" onclick="switchTab('ai')">🤖 AI交易</button>
         </div>
@@ -676,6 +792,67 @@
                 <div style="margin-top:1rem;display:flex;gap:0.75rem">
                     <button class="btn-ai" onclick="aiAnalyze()">🧠 AI分析</button>
                     <button class="btn-ai" onclick="aiAutoTrade()">⚡ AI自动交易</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Market Analysis Panel -->
+        <div class="tab-panel" id="panel-market-analysis">
+            <!-- Multi-Index Display -->
+            <div class="indices-grid" id="indices-grid">
+                <div class="index-card loading-card">
+                    <div class="index-loading">加载中...</div>
+                </div>
+            </div>
+
+            <!-- Analysis and Hot Sectors Grid -->
+            <div class="analysis-grid">
+                <!-- Real-time Market Analysis -->
+                <div class="card analysis-card">
+                    <h4 class="section-title">🔍 实时大盘分析</h4>
+                    <div class="analysis-content" id="analysis-content">
+                        <div class="analysis-section">
+                            <div class="analysis-label">【技术面】</div>
+                            <div class="analysis-item" id="tech-ma5">• 指数站稳5日线：--</div>
+                            <div class="analysis-item" id="tech-ma10">• MA5 > MA10：--</div>
+                            <div class="analysis-item" id="tech-trend">• 趋势：--</div>
+                        </div>
+                        <div class="analysis-section">
+                            <div class="analysis-label">【情绪面】</div>
+                            <div class="analysis-item" id="sentiment-breadth">• 市场广度：--</div>
+                            <div class="analysis-item" id="sentiment-volume">• 成交量：--</div>
+                        </div>
+                        <div class="analysis-conclusion" id="analysis-conclusion">
+                            <span class="conclusion-signal">--</span>
+                            <span class="conclusion-text">综合结论加载中...</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Hot Sectors -->
+                <div class="card hot-card">
+                    <h4 class="section-title">🔥 实时热点板块</h4>
+                    <div class="hot-list" id="hot-list">
+                        <div class="hot-loading">加载中...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Lunch/Closing Comments -->
+            <div class="comments-grid">
+                <div class="card comment-card">
+                    <h4 class="section-title">📝 午盘点评 <span class="comment-time" id="lunch-time">--:--</span></h4>
+                    <div class="comment-content" id="lunch-comment">
+                        <p class="comment-placeholder">午盘点评将在11:30自动生成</p>
+                    </div>
+                    <button class="btn-comment" onclick="generateComment('lunch')">🖊️ 手动生成</button>
+                </div>
+                <div class="card comment-card">
+                    <h4 class="section-title">📝 尾盘点评 <span class="comment-time" id="closing-time">--:--</span></h4>
+                    <div class="comment-content" id="closing-comment">
+                        <p class="comment-placeholder">尾盘点评将在14:57自动生成</p>
+                    </div>
+                    <button class="btn-comment" onclick="generateComment('closing')">🖊️ 手动生成</button>
                 </div>
             </div>
         </div>
@@ -980,9 +1157,166 @@
         async function refreshAll() {
             const icon = document.getElementById('refresh-icon');
             icon.classList.add('spinning');
-            await Promise.all([loadPortfolio(), loadTrades(), loadReviews()]);
+            await Promise.all([loadPortfolio(), loadTrades(), loadReviews(), loadIndices(), loadMarketAnalysis(), loadHotSectors()]);
             setTimeout(() => icon.classList.remove('spinning'), 500);
         }
+
+        // Load Multi-Index Data
+        async function loadIndices() {
+            try {
+                const res = await fetch('/api/market/indices');
+                const data = await res.json();
+                if (!data.success) return;
+                
+                const grid = document.getElementById('indices-grid');
+                if (!data.indices || data.indices.length === 0) {
+                    grid.innerHTML = '<div class="index-card"><div class="index-loading">暂无数据</div></div>';
+                    return;
+                }
+                
+                grid.innerHTML = data.indices.map(idx => {
+                    const isUp = idx.change_pct >= 0;
+                    const aboveMa5 = idx.above_ma5;
+                    const ma5AboveMa10 = idx.ma5_above_ma10;
+                    return `
+                        <div class="index-card ${isUp ? 'up' : 'down'}">
+                            <div class="index-name">${idx.name}</div>
+                            <div class="index-price">${idx.price.toLocaleString()}</div>
+                            <div class="index-change ${isUp ? 'up' : 'down'}">
+                                ${isUp ? '↑' : '↓'} ${Math.abs(idx.change_pct).toFixed(2)}%
+                            </div>
+                            <div class="index-ma">MA5: ${idx.ma5 || '--'} | MA10: ${idx.ma10 || '--'}</div>
+                            <div class="index-status ${aboveMa5 ? 'yes' : 'no'}">
+                                ${aboveMa5 ? '✅ 站上5日线' : '❌ 跌破5日线'}
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            } catch (e) {
+                console.error('loadIndices error:', e);
+            }
+        }
+
+        // Load Market Analysis
+        async function loadMarketAnalysis() {
+            try {
+                const res = await fetch('/api/market/analyze');
+                const data = await res.json();
+                if (!data.success) return;
+                
+                // Update technical indicators
+                const mainIdx = data.indices && data.indices[0];
+                if (mainIdx) {
+                    document.getElementById('tech-ma5').textContent = `• 指数站稳5日线：${mainIdx.above_ma5 ? '✅' : '❌'}`;
+                    document.getElementById('tech-ma10').textContent = `• MA5 > MA10：${mainIdx.ma5_above_ma10 ? '✅ 多头排列' : '❌ 空头排列'}`;
+                    document.getElementById('tech-trend').textContent = `• 趋势：${data.technical?.trend || '--'}`;
+                }
+                
+                // Update sentiment
+                document.getElementById('sentiment-breadth').textContent = `• 市场广度：${data.sentiment?.market_breadth || '--'}`;
+                document.getElementById('sentiment-volume').textContent = `• 成交量：${data.volume ? (data.volume/100000000).toFixed(2) + '亿' : '--'}`;
+                
+                // Update conclusion
+                if (data.conclusion) {
+                    document.getElementById('analysis-conclusion').innerHTML = `
+                        <span class="conclusion-signal">${data.conclusion.signal || '--'}</span>
+                        <span class="conclusion-text">${data.conclusion.suggestion || '--'} · ${data.conclusion.reason || ''}</span>
+                    `;
+                }
+            } catch (e) {
+                console.error('loadMarketAnalysis error:', e);
+            }
+        }
+
+        // Load Hot Sectors
+        async function loadHotSectors() {
+            try {
+                const res = await fetch('/api/market/hot-sectors');
+                const data = await res.json();
+                if (!data.success) return;
+                
+                const list = document.getElementById('hot-list');
+                if (!data.sectors || data.sectors.length === 0) {
+                    list.innerHTML = '<div class="hot-loading">暂无热点数据</div>';
+                    return;
+                }
+                
+                list.innerHTML = data.sectors.map((s, i) => `
+                    <div class="hot-item">
+                        <div style="display:flex;align-items:center;">
+                            <div class="hot-rank ${i < 3 ? 'top' : ''}">${s.rank}</div>
+                            <div class="hot-name">${s.name}</div>
+                        </div>
+                        <div class="hot-change ${s.direction === 'up' ? 'up' : 'down'}">
+                            ${s.direction === 'up' ? '+' : ''}${s.change_pct?.toFixed(2) || 0}%
+                        </div>
+                    </div>
+                `).join('');
+            } catch (e) {
+                console.error('loadHotSectors error:', e);
+            }
+        }
+
+        // Load Comments
+        async function loadComments() {
+            try {
+                // Load lunch comment
+                const lunchRes = await fetch('/api/market/comment?type=lunch');
+                const lunchData = await lunchRes.json();
+                if (lunchData.success && lunchData.comment) {
+                    document.getElementById('lunch-comment').innerHTML = `<p>${lunchData.comment.content}</p>`;
+                    document.getElementById('lunch-time').textContent = lunchData.comment.created_at?.split(' ')[1] || '';
+                }
+                
+                // Load closing comment
+                const closingRes = await fetch('/api/market/comment?type=closing');
+                const closingData = await closingRes.json();
+                if (closingData.success && closingData.comment) {
+                    document.getElementById('closing-comment').innerHTML = `<p>${closingData.comment.content}</p>`;
+                    document.getElementById('closing-time').textContent = closingData.comment.created_at?.split(' ')[1] || '';
+                }
+            } catch (e) {
+                console.error('loadComments error:', e);
+            }
+        }
+
+        // Generate Comment (placeholder - would use AI)
+        async function generateComment(type) {
+            const content = prompt(`${type === 'lunch' ? '午盘' : '尾盘'}点评内容：`);
+            if (!content) return;
+            
+            try {
+                await fetch('/api/market/comment', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({type, content, author: '蛋蛋'})
+                });
+                loadComments();
+                alert('点评已保存！');
+            } catch (e) {
+                console.error('generateComment error:', e);
+            }
+        }
+
+        // Update switchTab to handle new tab
+        const originalSwitchTab = switchTab;
+        switchTab = function(tab) {
+            originalSwitchTab(tab);
+            if (tab === 'market-analysis') {
+                loadIndices();
+                loadMarketAnalysis();
+                loadHotSectors();
+                loadComments();
+            }
+        };
+
+        // Auto-load on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            loadIndices();
+            loadMarketAnalysis();
+            loadHotSectors();
+            loadComments();
+        });
 
         // Format
         function formatMoney(n) {
