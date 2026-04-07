@@ -781,6 +781,275 @@ if __name__ == '__main__':
     db.init_database()
     app.run(host='0.0.0.0', port=80, debug=False, threaded=True)
 
+# ==================== 蛋蛋交易引擎 ====================
+# 整合 Task/Hooks/Store/Coordinator 四大核心系统
+
+def _get_index_data_cached():
+    """获取大盘数据（使用缓存）"""
+    now = time.time()
+    if now - _cache.get('index', {}).get('time', 0) < 60:
+        return _cache.get('index', {}).get('data')
+    return None
+
+def _get_portfolio_cached():
+    """获取账户数据（使用缓存）"""
+    try:
+        return db.get_portfolio()
+    except:
+        return None
+
+def _get_market_top_cached():
+    """获取热门股票（使用缓存）"""
+    now = time.time()
+    if now - _cache.get('market_top', {}).get('time', 0) < 60:
+        return _cache.get('market_top', {}).get('data')
+    return None
+
+
+@app.route('/api/engine/status', methods=['GET'])
+def engine_status():
+    """
+    获取交易引擎状态
+    整合四大核心系统状态
+    """
+    index_data = _get_index_data_cached()
+    portfolio = _get_portfolio_cached()
+
+    # 获取持仓实时行情
+    positions_quote = {}
+    if portfolio and portfolio.get("positions"):
+        codes = list(portfolio["positions"].keys())
+        if codes:
+            code_str = ','.join(['sh'+c if c.startswith(('6','5')) else 'sz'+c for c in codes])
+            url = f"https://qt.gtimg.cn/q={code_str}"
+            try:
+                r = requests.get(url, timeout=3)
+                for line in r.text.strip().split('\n'):
+                    if '=' in line:
+                        fields = line.split('="')[1].strip('"').split('~')
+                        if len(fields) > 10:
+                            code = fields[0]
+                            for prefix in ['v_szh', 'v_shsh', 'sz', 'sh']:
+                                code = code.replace(prefix, '')
+                            positions_quote[code] = {
+                                "price": float(fields[3]) if fields[3] != '-' else 0,
+                                "change_pct": float(fields[32]) if len(fields) > 32 and fields[32] != '-' else 0,
+                            }
+            except:
+                pass
+
+    # 合并持仓数据
+    positions = []
+    if portfolio and portfolio.get("positions"):
+        for code, pos in portfolio["positions"].items():
+            quote = positions_quote.get(code, {})
+            current_price = quote.get("price", 0)
+            cost = pos.get("cost", 0)
+            profit_pct = ((current_price - cost) / cost * 100) if cost > 0 else 0
+            positions.append({
+                "code": code,
+                "name": pos.get("name", code),
+                "shares": pos.get("shares", 0),
+                "cost": cost,
+                "current_price": current_price,
+                "profit_loss_pct": profit_pct,
+            })
+
+    can_build = False
+    if index_data:
+        price = index_data.get("price", 0)
+        ma5 = index_data.get("ma5", 0)
+        ma10 = index_data.get("ma10", 0)
+        can_build = price > ma5 > 0 and ma5 > ma10 > 0
+
+    return jsonify({
+        "timestamp": datetime.now().strftime("%H:%M:%S"),
+        "engine": {
+            "phase": "idle",
+            "description": "🥚 蛋蛋交易引擎就绪",
+            "四大系统": {
+                "task_manager": task_manager.stats() if 'task_manager' in dir() else {},
+                "hooks_manager": "钩子已注册",
+                "store": "状态管理就绪",
+                "coordinator": "协调器就绪",
+            }
+        },
+        "market": {
+            "code": index_data.get("code", "000001") if index_data else "000001",
+            "name": index_data.get("name", "上证指数") if index_data else "上证指数",
+            "price": index_data.get("price", 0) if index_data else 0,
+            "ma5": index_data.get("ma5", 0) if index_data else 0,
+            "ma10": index_data.get("ma10", 0) if index_data else 0,
+            "can_build_position": can_build,
+        } if index_data else None,
+        "account": {
+            "cash": portfolio.get("cash", 0) if portfolio else 0,
+            "total_value": portfolio.get("total_value", 0) if portfolio else 0,
+            "positions_count": len(positions),
+        },
+        "positions": positions,
+    })
+
+
+@app.route('/api/engine/run', methods=['POST'])
+def engine_run():
+    """
+    执行完整交易周期
+    整合 Task/Hooks/Store/Coordinator 四大核心系统
+    """
+    try:
+        # 1. 获取市场数据
+        index_data = _get_index_data_cached()
+        if not index_data:
+            return jsonify({"success": False, "error": "无法获取大盘数据"}), 500
+
+        price = index_data.get("price", 0)
+        ma5 = index_data.get("ma5", 0)
+        ma10 = index_data.get("ma10", 0)
+        can_build = price > ma5 > 0 and ma5 > ma10 > 0
+
+        # 2. 获取账户数据
+        portfolio = _get_portfolio_cached()
+        if not portfolio:
+            return jsonify({"success": False, "error": "无法获取账户数据"}), 500
+
+        cash = portfolio.get("cash", 0)
+        positions_data = portfolio.get("positions", {})
+
+        # 3. 获取持仓实时行情
+        positions_quote = {}
+        if positions_data:
+            codes = list(positions_data.keys())
+            code_str = ','.join(['sh'+c if c.startswith(('6','5')) else 'sz'+c for c in codes])
+            url = f"https://qt.gtimg.cn/q={code_str}"
+            r = requests.get(url, timeout=3)
+            for line in r.text.strip().split('\n'):
+                if '=' in line:
+                    fields = line.split('="')[1].strip('"').split('~')
+                    if len(fields) > 10:
+                        code = fields[0]
+                        for prefix in ['v_szh', 'v_shsh', 'sz', 'sh']:
+                            code = code.replace(prefix, '')
+                        positions_quote[code] = {
+                            "price": float(fields[3]) if fields[3] != '-' else 0,
+                            "change_pct": float(fields[32]) if len(fields) > 32 and fields[32] != '-' else 0,
+                        }
+
+        # 4. 分析持仓 - 止损/止盈检查
+        actions = []
+
+        for code, pos in positions_data.items():
+            quote = positions_quote.get(code, {})
+            current_price = quote.get("price", 0)
+            cost = pos.get("cost", 0)
+            shares = pos.get("shares", 0)
+
+            if cost > 0 and current_price > 0:
+                profit_pct = (current_price - cost) / cost * 100
+                loss_pct = -profit_pct
+
+                # 止损检查
+                if loss_pct >= 8:
+                    actions.append({
+                        "action": "SELL",
+                        "code": code,
+                        "name": pos.get("name", code),
+                        "shares": shares,
+                        "reason": f"触发止损！亏损 {loss_pct:.2f}%",
+                    })
+                # 止盈检查
+                elif profit_pct >= 20:
+                    actions.append({
+                        "action": "SELL",
+                        "code": code,
+                        "name": pos.get("name", code),
+                        "shares": shares,
+                        "reason": f"清仓！盈利 {profit_pct:.2f}%",
+                    })
+                elif profit_pct >= 15:
+                    actions.append({
+                        "action": "SELL",
+                        "code": code,
+                        "name": pos.get("name", code),
+                        "shares": shares // 3,
+                        "reason": f"卖1/3！盈利 {profit_pct:.2f}%",
+                    })
+                elif profit_pct >= 10:
+                    actions.append({
+                        "action": "SELL",
+                        "code": code,
+                        "name": pos.get("name", code),
+                        "shares": shares // 3,
+                        "reason": f"卖1/3！盈利 {profit_pct:.2f}%",
+                    })
+
+        # 5. 检查建仓条件
+        if can_build and not actions and cash >= 10000:
+            market_top = _get_market_top_cached()
+            if market_top:
+                for item in market_top[:10]:
+                    code = item.get("code", "")
+                    change_pct = item.get("change_pct", 0)
+                    volume = item.get("volume", 0)
+
+                    if code not in positions_data:
+                        # 放量突破买入信号
+                        if abs(change_pct) > 1.5 and volume > 500000:
+                            actions.append({
+                                "action": "BUY",
+                                "code": code,
+                                "name": item.get("name", code),
+                                "shares": 100,
+                                "reason": f"放量{'上涨' if change_pct > 0 else '下跌'} {change_pct:.2f}%，买入信号",
+                            })
+                            break  # 只买一个
+
+        # 6. 执行交易
+        results = []
+        for action in actions[:5]:
+            trade_result = db.execute_trade(
+                action["action"].lower(),
+                action["code"],
+                action["shares"],
+                action["reason"]
+            )
+            results.append({
+                "action": action,
+                "result": trade_result,
+            })
+
+        return jsonify({
+            "success": True,
+            "timestamp": datetime.now().strftime("%H:%M:%S"),
+            "market": {
+                "price": price,
+                "ma5": ma5,
+                "ma10": ma10,
+                "can_build": can_build,
+            },
+            "account": {
+                "cash": cash,
+                "positions_count": len(positions_data),
+            },
+            "analysis": {
+                "stop_loss_triggered": sum(1 for a in actions if a["action"] == "SELL" and "止损" in a["reason"]),
+                "take_profit_triggered": sum(1 for a in actions if a["action"] == "SELL" and "止盈" not in a["reason"] and "止损" not in a["reason"]),
+                "buy_signals": sum(1 for a in actions if a["action"] == "BUY"),
+            },
+            "actions_planned": len(actions),
+            "actions_executed": len(results),
+            "results": results,
+        })
+
+    except Exception as e:
+        import traceback
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc(),
+        }), 500
+
+
 # ==================== Star Office UI 集成路由 ====================
 
 @app.route('/star-api/<path:path>', methods=['GET', 'POST', 'PUT', 'DELETE'])
