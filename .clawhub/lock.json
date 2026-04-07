@@ -92,6 +92,14 @@
     "web-tools-guide": {
       "version": "1.0.0",
       "installedAt": 1775116456077
+    },
+    "eastmoney": {
+      "version": "0.1.0",
+      "installedAt": 1775532063931
+    },
+    "eastmoney-financial-search": {
+      "version": "1.0.5",
+      "installedAt": 1775532661990
     }
   }
 }

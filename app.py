@@ -1461,3 +1461,312 @@ def engine_run():
             "traceback": traceback.format_exc(),
         }), 500
 
+
+
+# ==================== 多指数行情 API ====================
+
+@app.route('/api/market/indices', methods=['GET'])
+def get_multi_indices():
+    """
+    获取多个主要指数的实时行情
+    上证指数、深证成指、创业板、科创综指、科创50
+    """
+    try:
+        # 5个主要指数代码
+        indices = {
+            'sh000001': '上证指数',
+            'sz399001': '深证成指', 
+            'sz399006': '创业板指',
+            'sh000688': '科创综指',
+            'sh000688': '科创50',  # 同代码，展示用
+        }
+        
+        code_str = ','.join(indices.keys())
+        url = f"https://qt.gtimg.cn/q={code_str}"
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            'Referer': 'https://gu.qq.com/'
+        }
+        
+        r = requests.get(url, headers=headers, timeout=5)
+        result = []
+        
+        for line in r.text.strip().split('\n'):
+            if '=' not in line:
+                continue
+            fields = line.split('="')[1].strip('"').split('~')
+            if len(fields) < 35:
+                continue
+                
+            # fields[0] = record type, fields[2] = actual code
+            code = fields[2] if len(fields) > 2 else fields[0]
+            name = fields[1]
+            price = float(fields[3]) if fields[3] != '-' else 0
+            change = float(fields[31]) if len(fields) > 31 and fields[31] != '-' else 0
+            change_pct = float(fields[32]) if len(fields) > 32 and fields[32] != '-' else 0
+            volume = float(fields[37]) if len(fields) > 37 and fields[37] != '-' else 0
+            high = float(fields[33]) if len(fields) > 33 and fields[33] != '-' else 0
+            low = float(fields[34]) if len(fields) > 34 and fields[34] != '-' else 0
+            
+            # 计算均线（使用akshare）
+            ma5 = 0
+            ma10 = 0
+            try:
+                # 指数代码映射
+                index_symbols = {
+                    '000001': 'sh000001',  # 上证指数
+                    '399001': 'sz399001',  # 深证成指
+                    '399006': 'sz399006',  # 创业板
+                    '000688': 'sh000688',  # 科创50
+                }
+                symbol = index_symbols.get(code, f"sh{code}")
+                df = ak.stock_zh_index_daily(symbol=symbol).tail(15)
+                if len(df) >= 10:
+                    ma5_val = df['close'].iloc[-5:].mean() if len(df) >= 5 else 0
+                    ma10_val = df['close'].iloc[-10:].mean() if len(df) >= 10 else ma5_val
+                    ma5 = round(float(ma5_val), 2) if ma5_val else 0
+                    ma10 = round(float(ma10_val), 2) if ma10_val else 0
+            except Exception as e:
+                ma5 = 0
+                ma10 = 0
+            
+            result.append({
+                'code': code,
+                'name': name,
+                'price': price,
+                'change': change,
+                'change_pct': change_pct,
+                'volume': volume,
+                'high': high,
+                'low': low,
+                'ma5': ma5,
+                'ma10': ma10,
+                'above_ma5': price > ma5 > 0,
+                'above_ma10': price > ma10 > 0,
+                'ma5_above_ma10': ma5 > ma10 > 0,
+            })
+        
+        return jsonify({
+            'success': True,
+            'timestamp': datetime.now().strftime('%H:%M:%S'),
+            'indices': result,
+        })
+        
+    except Exception as e:
+        import traceback
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ==================== 热点板块 API ====================
+
+@app.route('/api/market/hot-sectors', methods=['GET'])
+def get_hot_sectors():
+    """
+    获取实时热点板块
+    优先使用真实数据，失败时返回代表性示例数据
+    """
+    try:
+        # 使用东方财富板块排行API
+        url = "https://push2.eastmoney.com/api/qt/clist/get"
+        params = {
+            'pn': 1,
+            'pz': 50,
+            'po': 1,
+            'np': 1,
+            'ut': 'bd1d9ddb04089700cf9c27f6f7426281',
+            'fltt': 2,
+            'invt': 2,
+            'fid': 'f3',
+            'fs': 'm:90+t:2+f:!50',  # 行业板块，按涨幅排序
+            'fields': 'f12,f14,f3,f5',
+        }
+        
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
+            'Referer': 'https://quote.eastmoney.com/'
+        }
+        
+        r = requests.get(url, params=params, headers=headers, timeout=5)
+        data = r.json()
+        
+        sectors = data.get('data', {}).get('diff', [])
+        result = []
+        
+        for i, s in enumerate(sectors[:10]):
+            code = s.get('f12', '')
+            name = s.get('f14', '')
+            change_pct = s.get('f3', 0)
+            
+            if name:
+                result.append({
+                    'rank': i + 1,
+                    'code': code,
+                    'name': name,
+                    'change_pct': change_pct,
+                    'direction': 'up' if change_pct > 0 else 'down',
+                })
+        
+        return jsonify({
+            'success': True,
+            'timestamp': datetime.now().strftime('%H:%M:%S'),
+            'sectors': result,
+            'source': 'eastmoney',
+        })
+        
+    except Exception as e:
+        # API失败时返回代表性示例数据
+        return jsonify({
+            'success': True,
+            'timestamp': datetime.now().strftime('%H:%M:%S'),
+            'sectors': [
+                {'rank': 1, 'code': 'BK0889', 'name': 'AI算力', 'change_pct': 3.2, 'direction': 'up'},
+                {'rank': 2, 'code': 'BK0401', 'name': '存储芯片', 'change_pct': 2.8, 'direction': 'up'},
+                {'rank': 3, 'code': 'BK0091', 'name': '新能源汽车', 'change_pct': 1.5, 'direction': 'up'},
+                {'rank': 4, 'code': 'BK0441', 'name': '医疗服务', 'change_pct': -1.2, 'direction': 'down'},
+                {'rank': 5, 'code': 'BK0231', 'name': '光伏设备', 'change_pct': -0.8, 'direction': 'down'},
+            ],
+            'source': 'demo',
+            'note': '实时数据获取失败，显示示例数据',
+        })
+
+
+# ==================== 实时大盘分析 API ====================
+
+@app.route('/api/market/analyze', methods=['GET'])
+def get_market_analysis():
+    """
+    获取实时大盘分析（技术面+资金面+情绪面）
+    """
+    try:
+        # 获取多指数数据
+        indices_data = get_multi_indices()
+        indices = indices_data.json.get('indices', [])
+        
+        # 获取市场情绪数据
+        # 涨跌停数量
+        up_count = 0
+        down_count = 0
+        try:
+            url = "https://push2.eastmoney.com/api/qt/clist/get"
+            params = {
+                'pn': 1, 'pz': 10,
+                'fs': 'm:0+t:6,m:0+t:13,m:0+t:80,m:1+t:2,m:1+t:23',
+                'fields': 'f1,f2,f3',
+            }
+            r = requests.get(url, params=params, headers={'Referer': 'https://quote.eastmoney.com/'}, timeout=5)
+            import re
+            json_str = re.search(r'\((.*)\)', r.text)
+            if json_str:
+                data = json.loads(json_str.group(1))
+                stocks = data.get('data', {}).get('diff', [])
+                for s in stocks:
+                    if s.get('f3', 0) > 0:
+                        up_count += 1
+                    elif s.get('f3', 0) < 0:
+                        down_count += 1
+        except:
+            pass
+        
+        # 主要分析上证指数
+        main_index = next((i for i in indices if i['code'] == '000001'), None)
+        
+        analysis = {
+            'timestamp': datetime.now().strftime('%H:%M:%S'),
+            'indices': indices,
+            'technical': {
+                'above_ma5': main_index.get('above_ma5', False) if main_index else False,
+                'above_ma10': main_index.get('above_ma10', False) if main_index else False,
+                'ma5_above_ma10': main_index.get('ma5_above_ma10', False) if main_index else False,
+                'trend': '多头' if (main_index.get('ma5_above_ma10') if main_index else False) else '震荡',
+            },
+            'sentiment': {
+                'up_count': up_count,
+                'down_count': down_count,
+                'market_breadth': '偏多' if up_count > down_count else '偏空',
+            },
+            'volume': main_index.get('volume', 0) if main_index else 0,
+        }
+        
+        # 综合结论
+        can_build = (
+            main_index.get('above_ma5', False) and 
+            main_index.get('ma5_above_ma10', False)
+        ) if main_index else False
+        
+        analysis['conclusion'] = {
+            'can_build': can_build,
+            'suggestion': '可建仓' if can_build else '观望',
+            'signal': '✅' if can_build else '❌',
+            'reason': '指数站稳5日线且多头排列' if can_build else '指数未站稳5日线或非多头排列',
+        }
+        
+        return jsonify({
+            'success': True,
+            **analysis,
+        })
+        
+    except Exception as e:
+        import traceback
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ==================== 午盘/尾盘点评 API ====================
+
+@app.route('/api/market/comment', methods=['GET', 'POST'])
+def market_comment():
+    """
+    获取/生成午盘或尾盘点评
+    GET: 获取今日最新点评
+    POST: 生成新点评
+    """
+    try:
+        comment_type = request.args.get('type', 'lunch')  # lunch / closing
+        
+        if request.method == 'POST':
+            # 生成点评
+            data = request.json or {}
+            comment_type = data.get('type', 'lunch')
+            content = data.get('content', '')
+            author = data.get('author', '蛋蛋')
+            
+            # 保存到文件
+            import os
+            os.makedirs('/root/.openclaw/workspace/data', exist_ok=True)
+            comment_file = f'/root/.openclaw/workspace/data/comment_{comment_type}.json'
+            
+            with open(comment_file, 'w', encoding='utf-8') as f:
+                json.dump({
+                    'type': comment_type,
+                    'content': content,
+                    'author': author,
+                    'created_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                }, f, ensure_ascii=False, indent=2)
+            
+            return jsonify({'success': True, 'message': '点评已保存'})
+        
+        else:
+            # 读取今日点评
+            import os
+            comment_file = f'/root/.openclaw/workspace/data/comment_{comment_type}.json'
+            
+            if os.path.exists(comment_file):
+                with open(comment_file, 'r', encoding='utf-8') as f:
+                    comment = json.load(f)
+                    
+                # 检查是否是今日的
+                today = datetime.now().strftime('%Y-%m-%d')
+                if today in comment.get('created_at', ''):
+                    return jsonify({
+                        'success': True,
+                        'comment': comment,
+                    })
+            
+            return jsonify({
+                'success': False,
+                'error': '今日暂无点评',
+                'comment': None,
+            })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
