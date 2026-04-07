@@ -785,16 +785,64 @@ if __name__ == '__main__':
 # 整合 Task/Hooks/Store/Coordinator 四大核心系统
 
 def _get_index_data_cached():
-    """获取大盘数据（使用缓存）"""
-    now = time.time()
-    if now - _cache.get('index', {}).get('time', 0) < 60:
-        return _cache.get('index', {}).get('data')
-    return None
+    """获取大盘数据"""
+    try:
+        # 直接调用腾讯API获取上证指数
+        url = "https://qt.gtimg.cn/q=sh000001"
+        headers = {'User-Agent': 'Mozilla/5.0', 'Referer': 'https://gu.qq.com/'}
+        r = requests.get(url, headers=headers, timeout=5)
+        fields = r.text.split('="')[1].strip('"').split('~')
+        current_price = float(fields[3]) if fields[3] != '-' else 0
+        change_pct = float(fields[32]) if len(fields) > 32 and fields[32] != '-' else 0
+
+        # 计算均线（使用缓存数据或重新计算）
+        import pandas as pd
+        now = time.time()
+        if _cache.get('index', {}).get('data') and (now - _cache.get('index', {}).get('time', 0)) < _CACHE_TTL:
+            cached = _cache['index']['data']
+            return {
+                "code": cached.get("code", "000001"),
+                "name": cached.get("name", "上证指数"),
+                "price": current_price,
+                "ma5": cached.get("ma5", 0),
+                "ma10": cached.get("ma10", 0),
+                "change_pct": change_pct,
+            }
+
+        # 如果缓存过期，重新计算
+        try:
+            df = ak.stock_zh_index_daily(symbol='sh000001')
+            df = df.tail(15).copy()
+            df['ma5'] = df['close'].rolling(window=5).mean()
+            df['ma10'] = df['close'].rolling(window=10).mean()
+            latest = df.iloc[-1]
+            ma5 = round(latest['ma5'], 2) if pd.notna(latest['ma5']) else 0
+            ma10 = round(latest['ma10'], 2) if pd.notna(latest['ma10']) else 0
+        except:
+            ma5 = 0
+            ma10 = 0
+
+        return {
+            "code": "000001",
+            "name": "上证指数",
+            "price": current_price,
+            "ma5": ma5,
+            "ma10": ma10,
+            "change_pct": change_pct,
+        }
+    except Exception as e:
+        print(f"获取大盘数据失败: {e}")
+        return None
 
 def _get_portfolio_cached():
     """获取账户数据（使用缓存）"""
     try:
-        return db.get_portfolio()
+        account = db.get_account()
+        positions = db.get_positions()
+        return {
+            **account,
+            'positions': {p['stock_code']: p for p in positions}
+        }
     except:
         return None
 
@@ -1022,10 +1070,10 @@ def engine_run():
             "success": True,
             "timestamp": datetime.now().strftime("%H:%M:%S"),
             "market": {
-                "price": price,
-                "ma5": ma5,
-                "ma10": ma10,
-                "can_build": can_build,
+                "price": float(price),
+                "ma5": float(ma5),
+                "ma10": float(ma10),
+                "can_build": bool(can_build),
             },
             "account": {
                 "cash": cash,
