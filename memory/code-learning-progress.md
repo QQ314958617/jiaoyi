@@ -930,3 +930,4 @@
 | # | 模块 | 源码文件 | 落地 | 状态 |
 |---|------|---------|------|------|
 | 358 | Perfetto追踪 | `src/utils/telemetry/perfettoTracing.ts` | perfetto_tracing.py | ✅ |
+| 359 | Coordinator编排 | `src/coordinator/coordinatorMode.ts` | coordinator.py | ✅ |
