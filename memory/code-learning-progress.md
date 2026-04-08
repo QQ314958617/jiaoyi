@@ -931,3 +931,14 @@
 |---|------|---------|------|------|
 | 358 | Perfetto追踪 | `src/utils/telemetry/perfettoTracing.ts` | perfetto_tracing.py | ✅ |
 | 359 | Coordinator编排 | `src/coordinator/coordinatorMode.ts` | coordinator.py | ✅ |
+
+## 第197批（2026-04-08 20:01】
+| # | 模块 | 源码文件 | 落地 | 状态 |
+|---|------|---------|------|------|
+| 360 | 伙伴Companion系统 | `src/buddy/companion.ts` | companion.py | ✅ |
+| 361 | 伙伴Types枚举 | `src/buddy/types.ts` | companion.py | ✅ |
+| 362 | ASCII Sprite渲染 | `src/buddy/sprites.ts` | companion.py | ✅ |
+| 363 | 伙伴观察者 | `src/buddy/observer.ts` | companion.py | ✅ |
+| 364 | 伙伴提示词 | `src/buddy/prompt.ts` | companion.py | ✅ |
+| 365 | 伙伴React组件 | `src/buddy/CompanionSprite.tsx` | companion.py | ✅ |
+| 366 | 伙伴通知钩子 | `src/buddy/useBuddyNotification.tsx` | companion.py | ✅ |
