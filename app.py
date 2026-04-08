@@ -793,14 +793,15 @@ def screen_overnight_route():
         # 动态导入（避免循环依赖）
         import sys
         sys.path.insert(0, '/root/.openclaw/workspace/sim_trading')
-        from overnight_screener import screen_overnight, format_screening_report, Config
+        from overnight_screener import screen_overnight_v2 as screen_overnight, format_screening_report_v2 as format_screening_report, Config, get_index_realtime
         
         results = screen_overnight()
+        index_data = get_index_realtime()
         
         return jsonify({
             "success": True,
             "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            "strategy": "一夜持股法",
+            "strategy": "一夜持股法v2.0",
             "config": {
                 "rise_min": Config.RISE_MIN,
                 "rise_max": Config.RISE_MAX,
@@ -810,12 +811,15 @@ def screen_overnight_route():
                 "rsi_max": Config.RSI_MAX,
                 "turnover_min": Config.TURNOVER_MIN,
                 "turnover_max": Config.TURNOVER_MAX,
+                "market_cap_min": Config.MARKET_CAP_MIN,
+                "market_cap_max": Config.MARKET_CAP_MAX,
                 "max_position": Config.MAX_POSITION,
                 "max_stocks": Config.MAX_STOCKS,
             },
+            "index": index_data,
             "results": results,
             "count": len(results),
-            "report": format_screening_report(results),
+            "report": format_screening_report(results, index_data),
         })
         
     except Exception as e:
