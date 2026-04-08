@@ -1388,7 +1388,7 @@ def engine_run():
                     alerts.append(f"{pos.get('name', code)} 触发止损！亏损 {-loss_pct:.2f}%")
                     continue
 
-                # ===== 止盈检查（一夜持股法：+10%/15%/20%分批止盈）=====
+                # ===== 止盈检查（一夜持股法：+3%~5%/+10%/+20%分批止盈）=====
                 if profit_pct >= 20:
                     actions.append({
                         "action": "SELL",
@@ -1399,7 +1399,7 @@ def engine_run():
                         "priority": 2,
                         "urgent": False,
                     })
-                elif profit_pct >= 15:
+                elif profit_pct >= 10:
                     actions.append({
                         "action": "SELL",
                         "code": code,
@@ -1409,7 +1409,7 @@ def engine_run():
                         "priority": 3,
                         "urgent": False,
                     })
-                elif profit_pct >= 10:
+                elif profit_pct >= 3:
                     actions.append({
                         "action": "SELL",
                         "code": code,
@@ -1645,14 +1645,14 @@ def market_scan():
                     pos_result["signals"].append({"type": "STOP_LOSS", "value": loss_pct, "urgent": True})
                     pos_result["action"] = "SELL"
                 
-                # 止盈信号
+                # 止盈信号（一夜持股法：+3%~5%/+10%/+20%）
                 elif profit_pct >= 20:
                     pos_result["signals"].append({"type": "TAKE_PROFIT_3", "value": profit_pct, "urgent": False})
                     pos_result["action"] = "SELL"
-                elif profit_pct >= 15:
+                elif profit_pct >= 10:
                     pos_result["signals"].append({"type": "TAKE_PROFIT_2", "value": profit_pct, "urgent": False})
                     pos_result["action"] = "SELL"
-                elif profit_pct >= 10:
+                elif profit_pct >= 3:
                     pos_result["signals"].append({"type": "TAKE_PROFIT_1", "value": profit_pct, "urgent": False})
                     pos_result["action"] = "SELL"
                 
