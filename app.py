@@ -1374,8 +1374,8 @@ def engine_run():
                 profit_pct = (current_price - cost) / cost * 100
                 loss_pct = -profit_pct
 
-                # ===== 止损检查（亏损8%）=====
-                if loss_pct >= 8:
+                # ===== 止损检查（一夜持股法：亏损3%止损，比普通策略更严格）=====
+                if loss_pct >= 3:
                     actions.append({
                         "action": "SELL",
                         "code": code,
@@ -1388,7 +1388,7 @@ def engine_run():
                     alerts.append(f"{pos.get('name', code)} 触发止损！亏损 {-loss_pct:.2f}%")
                     continue
 
-                # ===== 止盈检查 =====
+                # ===== 止盈检查（一夜持股法：+10%/15%/20%分批止盈）=====
                 if profit_pct >= 20:
                     actions.append({
                         "action": "SELL",
@@ -1639,9 +1639,9 @@ def market_scan():
                     "action": None,
                 }
                 
-                # ===== 信号判断 =====
+                # ===== 信号判断（一夜持股法止损3%）=====
                 # 止损信号
-                if loss_pct >= 8:
+                if loss_pct >= 3:
                     pos_result["signals"].append({"type": "STOP_LOSS", "value": loss_pct, "urgent": True})
                     pos_result["action"] = "SELL"
                 
