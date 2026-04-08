@@ -511,6 +511,31 @@
         .hot-change.down { color: var(--accent-red); }
         .hot-loading { text-align: center; padding: 2rem; color: var(--text-muted); }
         
+        .comments-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        @media (max-width: 768px) {
+            .comments-grid { grid-template-columns: 1fr; }
+        }
+        
+        .comment-card { min-height: 200px; }
+        .comment-time { font-size: 0.75rem; color: var(--text-muted); font-weight: normal; }
+        .comment-content { font-size: 0.875rem; color: var(--text-secondary); line-height: 1.6; margin: 1rem 0; }
+        .comment-placeholder { color: var(--text-muted); font-style: italic; }
+        .btn-comment {
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-comment:hover { border-color: var(--accent-blue); color: var(--accent-blue); }
 
         /* Market List */
         .market-item {
@@ -813,6 +838,22 @@
                 </div>
             </div>
 
+            <!-- Lunch/Closing Comments -->
+            <div class="comments-grid">
+                <div class="card comment-card">
+                    <h4 class="section-title">📝 午盘点评 <span class="comment-time" id="lunch-time">--:--</span></h4>
+                    <div class="comment-content" id="lunch-comment">
+                        <p class="comment-placeholder">午盘点评将在11:30自动生成</p>
+                    </div>
+                    <button class="btn-comment" onclick="generateComment('lunch')">🖊️ 手动生成</button>
+                </div>
+                <div class="card comment-card">
+                    <h4 class="section-title">📝 尾盘点评 <span class="comment-time" id="closing-time">--:--</span></h4>
+                    <div class="comment-content" id="closing-comment">
+                        <p class="comment-placeholder">尾盘点评将在14:57自动生成</p>
+                    </div>
+                    <button class="btn-comment" onclick="generateComment('closing')">🖊️ 手动生成</button>
+                </div>
             </div>
         </div>
     </main>
@@ -1216,6 +1257,44 @@
             }
         }
 
+        // Load Comments
+        async function loadComments() {
+            try {
+                // Load lunch comment
+                const lunchRes = await fetch('/api/market/comment?type=lunch');
+                const lunchData = await lunchRes.json();
+                if (lunchData.success && lunchData.comment) {
+                    document.getElementById('lunch-comment').innerHTML = `<p>${lunchData.comment.content}</p>`;
+                    document.getElementById('lunch-time').textContent = lunchData.comment.created_at?.split(' ')[1] || '';
+                }
+                
+                // Load closing comment
+                const closingRes = await fetch('/api/market/comment?type=closing');
+                const closingData = await closingRes.json();
+                if (closingData.success && closingData.comment) {
+                    document.getElementById('closing-comment').innerHTML = `<p>${closingData.comment.content}</p>`;
+                    document.getElementById('closing-time').textContent = closingData.comment.created_at?.split(' ')[1] || '';
+                }
+            } catch (e) {
+                console.error('loadComments error:', e);
+            }
+        }
+
+        // Generate Comment (placeholder - would use AI)
+        async function generateComment(type) {
+            const content = prompt(`${type === 'lunch' ? '午盘' : '尾盘'}点评内容：`);
+            if (!content) return;
+            
+            try {
+                await fetch('/api/market/comment', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({type, content, author: '蛋蛋'})
+                });
+                loadComments();
+                alert('点评已保存！');
+            } catch (e) {
+                console.error('generateComment error:', e);
             }
         }
 
@@ -1227,6 +1306,7 @@
                 loadIndices();
                 loadMarketAnalysis();
                 loadHotSectors();
+                loadComments();
             }
         };
 
@@ -1235,6 +1315,7 @@
             loadIndices();
             loadMarketAnalysis();
             loadHotSectors();
+            loadComments();
         });
 
         // Format
