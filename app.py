@@ -1388,35 +1388,15 @@ def engine_run():
                     alerts.append(f"{pos.get('name', code)} 触发止损！亏损 {-loss_pct:.2f}%")
                     continue
 
-                # ===== 止盈检查（一夜持股法：+3%~5%/+10%/+20%分批止盈）=====
-                if profit_pct >= 20:
+                # ===== 止盈检查（一夜持股法：+3%~5%全仓卖出）=====
+                if profit_pct >= 3:
                     actions.append({
                         "action": "SELL",
                         "code": code,
                         "name": pos.get("name", code),
                         "shares": shares,
-                        "reason": f"🎯 清仓！盈利 {profit_pct:.2f}%",
+                        "reason": f"💰 止盈！盈利 {profit_pct:.2f}%",
                         "priority": 2,
-                        "urgent": False,
-                    })
-                elif profit_pct >= 10:
-                    actions.append({
-                        "action": "SELL",
-                        "code": code,
-                        "name": pos.get("name", code),
-                        "shares": shares // 3,
-                        "reason": f"💰 止盈1/3！盈利 {profit_pct:.2f}%",
-                        "priority": 3,
-                        "urgent": False,
-                    })
-                elif profit_pct >= 3:
-                    actions.append({
-                        "action": "SELL",
-                        "code": code,
-                        "name": pos.get("name", code),
-                        "shares": shares // 3,
-                        "reason": f"💰 止盈1/3！盈利 {profit_pct:.2f}%",
-                        "priority": 4,
                         "urgent": False,
                     })
 
@@ -1645,15 +1625,9 @@ def market_scan():
                     pos_result["signals"].append({"type": "STOP_LOSS", "value": loss_pct, "urgent": True})
                     pos_result["action"] = "SELL"
                 
-                # 止盈信号（一夜持股法：+3%~5%/+10%/+20%）
-                elif profit_pct >= 20:
-                    pos_result["signals"].append({"type": "TAKE_PROFIT_3", "value": profit_pct, "urgent": False})
-                    pos_result["action"] = "SELL"
-                elif profit_pct >= 10:
-                    pos_result["signals"].append({"type": "TAKE_PROFIT_2", "value": profit_pct, "urgent": False})
-                    pos_result["action"] = "SELL"
+                # 止盈信号（一夜持股法：+3%~5%全仓）
                 elif profit_pct >= 3:
-                    pos_result["signals"].append({"type": "TAKE_PROFIT_1", "value": profit_pct, "urgent": False})
+                    pos_result["signals"].append({"type": "TAKE_PROFIT", "value": profit_pct, "urgent": False})
                     pos_result["action"] = "SELL"
                 
                 # RSI超买
