@@ -47,7 +47,7 @@
     },
     "proactive-agent": {
       "version": "3.1.0",
-      "installedAt": 1774232154982
+      "installedAt": 1775544483424
     },
     "self-improving-agent": {
       "version": "3.0.11",
@@ -100,6 +100,34 @@
     "eastmoney-financial-search": {
       "version": "1.0.5",
       "installedAt": 1775532661990
+    },
+    "self-improving": {
+      "version": "1.2.16",
+      "installedAt": 1775544147546
+    },
+    "multi-search-engine": {
+      "version": "2.0.1",
+      "installedAt": 1775544269539
+    },
+    "auto-updater": {
+      "version": "1.0.0",
+      "installedAt": 1775544413462
+    },
+    "stock-market-pro": {
+      "version": "1.2.12",
+      "installedAt": 1775544304595
+    },
+    "capability-evolver": {
+      "version": "1.41.0",
+      "installedAt": 1775544549321
+    },
+    "feishu-interactive-cards": {
+      "version": "1.0.2",
+      "installedAt": 1775547145112
+    },
+    "feishu-bridge": {
+      "version": "1.0.0",
+      "installedAt": 1775547157880
     }
   }
 }

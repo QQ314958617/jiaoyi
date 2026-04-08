@@ -773,6 +773,60 @@ def cost_reset_route():
     return jsonify({"ok": True, "message": "成本计数器已重置"})
 
 
+# ==================== 一夜持股法选股 API ====================
+
+@app.route('/api/screen/overnight', methods=['GET'])
+def screen_overnight_route():
+    """
+    一夜持股法选股API
+    GET /api/screen/overnight
+    
+    策略：尾盘14:50-14:58选股，次日早盘卖出
+    条件：
+    - 涨幅2-5%
+    - 成交量放大1.5-5倍
+    - RSI 40-60
+    - 换手率3-15%
+    - 价格站上MA5
+    """
+    try:
+        # 动态导入（避免循环依赖）
+        import sys
+        sys.path.insert(0, '/root/.openclaw/workspace/sim_trading')
+        from overnight_screener import screen_overnight, format_screening_report, Config
+        
+        results = screen_overnight()
+        
+        return jsonify({
+            "success": True,
+            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "strategy": "一夜持股法",
+            "config": {
+                "rise_min": Config.RISE_MIN,
+                "rise_max": Config.RISE_MAX,
+                "volume_ratio_min": Config.VOLUME_RATIO_MIN,
+                "volume_ratio_max": Config.VOLUME_RATIO_MAX,
+                "rsi_min": Config.RSI_MIN,
+                "rsi_max": Config.RSI_MAX,
+                "turnover_min": Config.TURNOVER_MIN,
+                "turnover_max": Config.TURNOVER_MAX,
+                "max_position": Config.MAX_POSITION,
+                "max_stocks": Config.MAX_STOCKS,
+            },
+            "results": results,
+            "count": len(results),
+            "report": format_screening_report(results),
+        })
+        
+    except Exception as e:
+        import traceback
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc(),
+        }), 500
+
+
 if __name__ == '__main__':
     db.init_database()
     app.run(host='0.0.0.0', port=80, debug=False, threaded=True)
@@ -1461,6 +1515,236 @@ def engine_run():
             "traceback": traceback.format_exc(),
         }), 500
 
+
+# ==================== 盘中监控核心接口 ====================
+
+@app.route('/api/market/scan', methods=['GET'])
+def market_scan():
+    """
+    盘中监控核心接口 - 智能决策版本
+    ==================================
+    整合：大盘分析 + 持仓检查 + RSI + 成交量 + 自动执行
+    
+    调用频率：每5分钟（交易时间段）
+    """
+    try:
+        from openclaw.indicators import calculate_rsi
+        
+        result = {
+            "timestamp": datetime.now().strftime("%H:%M:%S"),
+            "scan_mode": "auto",
+            "index": None,
+            "positions": [],
+            "signals": [],
+            "actions": [],
+            "executed": [],
+        }
+        
+        # ===== 1. 大盘检查 =====
+        try:
+            index_url = "https://qt.gtimg.cn/q=sh000001"
+            r = requests.get(index_url, timeout=3)
+            fields = r.text.split('="')[1].strip('"').split('~')
+            price = float(fields[3]) if fields[3] != '-' else 0
+            
+            # 获取MA5/MA10（使用akshare）
+            try:
+                df = ak.stock_zh_index_daily(symbol='sh000001')
+                closes = df['close'].tail(20).tolist()
+                ma5 = sum(closes[-5:]) / 5 if len(closes) >= 5 else 0
+                ma10 = sum(closes[-10:]) / 10 if len(closes) >= 10 else 0
+            except:
+                ma5 = ma10 = 0
+            
+            can_build = price > ma5 > 0 and ma5 > ma10 > 0
+            
+            result["index"] = {
+                "name": "上证指数",
+                "price": price,
+                "ma5": round(ma5, 2),
+                "ma10": round(ma10, 2),
+                "above_ma5": price > ma5 > 0,
+                "ma5_above_ma10": ma5 > ma10 > 0,
+                "can_build": can_build,
+            }
+        except Exception as e:
+            result["index"] = {"error": str(e)}
+        
+        # ===== 2. 账户和持仓 =====
+        portfolio = _get_portfolio_cached()
+        cash = portfolio.get("cash", 0) if portfolio else 0
+        positions_data = portfolio.get("positions", {}) if portfolio else {}
+        
+        result["account"] = {
+            "cash": cash,
+            "positions_count": len(positions_data),
+        }
+        
+        # ===== 3. 持仓检查 =====
+        if positions_data:
+            codes = list(positions_data.keys())
+            code_str = ','.join(['sh'+c if c.startswith(('6','5')) else 'sz'+c for c in codes])
+            url = f"https://qt.gtimg.cn/q={code_str}"
+            r = requests.get(url, timeout=3)
+            
+            for line in r.text.strip().split('\n'):
+                if '=' not in line:
+                    continue
+                fields = line.split('="')[1].strip('"').split('~')
+                if len(fields) < 10:
+                    continue
+                
+                code = fields[0]
+                for prefix in ['v_szh', 'v_shsh', 'sz', 'sh']:
+                    code = code.replace(prefix, '')
+                
+                if code not in positions_data:
+                    continue
+                
+                pos = positions_data[code]
+                current_price = float(fields[3]) if fields[3] != '-' else 0
+                change_pct = float(fields[32]) if len(fields) > 32 and fields[32] != '-' else 0
+                cost = pos.get("cost", 0)
+                shares = pos.get("shares", 0)
+                
+                if cost <= 0 or current_price <= 0:
+                    continue
+                
+                profit_pct = (current_price - cost) / cost * 100
+                loss_pct = -profit_pct
+                
+                # RSI 计算
+                rsi_value = None
+                try:
+                    symbol = f"sh{code}" if code.startswith(('6', '5')) else f"sz{code}"
+                    df = ak.stock_zh_a_hist(symbol=symbol, period="daily", adjust="qfq").tail(20)
+                    if len(df) >= 15:
+                        prices = df['收盘'].tolist()
+                        rsi_value = calculate_rsi(prices)
+                except:
+                    pass
+                
+                pos_result = {
+                    "code": code,
+                    "name": pos.get("name", code),
+                    "price": current_price,
+                    "cost": cost,
+                    "profit_pct": profit_pct,
+                    "rsi": rsi_value,
+                    "signals": [],
+                    "action": None,
+                }
+                
+                # ===== 信号判断 =====
+                # 止损信号
+                if loss_pct >= 8:
+                    pos_result["signals"].append({"type": "STOP_LOSS", "value": loss_pct, "urgent": True})
+                    pos_result["action"] = "SELL"
+                
+                # 止盈信号
+                elif profit_pct >= 20:
+                    pos_result["signals"].append({"type": "TAKE_PROFIT_3", "value": profit_pct, "urgent": False})
+                    pos_result["action"] = "SELL"
+                elif profit_pct >= 15:
+                    pos_result["signals"].append({"type": "TAKE_PROFIT_2", "value": profit_pct, "urgent": False})
+                    pos_result["action"] = "SELL"
+                elif profit_pct >= 10:
+                    pos_result["signals"].append({"type": "TAKE_PROFIT_1", "value": profit_pct, "urgent": False})
+                    pos_result["action"] = "SELL"
+                
+                # RSI超买
+                if rsi_value and rsi_value > 70:
+                    pos_result["signals"].append({"type": "RSI_OVERBOUGHT", "value": rsi_value, "urgent": False})
+                
+                # RSI超卖
+                if rsi_value and rsi_value < 35:
+                    pos_result["signals"].append({"type": "RSI_OVERSOLD", "value": rsi_value, "urgent": True})
+                
+                result["positions"].append(pos_result)
+                
+                # 加入执行队列
+                if pos_result["action"]:
+                    result["actions"].append({
+                        "action": pos_result["action"],
+                        "code": code,
+                        "name": pos_result["name"],
+                        "shares": shares,
+                        "reason": f"{pos_result['signals'][0]['type']} {pos_result['signals'][0]['value']:.1f}%",
+                        "urgent": pos_result["signals"][0].get("urgent", False),
+                    })
+        
+        # ===== 4. 找新买入机会 =====
+        if result["index"].get("can_build") and not result["actions"] and cash >= 10000:
+            try:
+                market_top = _get_market_top_cached()
+                if market_top:
+                    for item in market_top[:15]:
+                        code = item.get("code", "")
+                        if code in positions_data:
+                            continue
+                        
+                        change_pct = item.get("change_pct", 0)
+                        volume = item.get("volume", 0)
+                        
+                        # 放量突破信号
+                        if abs(change_pct) > 1.5 and volume > 500000:
+                            result["signals"].append({
+                                "type": "BUY_OPPORTUNITY",
+                                "code": code,
+                                "name": item.get("name", code),
+                                "change_pct": change_pct,
+                                "volume": volume,
+                            })
+                            result["actions"].append({
+                                "action": "BUY",
+                                "code": code,
+                                "name": item.get("name", code),
+                                "shares": 100,
+                                "reason": f"放量突破 {change_pct:.1f}%",
+                                "urgent": False,
+                            })
+                            break
+            except:
+                pass
+        
+        # ===== 5. 执行交易（按优先级） =====
+        # 先执行止损（紧急）
+        urgent_actions = [a for a in result["actions"] if a.get("urgent")]
+        normal_actions = [a for a in result["actions"] if not a.get("urgent")]
+        
+        for action in urgent_actions + normal_actions:
+            trade_result = db.execute_trade(
+                action["action"].lower(),
+                action["code"],
+                action["shares"],
+                action["reason"]
+            )
+            result["executed"].append({
+                "action": action,
+                "result": trade_result,
+            })
+        
+        # ===== 6. 最终决定 =====
+        if result["actions"]:
+            action_summary = [f"{a['action']} {a['name']}({a['code']})" for a in result["actions"]]
+            result["decision"] = f"执行: {', '.join(action_summary)}"
+        elif result["index"].get("can_build"):
+            result["decision"] = "观望 - 大盘满足条件，等待机会"
+        else:
+            result["decision"] = "观望 - 大盘未企稳，不建仓"
+        
+        return jsonify({
+            "success": True,
+            **result,
+        })
+        
+    except Exception as e:
+        import traceback
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc(),
+        }), 500
 
 
 # ==================== 多指数行情 API ====================
