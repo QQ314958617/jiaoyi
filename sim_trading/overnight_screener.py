@@ -33,9 +33,9 @@ class Config:
     VOLUME_RATIO_MAX = 5.0
     # RSI 区间
     RSI_MIN = 40
-    RSI_MAX = 60
-    # 换手率区间（%）：5%-10%（原3%-15%偏宽）
-    TURNOVER_MIN = 5.0
+    RSI_MAX = 65
+    # 换手率区间（%）：3%-10%
+    TURNOVER_MIN = 3.0
     TURNOVER_MAX = 10.0
     # 流通市值（亿元）：50-200亿
     MARKET_CAP_MIN = 50
@@ -45,8 +45,6 @@ class Config:
     # 选股时间窗口（尾盘）：14:30-14:58（原14:50偏晚）
     SCREEN_START = "14:30"
     SCREEN_END = "14:58"
-    # 单票最大仓位
-    MAX_POSITION = 10000
     # 最大持仓数量
     MAX_STOCKS = 5
 
@@ -439,7 +437,7 @@ def format_screening_report_v2(results, index_data=None):
             f"   ⭐评分{s['score']} | {s['reason']}\n\n"
         )
     
-    lines.append(f"\n💡 **操作建议**: 14:30-14:58分批建仓，单票仓位¥{Config.MAX_POSITION}")
+    lines.append(f"\n💡 **操作建议**: 14:30-14:58买入，仓位自由决定")
     lines.append(f"\n⚠️ 风险提示: 一夜持股法核心是次日高开获利了结，见好就收")
     lines.append(f"\n📋 **v2.0新增条件**: 涨幅3-5% | 换手率5-10% | 强于大盘 | 尾盘创新高")
     

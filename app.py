@@ -110,7 +110,7 @@ app.config['JSON_AS_ASCII'] = False
 strategy_mgr = StrategyManager()
 
 # 缓存 TTL 设置（秒）
-_CACHE_TTL = 300  # 5分钟
+_CACHE_TTL = 30  # 5分钟
 
 # 使用 OpenClaw 统一缓存系统替代旧的手动缓存
 _cache = {
@@ -171,7 +171,7 @@ def before_first_request():
 
 @app.route('/')
 def index():
-    response = make_response(render_template('index.html'))
+    response = make_response(render_template('dashboard.html'))
     response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
     return response
 
@@ -412,6 +412,136 @@ def get_index():
         return jsonify(result)
     except Exception as e:
         return jsonify({"error": f"获取指数数据失败: {str(e)}"}), 500
+
+
+@app.route('/api/dashboard')
+def get_dashboard():
+    """一次请求拿全部面板数据（减少前端请求次数）"""
+    # 自动补全缺失的每日净值记录
+    try:
+        from datetime import datetime, date, timedelta
+        from zoneinfo import ZoneInfo
+        bj = ZoneInfo("Asia/Shanghai")
+        today = datetime.now(bj).date()
+        existing = db.get_equity_curve(days=365)
+        existing_dates = {r['date'] for r in existing}
+        account = db.get_account()
+        total_val = account.get('total_value', 50000)
+        cash_val = account.get('cash', 50000)
+        pos_val = total_val - cash_val
+        filled = False
+        # 从最早有数据的日期开始补
+        if existing:
+            start = date.fromisoformat(existing[0]['date'])
+        else:
+            start = today - timedelta(days=30)
+        d = start
+        while d <= today:
+            ds = d.isoformat()
+            if ds not in existing_dates:
+                db.add_equity_record(ds, total_val, cash_val, pos_val)
+                filled = True
+            d += timedelta(days=1)
+    except Exception as e:
+        print(f"净值补全失败: {e}")
+    
+    account = db.get_account()
+    positions = db.get_positions()
+    trades = db.get_trades(limit=50)
+    reviews = db.get_reviews(limit=20)
+    stats = db.get_trade_stats()
+    equity = db.get_equity_curve(days=60)
+
+    # 大盘指数（上证指数，用sh000001获取）
+    index_data = {}
+    try:
+        url = "https://qt.gtimg.cn/q=sh000001"
+        headers = {'User-Agent': 'Mozilla/5.0', 'Referer': 'https://gu.qq.com/'}
+        r = requests.get(url, headers=headers, timeout=5)
+        fields = r.text.split('="')[1].strip('"').split('~')
+        current_price = float(fields[3]) if fields[3] != '-' else 0
+        try:
+            import pandas as pd
+            df = ak.stock_zh_index_daily(symbol='sh000001')
+            df = df.tail(15).copy()
+            df['ma5'] = df['close'].rolling(window=5).mean()
+            df['ma10'] = df['close'].rolling(window=10).mean()
+            latest = df.iloc[-1]
+            ma5 = round(latest['ma5'], 2) if pd.notna(latest['ma5']) else 0
+            ma10 = round(latest['ma10'], 2) if pd.notna(latest['ma10']) else 0
+        except:
+            ma5 = current_price
+            ma10 = current_price
+        index_data = {
+            'name': '上证指数', 'code': '000001',
+            'price': current_price, 'change_pct': float(fields[32]) if len(fields) > 32 and fields[32] != '-' else 0,
+            'ma5': ma5, 'ma10': ma10,
+            'above_ma5': bool(current_price > ma5) if ma5 > 0 else False,
+            'above_ma10': bool(current_price > ma10) if ma10 > 0 else False,
+        }
+    except Exception as e:
+        index_data = {'name': '上证指数', 'code': '000001', 'price': 0, 'change_pct': 0, 'ma5': 0, 'ma10': 0}
+
+    # 持仓详情（带实时价格）
+    pos_detail = {}
+    codes = [p['stock_code'] for p in positions]
+    quotes = {}
+    if codes:
+        try:
+            quotes = get_tencent_quote(codes)
+        except:
+            pass
+    for pos in positions:
+        code = pos['stock_code']
+        q = quotes.get(code, {})
+        cp = q.get('price', pos['avg_cost'])
+        pos_detail[code] = {
+            'stock_name': pos.get('stock_name') or q.get('name', ''),
+            'shares': pos['shares'], 'avg_cost': pos['avg_cost'],
+            'current_price': cp, 'change_pct': q.get('change_pct', 0),
+            'market_value': cp * pos['shares'],
+            'profit': (cp - pos['avg_cost']) * pos['shares'],
+            'profit_pct': ((cp - pos['avg_cost']) / pos['avg_cost'] * 100) if pos['avg_cost'] else 0,
+        }
+
+    return jsonify({
+        'account': account, 'positions': pos_detail,
+        'trades': trades, 'reviews': reviews,
+        'stats': stats, 'equity': equity, 'index': index_data,
+    })
+
+@app.route('/api/risk/check', methods=['POST'])
+def risk_check():
+    """风控检查：下单前验证"""
+    data = request.json
+    action = data.get('action')
+    stock_code = data.get('stock_code')
+    shares = int(data.get('shares', 0))
+    price = float(data.get('price', 0))
+
+    errors = []
+    account = db.get_account()
+
+    if action == 'buy':
+        cost = price * shares * 1.0003
+        if cost > 10000:
+            errors.append(f'单票金额 ¥{cost:.0f} 超过 ¥10,000 上限')
+        positions = db.get_positions()
+        pos_value = sum(p['avg_cost'] * p['shares'] for p in positions)
+        new_total = pos_value + cost
+        if account['total_value'] > 0 and new_total / account['total_value'] > 0.20:
+            errors.append(f'仓位将达 {(new_total/account["total_value"]*100):.1f}%%，超过 20%% 上限')
+        if cost > account['cash']:
+            errors.append(f'资金不足，需要 ¥{cost:.0f}，可用 ¥{account["cash"]:.0f}')
+    elif action == 'sell':
+        position = db.get_position(stock_code)
+        if not position:
+            errors.append('没有该股票持仓')
+        elif position['shares'] < shares:
+            errors.append(f'持仓不足，持有 {position["shares"]} 股')
+
+    return jsonify({'pass': len(errors) == 0, 'errors': errors})
+
 
 @app.route('/api/trade', methods=['POST'])
 def execute_trade():
@@ -1651,42 +1781,37 @@ def market_scan():
                         "urgent": pos_result["signals"][0].get("urgent", False),
                     })
         
-        # ===== 4. 找新买入机会 =====
-        if result["index"].get("can_build") and not result["actions"] and cash >= 10000:
+        # ===== 4. 找新买入机会（一夜持股法v2.0） =====
+        # 买入窗口：14:30-14:55
+        now_hour = datetime.now().hour
+        now_min = datetime.now().minute
+        in_buy_window = (now_hour == 14 and 30 <= now_min <= 55)
+        
+        if in_buy_window and not result["actions"] and not positions_data:
             try:
-                market_top = _get_market_top_cached()
-                if market_top:
-                    for item in market_top[:15]:
-                        code = item.get("code", "")
-                        if code in positions_data:
-                            continue
-                        
-                        change_pct = item.get("change_pct", 0)
-                        volume = item.get("volume", 0)
-                        
-                        # 放量突破信号
-                        if abs(change_pct) > 1.5 and volume > 500000:
-                            result["signals"].append({
-                                "type": "BUY_OPPORTUNITY",
-                                "code": code,
-                                "name": item.get("name", code),
-                                "change_pct": change_pct,
-                                "volume": volume,
-                            })
-                            result["actions"].append({
-                                "action": "BUY",
-                                "code": code,
-                                "name": item.get("name", code),
-                                "shares": 100,
-                                "reason": f"放量突破 {change_pct:.1f}%",
-                                "urgent": False,
-                            })
-                            break
+                from overnight_screener import screen_overnight_v2
+                candidates = screen_overnight_v2()
+                if candidates:
+                    best = candidates[0]
+                    result["signals"].append({
+                        "type": "BUY_OPPORTUNITY",
+                        "code": best['code'],
+                        "name": best['name'],
+                        "change_pct": best['change_pct'],
+                        "score": best['score'],
+                    })
+                    result["actions"].append({
+                        "action": "BUY",
+                        "code": best['code'],
+                        "name": best['name'],
+                        "shares": 100,
+                        "reason": f"一夜持股法v2.0 涨幅{best['change_pct']}%+RSI{best['rsi']}+放量{best['volume_ratio']}x",
+                        "urgent": False,
+                    })
             except:
                 pass
         
         # ===== 5. 执行交易（按优先级） =====
-        # 先执行止损（紧急）
         urgent_actions = [a for a in result["actions"] if a.get("urgent")]
         normal_actions = [a for a in result["actions"] if not a.get("urgent")]
         
@@ -1706,10 +1831,10 @@ def market_scan():
         if result["actions"]:
             action_summary = [f"{a['action']} {a['name']}({a['code']})" for a in result["actions"]]
             result["decision"] = f"执行: {', '.join(action_summary)}"
-        elif result["index"].get("can_build"):
-            result["decision"] = "观望 - 大盘满足条件，等待机会"
+        elif in_buy_window:
+            result["decision"] = "观望 - 买入窗口内，暂无符合条件个股"
         else:
-            result["decision"] = "观望 - 大盘未企稳，不建仓"
+            result["decision"] = f"等待 - 买入窗口14:30-14:55，当前{datetime.now().strftime('%H:%M')}"
         
         return jsonify({
             "success": True,

@@ -942,3 +942,24 @@
 | 364 | 伙伴提示词 | `src/buddy/prompt.ts` | companion.py | ✅ |
 | 365 | 伙伴React组件 | `src/buddy/CompanionSprite.tsx` | companion.py | ✅ |
 | 366 | 伙伴通知钩子 | `src/buddy/useBuddyNotification.tsx` | companion.py | ✅ |
+
+## 第198批（2026-04-15 20:01】
+| # | 模块 | 源码文件 | 落地 | 状态 |
+|---|------|---------|------|------|
+| 367 | State Store模式 | `src/state/store.ts` | state.py | ✅ |
+| 368 | AppStateProvider | `src/state/AppState.tsx` | state.py | ✅ |
+| 369 | AppStateStore | `src/state/AppStateStore.ts` | state.py | ✅ |
+| 370 | Selectors | `src/state/selectors.ts` | state.py | ✅ |
+| 371 | onChange AppState | `src/state/onChangeAppState.ts` | - | 跳过(同AppState) |
+| 372 | TeammateView Helpers | `src/state/teammateViewHelpers.ts` | - | 跳过(同selectors) |
+
+**State系统核心设计归纳**：
+1. **Store Pattern** - 最小化响应式状态机 (getState/setState/subscribe)
+2. **React集成** - Context Provider + useSyncExternalStore模式
+3. **Selector Pattern** - 按需订阅，只在选中数据变化时重渲染
+4. **AppStateStore** - ~100字段的全局状态树
+5. **状态持久化** - 类似sessionStorage但写入磁盘
+6. **变化监听器** - 用于调试和日志
+
+**落地文件**：`cc-haha-main/ported/state.py` (19615 bytes)
+
