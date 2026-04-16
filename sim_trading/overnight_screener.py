@@ -210,56 +210,44 @@ def screen_overnight_v3():
         log("❌ 市值50-200亿无股票")
         return [], index_data
     
-    # Step 6: 腾讯实时价格二次确认
+    # Step 6: 腾讯实时价格（仅展示，不过滤）
     codes = df_candidates['代码'].tolist()
     quotes = get_tencent_quotes(codes)
     
+    # 用AKShare强势股池数据作为筛选主体（东方财富实时行情）
+    # 腾讯API仅补充当前价等字段，不做二次过滤
     final_candidates = []
     for _, row in df_candidates.iterrows():
         code = str(row['代码'])
         qt = quotes.get(code, {})
-        
-        cur_price = qt.get('price', row.get('最新价', 0))
-        cur_change = qt.get('change_pct', row['涨跌幅'])
-        cur_turnover = qt.get('turnover', row['换手率'])
-        
-        # 确认实时涨幅仍在3-5%区间
-        if not (Config.RISE_MIN <= cur_change <= Config.RISE_MAX):
-            continue
-        
-        # 确认换手率
-        if not (Config.TURNOVER_MIN <= cur_turnover <= Config.TURNOVER_MAX):
-            continue
         
         # 板块强度加成
         industry = str(row.get('所属行业', ''))
         sector_change = sector_dict.get(industry, 0)
         sector_bonus = 10 if sector_change > 2 else (5 if sector_change > 0 else 0)
         
-        # 距离MA5强度（强势股池中的"是否新高"字段参考）
-        is_new_high = row.get('是否新高', 0)
+        # 是否新高加分
+        is_new_high = 1 if str(row.get('是否新高', '')) == '是' else 0
         
         # 综合评分
-        score = int(row['涨跌幅'] * 10)  # 涨幅基础分
-        score += int(cur_turnover / 2)    # 换手率加分
-        score += sector_bonus              # 板块加成
+        score = int(row['涨跌幅'] * 10)
+        score += int(row['换手率'] / 2)
+        score += sector_bonus
         score += (15 if is_new_high == 1 else 0)
         
         final_candidates.append({
             'code':         code,
             'name':         row['名称'],
             '池涨幅':       round(row['涨跌幅'], 2),
-            '实时涨幅':     round(cur_change, 2),
             '池换手':       round(row['换手率'], 2),
-            '实时换手':     round(cur_turnover, 2),
             '流通市值_亿':  round(row['流通市值_亿'], 1),
             '行业':         industry,
             '板块涨幅':     sector_change,
-            '当前价':       round(cur_price, 2),
+            '当前价':       qt.get('price', row.get('最新价', 0)),
             '最高价':       qt.get('high', 0),
-            '最新价_池':    row.get('最新价', 0),
             'score':        score,
             'signal':       '★★★' if score >= 45 else ('★★' if score >= 35 else '★'),
+            '是否新高':     '是' if is_new_high else '否',
         })
     
     # 按评分排序
@@ -268,7 +256,7 @@ def screen_overnight_v3():
     
     log(f"✅ 最终候选: {len(top_stocks)} 只")
     for s in top_stocks:
-        log(f"  {s['signal']} {s['name']}({s['code']}) 涨幅{s['实时涨幅']}% 换手{s['实时换手']}% 市值{s['流通市值_亿']}亿 行业:{s['行业']} 评分:{s['score']}")
+        log(f"  {s['signal']} {s['name']}({s['code']}) 涨幅{s['池涨幅']}% 换手{s['池换手']}% 市值{s['流通市值_亿']}亿 行业:{s['行业']} 评分:{s['score']}")
     
     return top_stocks, index_data
 
@@ -300,12 +288,13 @@ def format_report_v3(results, index_data=None):
         sector_chg = s['板块涨幅']
         lines.append(
             f"{i}. **{s['name']}({s['code']})** {s['signal']}\n"
-            f"   实时涨幅: ▲{s['实时涨幅']}% | "
-            f"换手率: {s['实时换手']}% | "
+            f"   强势股池涨幅: ▲{s['池涨幅']}% | "
+            f"换手率: {s['池换手']}% | "
             f"市值: {market}\n"
             f"   行业: {industry}({sector_chg:+.2f}%) | "
-            f"评分: {s['score']}分\n"
-            f"   当前价: ¥{s['当前价']}\n\n"
+            f"评分: {s['score']}分 | "
+            f"是否新高: {s['是否新高']}\n"
+            f"   当前价(参考): ¥{s['当前价']}\n\n"
         )
     
     lines.extend([
