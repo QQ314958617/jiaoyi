@@ -963,3 +963,41 @@
 
 **落地文件**：`cc-haha-main/ported/state.py` (19615 bytes)
 
+
+## 第199批（2026-04-15 20:01】
+| # | 模块 | 源码文件 | 落地 | 状态 |
+|---|------|---------|------|------|
+| 373 | Bridge Main Loop | `src/bridge/bridgeMain.ts` | session_manager.py | ✅ |
+| 374 | Setup Bootstrap | `src/setup.ts` | setup.py | ✅ |
+
+**核心设计归纳**：
+1. **SessionManager** - 多会话生命周期管理（spawn/kill/forceKill/heartbeat）
+2. **BackoffConfig** - 可配置指数退避（连接/普通错误独立追踪）
+3. **CapacityWake** - 会话完成时主动唤醒等待者
+4. **TokenRefreshScheduler** - JWT过期前主动刷新
+5. **Graceful Shutdown** - SIGTERM→SIGKILL + 工作树清理
+6. **SetupHooks** - 可扩展的初始化钩子（pre/post/background）
+7. **SetupProfiler** - 启动性能分析checkpoints
+
+**落地文件**：
+- `cc-haha-main/ported/session_manager.py` (20901 bytes)
+- `cc-haha-main/ported/setup.py` (19429 bytes)
+
+**Git**: 本地提交 `180b3a3`（GitHub网络不可达，推送暂缓）
+
+## 第200批（2026-04-16 20:01）
+| # | 模块 | 源码文件 | 落地 | 状态 |
+|---|------|---------|------|------|
+| 375 | Task系统 | `src/Task.ts` | task_system.py | ✅ |
+| 376 | Dialog Launchers | `src/dialogLaunchers.tsx` | dialog_launcher.py | ✅ |
+| 377 | RemoteIO | `src/cli/remoteIO.ts` | remote_io.py | ✅ |
+
+**核心设计归纳**：
+1. **Task系统** - TaskType/TaskStatus类型定义、终端状态守卫、TaskId前缀+base36随机码生成、TaskStateBase工厂模式、TaskRegistry全局注册表
+2. **Dialog Launchers** - 动态导入+done回调模式、showSetupDialog vs renderAndRun分离、SetupWizard异步竞速、CLI静默模式降级
+3. **RemoteIO** - StructuredIO扩展+多传输层(WS/SSE)、动态Header刷新回调、CCR v2状态报告、keep-alive保活、CleanupRegistry优雅退出
+
+**落地文件**：
+- `cc-haha-main/ported/task_system.py` (11918 bytes)
+- `cc-haha-main/ported/dialog_launcher.py` (16687 bytes)
+- `cc-haha-main/ported/remote_io.py` (31682 bytes)
