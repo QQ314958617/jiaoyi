@@ -253,7 +253,7 @@ def get_equity_curve(days=30):
         c = conn.cursor()
         c.execute('''
             SELECT * FROM equity_curve 
-            ORDER BY date DESC 
+            ORDER BY date ASC 
             LIMIT ?
         ''', (days,))
         return [dict(row) for row in c.fetchall()]

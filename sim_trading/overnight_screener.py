@@ -50,8 +50,8 @@ class Config:
     # 流通市值（亿元）：50-200亿
     MARKET_CAP_MIN = 50
     MARKET_CAP_MAX = 200
-    # 选股时间窗口（尾盘）：14:30-14:55
-    SCREEN_START = "14:30"
+    # 选股时间窗口（尾盘）：14:50-14:55
+    SCREEN_START = "14:50"
     SCREEN_END = "14:55"
     # 最大持仓数量
     MAX_STOCKS = 3
