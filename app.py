@@ -682,14 +682,15 @@ def add_review():
 
 @app.route('/api/analyze/<stock_code>')
 def analyze_stock(stock_code):
-    """AI策略分析单只股票"""
-    position = db.get_position(stock_code)
-    signal = strategy_mgr.get_best_signal(stock_code, position)
-    return jsonify({
-        "code": stock_code,
-        "signal": signal,
-        "strategies": strategy_mgr.analyze_all(stock_code, position)
-    })
+    """巴菲特价值投资分析报告"""
+    import buffett_analyzer as ba
+    try:
+        report = ba.build_report(stock_code)
+        return jsonify(report)
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/api/init', methods=['POST'])
 def reset_account():
