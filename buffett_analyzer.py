@@ -96,60 +96,69 @@ def get_stock_info_from_tencent(code: str) -> Optional[dict]:
 
 # ========== 财务数据（akshare，回调为主） ==========
 
+def _parse_financial_row(row):
+    """从财务数据行提取关键指标，自动处理%和字符串格式"""
+    def _f(val):
+        if val is None: return None
+        s = str(val).replace('%','').strip()
+        if not s or s in ('-','nan','None'): return None
+        try: return float(s)
+        except: return None
+    return {
+        'roe': _f(row.get('净资产收益率-摊薄') or row.get('净资产收益率(%)')),
+        'gross_margin': _f(row.get('销售毛利率') or row.get('销售毛利率(%)')),
+        'debt_ratio': _f(row.get('资产负债率') or row.get('资产负债率(%)')),
+        'eps': _f(row.get('基本每股收益') or row.get('摊薄每股收益(元)')),
+        'bps': _f(row.get('每股净资产') or row.get('每股净资产_调整前(元)')),
+        'revenue_growth': _f(row.get('营业总收入同比增长率') or row.get('主营业务收入增长率(%)')),
+        'profit_growth': _f(row.get('净利润同比增长率') or row.get('净利润增长率(%)')),
+    }
+
 def get_financial_data(code: str) -> dict:
     """
     获取财务数据（近年关键指标）
-    优先用 stock_value_em（PE/PB/市值），财务指标用 financial_analysis_indicator_em（回调容错）
+    方法1：akshare stock_financial_abstract_ths（THS，稳定）
+    方法2：akshare stock_financial_analysis_indicator_em（东方财富备用）
     """
     import akshare as ak
-    
     result = {
-        'roe_latest': None,
-        'roe_history': [],
-        'gross_margin': None,
-        'debt_ratio': None,
-        'cash_flow_ratio': None,
-        'revenue_growth': None,
-        'profit_growth': None,
-        'eps': None,
-        'bps': None,
+        'roe_latest': None, 'roe_history': [], 'gross_margin': None,
+        'debt_ratio': None, 'cash_flow_ratio': None,
+        'revenue_growth': None, 'profit_growth': None, 'eps': None, 'bps': None,
     }
-    
-    # 财务指标：akshare financial_analysis_indicator_em（容错）
+    def _apply(p):
+        # 取最新一期的值（最后一个非None值覆盖旧的）
+        if p['roe'] is not None: result['roe_latest'] = p['roe']
+        if p['roe'] is not None and len(result['roe_history']) < 4: result['roe_history'].append(p['roe'])
+        if p['gross_margin'] is not None: result['gross_margin'] = p['gross_margin']
+        if p['debt_ratio'] is not None: result['debt_ratio'] = p['debt_ratio']
+        if p['eps'] is not None: result['eps'] = p['eps']
+        if p['bps'] is not None: result['bps'] = p['bps']
+        if p['revenue_growth'] is not None: result['revenue_growth'] = p['revenue_growth']
+        if p['profit_growth'] is not None: result['profit_growth'] = p['profit_growth']
+    # 方法1：THS（稳定，数据全）
     for retry in range(3):
         try:
-            df = ak.stock_financial_analysis_indicator_em(symbol=code)
+            df = ak.stock_financial_abstract_ths(symbol=code)
             if df is not None and not df.empty:
-                df = df.head(4)
-                latest = df.iloc[0]
-                result['roe_latest'] = float(latest['净资产收益率(%)']) if pd.notna(latest.get('净资产收益率(%)')) else None
-                result['gross_margin'] = float(latest['销售毛利率(%)']) if pd.notna(latest.get('销售毛利率(%)')) else None
-                result['debt_ratio'] = float(latest['资产负债率(%)']) if pd.notna(latest.get('资产负债率(%)')) else None
-                cf = latest.get('经营现金净流量与净利润的比率(%)')
-                if pd.notna(cf):
-                    result['cash_flow_ratio'] = float(cf) / 100
-                rev = latest.get('主营业务收入增长率(%)')
-                if pd.notna(rev):
-                    result['revenue_growth'] = float(rev)
-                prof = latest.get('净利润增长率(%)')
-                if pd.notna(prof):
-                    result['profit_growth'] = float(prof)
-                eps = latest.get('摊薄每股收益(元)')
-                if pd.notna(eps):
-                    result['eps'] = float(eps)
-                bps = latest.get('每股净资产_调整前(元)')
-                if pd.notna(bps):
-                    result['bps'] = float(bps)
-                roe_col = '净资产收益率(%)'
-                if roe_col in df.columns:
-                    result['roe_history'] = [float(v) for v in df[roe_col] if pd.notna(v)]
-            break
+                for _, row in df.tail(4).iterrows():
+                    _apply(_parse_financial_row(row))
+                if result['roe_latest'] is not None: break
         except Exception:
-            if retry < 2:
-                import time
-                time.sleep(2)
+            if retry < 2: import time; time.sleep(1); continue
             continue
-    
+    # 方法2：东方财富（备用）
+    if result['roe_latest'] is None:
+        for retry in range(3):
+            try:
+                df = ak.stock_financial_analysis_indicator_em(symbol=code)
+                if df is not None and not df.empty:
+                    for _, row in df.head(4).iterrows():
+                        _apply(_parse_financial_row(row))
+                    break
+            except Exception:
+                if retry < 2: import time; time.sleep(1); continue
+                continue
     return result
 
 
@@ -437,12 +446,12 @@ def build_report(code: str) -> dict:
     # 4. 获取行业PE
     industry_pe = get_industry_pe()
     
-    # 5. 如果财务EPS为空，用stock_value_em的PE反推EPS（用于计算目标价）
+    # 5. 如果财务EPS为空，用PE(TTM)反推EPS（用于计算目标价，要先于calc_buffett_score）
     if not financial.get('eps') and quote.get('pe') and quote.get('price') > 0:
         if quote['pe'] < 100:
             financial['eps'] = round(quote['price'] / quote['pe'], 2)
     
-    # 6. 评分
+    # 6. 评分（EPS此时已就绪）
     result = calc_buffett_score(quote, financial, industry_pe)
     
     # 5. 生成报告文本
@@ -479,6 +488,7 @@ def build_report(code: str) -> dict:
         'current_price': price,
         'target_price': result.get('target_price'),
         'stop_price': result.get('stop_price'),
+        'eps': result.get('eps'),
         'upside_pct': round((result.get('target_price', 0) - price) / price * 100, 1) if price > 0 and result.get('target_price') else None,
         
         'total_score': result['total_score'],
