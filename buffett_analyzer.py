@@ -132,7 +132,10 @@ def get_financial_data(code: str) -> dict:
         if p['roe'] is not None and len(result['roe_history']) < 4: result['roe_history'].append(p['roe'])
         if p['gross_margin'] is not None: result['gross_margin'] = p['gross_margin']
         if p['debt_ratio'] is not None: result['debt_ratio'] = p['debt_ratio']
-        if p['eps'] is not None: result['eps'] = p['eps']
+        if p['eps'] is not None:
+            result['eps'] = p['eps']  # 单期EPS
+            if len(result.get('eps_history', [])) < 4:
+                result.setdefault('eps_history', []).append(p['eps'])
         if p['bps'] is not None: result['bps'] = p['bps']
         if p['revenue_growth'] is not None: result['revenue_growth'] = p['revenue_growth']
         if p['profit_growth'] is not None: result['profit_growth'] = p['profit_growth']
@@ -159,6 +162,12 @@ def get_financial_data(code: str) -> dict:
             except Exception:
                 if retry < 2: import time; time.sleep(1); continue
                 continue
+    # 计算TTM EPS（近4季度之和，更准确反映真实PE）
+    eps_hist = result.get('eps_history', [])
+    if len(eps_hist) >= 4:
+        result['ttm_eps'] = round(sum(eps_hist), 3)
+        result['eps'] = result['ttm_eps']
+
     return result
 
 
@@ -427,13 +436,21 @@ def build_report(code: str) -> dict:
     price = quote.get('price', 0)
     
     # 2. 用 akshare stock_value_em 获取准确 PE（腾讯字段41经常错误）
+    # 注意：akshare的PE(TTM)在季报披露期可能因单季度数据annualized而失真（如Q1淡季数据×4）
+    # 判断方法：akshare PE > 腾讯PE × 2.5 → 说明akshare数据失真，用腾讯PE
     try:
         df_val = ak.stock_value_em(symbol=code)
         if df_val is not None and not df_val.empty:
             latest = df_val.iloc[-1]
             pe_ttm = latest.get('PE(TTM)')
-            if pe_ttm and pe_ttm > 0 and pe_ttm < 200:  # 排除异常值
-                quote['pe'] = float(pe_ttm)
+            tencent_pe = quote.get('pe', 0)
+            if pe_ttm and pe_ttm > 0 and pe_ttm < 200:
+                # 如果akshare PE比腾讯PE高太多，说明是季报annualized失真，用腾讯PE
+                if tencent_pe > 0 and pe_ttm > tencent_pe * 2.5:
+                    # akshare数据失真，保持腾讯PE
+                    pass
+                else:
+                    quote['pe'] = float(pe_ttm)
             pb = latest.get('市净率')
             if pb and pb > 0:
                 quote['pb'] = float(pb)
