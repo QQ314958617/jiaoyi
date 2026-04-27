@@ -445,6 +445,12 @@ tr:hover td { background: rgba(255,255,255,0.02); color: var(--text-primary); }
               </div>
             </div>
 
+            <!-- EPS Warning Badge -->
+            <div x-show="analyzeResult.eps_warning" style="padding:8px 12px;background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.3);border-radius:10px;margin-bottom:10px;display:flex;align-items:center;gap:8px">
+              <span style="font-size:14px">⚠️</span>
+              <span style="font-size:11px;color:#f59e0b;line-height:1.5" x-text="analyzeResult.eps_warning||''"></span>
+            </div>
+
             <!-- Target / Stop -->
             <div x-show="analyzeResult.target_price" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
               <div style="padding:10px 14px;background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.2);border-radius:10px;text-align:center">

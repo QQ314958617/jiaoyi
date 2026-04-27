@@ -385,16 +385,27 @@ def calc_buffett_score(quote: dict, financial: dict, industry_pe: float) -> dict
         action = "回避/卖出"
     
     # 目标价和止损价（基于PE回归）
+    # ⚠️ 微利股保护：EPS<0.05说明盈利微薄，PE估值无效，改用PB参考
     target_price = None
     stop_price = None
+    eps_warning = None
     if eps and eps > 0 and pe:
-        # 合理PE（行业均值或25倍，取较低者）
         fair_pe = min(industry_pe or 30, 25) if (industry_pe and industry_pe > 0) else 25
-        target_price = round(eps * fair_pe, 2)
+        if eps < 0.05:
+            # EPS微薄，PE估值失效，用PB作为辅助参考
+            bps_val = financial.get('bps', 0)
+            if bps_val and bps_val > 0:
+                # PB=2.0作为合理估值参考（优质工业股）
+                target_price = round(bps_val * 2.0, 2)
+                eps_warning = f"EPS={eps}元过薄，PE估值失真，参考PB估值¥{target_price}"
+            else:
+                target_price = round(eps * fair_pe, 2)
+        else:
+            target_price = round(eps * fair_pe, 2)
         
-        # 止损价：较买入价下跌-20%或PE再跌回40倍的价格（选低值）
+        # 止损价：固定-20%（微利股更激进）
         if price > 0:
-            stop_price = round(price * 0.80, 2)  # 固定-20%
+            stop_price = round(price * 0.80, 2)
     
     return {
         'total_score': score,
@@ -406,6 +417,7 @@ def calc_buffett_score(quote: dict, financial: dict, industry_pe: float) -> dict
         'target_price': target_price,
         'stop_price': stop_price,
         'details': details,
+        'eps_warning': eps_warning,
         'pe': pe,
         'pb': pb,
         'roe': roe,
@@ -493,6 +505,10 @@ def build_report(code: str) -> dict:
     elif result['roe'] and result['roe'] >= 15:
         summary_parts.append(f"✅ ROE={result['roe']:.1f}%（≥15%达标）")
     
+    # 如果EPS过薄导致PE失真，在摘要中警告
+    if result.get('eps_warning'):
+        summary_parts.insert(0, f"⚠️ {result['eps_warning']}")
+    
     summary = '；'.join(summary_parts)
     
     report = {
@@ -506,6 +522,7 @@ def build_report(code: str) -> dict:
         'target_price': result.get('target_price'),
         'stop_price': result.get('stop_price'),
         'eps': result.get('eps'),
+        'eps_warning': result.get('eps_warning'),
         'upside_pct': round((result.get('target_price', 0) - price) / price * 100, 1) if price > 0 and result.get('target_price') else None,
         
         'total_score': result['total_score'],
