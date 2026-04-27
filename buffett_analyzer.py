@@ -660,3 +660,29 @@ def get_cached_quote(code: str) -> Optional[dict]:
 
 
 import pandas as pd  # 用于判断 NaN
+
+
+# ========== 股票名称↔代码互转 ==========
+
+def get_code_by_name(name: str) -> str:
+    """根据股票名称查找代码（模糊匹配）"""
+    import akshare as ak
+    try:
+        df = ak.stock_info_a_code_name()
+        matches = df[df['name'].str.contains(name, na=False)]
+        if matches.empty:
+            return None
+        return matches.iloc[0]['code']
+    except Exception:
+        return None
+
+
+def search_stocks(keyword: str) -> list:
+    """搜索股票（名称或代码模糊匹配）"""
+    import akshare as ak
+    try:
+        df = ak.stock_info_a_code_name()
+        mask = df['name'].str.contains(keyword, na=False) | df['code'].str.contains(keyword, na=False)
+        return df[mask].head(10).to_dict('records')
+    except Exception:
+        return []

@@ -682,15 +682,31 @@ def add_review():
 
 @app.route('/api/analyze/<stock_code>')
 def analyze_stock(stock_code):
-    """巴菲特价值投资分析报告"""
+    """巴菲特价值投资分析报告（支持代码或名称查询）"""
     import buffett_analyzer as ba
     try:
+        # 如果输入的是中文名称，先转代码
+        if not stock_code.isdigit():
+            code = ba.get_code_by_name(stock_code)
+            if not code:
+                return jsonify({'error': f'未找到股票：{stock_code}'}), 404
+            stock_code = code
         report = ba.build_report(stock_code)
         return jsonify(report)
     except Exception as e:
         import traceback
         traceback.print_exc()
         return jsonify({'error': str(e)}), 500
+
+@app.route('/api/search')
+def search_stocks():
+    """股票搜索（名称或代码模糊匹配）"""
+    import buffett_analyzer as ba
+    keyword = request.args.get('q', '').strip()
+    if not keyword or len(keyword) < 1:
+        return jsonify([])
+    results = ba.search_stocks(keyword)
+    return jsonify(results)
 
 @app.route('/api/init', methods=['POST'])
 def reset_account():
