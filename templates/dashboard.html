@@ -207,19 +207,56 @@ td{padding:8px;border-bottom:1px solid #1e293b;font-size:13px}
       </div>
 
       <!-- Buffett Analysis Result -->
-      <div x-show="analyzeResult && !analyzing" style="margin-top:10px">
+      <div x-show="analyzeResult && !analyzing" style="margin-top:8px">
         <template x-if="analyzeResult">
-          <div style="display:flex;flex-direction:column;gap:6px">
-            <div style="display:flex;align-items:center;gap:6px">
+          <div style="display:flex;flex-direction:column;gap:5px">
+            <!-- Header row: name + stars + action -->
+            <div style="display:flex;align-items:center;gap:8px;padding-bottom:6px;border-bottom:1px solid #334155">
+              <span style="font-size:18px;font-weight:700;color:#fff" x-text="analyzeResult.name"></span>
               <span style="font-size:16px" x-text="'⭐'.repeat(analyzeResult.stars||0)"></span>
-              <span style="font-weight:600;color:#fff" x-text="(analyzeResult.rating||'')+' '+(analyzeResult.action||'')"></span>
+              <span style="font-size:12px;color:#94a3b8" x-text="analyzeResult.action"></span>
+              <span style="margin-left:auto;font-size:18px;font-weight:700" :class="(analyzeResult.indicators?.PE?.value||0)>50?'down':'up'" x-text="(analyzeResult.current_price||'')+'元'"></span>
             </div>
-            <div style="display:flex;justify-content:space-between"><span style="color:#94a3b8">综合评分</span><span class="mono" style="color:#60a5fa" x-text="(analyzeResult.total_score||0)+'/100'"></span></div>
-            <div style="display:flex;justify-content:space-between"><span style="color:#94a3b8">PE</span><span class="mono" x-text="(analyzeResult.indicators?.PE?.value||'N/A')+'x'"></span></div>
-            <div style="display:flex;justify-content:space-between"><span style="color:#94a3b8">ROE</span><span class="mono" x-text="(analyzeResult.indicators?.ROE?.value||'N/A')+'%'"></span></div>
-            <div style="display:flex;justify-content:space-between"><span style="color:#94a3b8">目标价</span><span class="mono" style="color:#22c55e" x-text="'¥'+(analyzeResult.target_price||'?')"></span></div>
-            <div style="display:flex;justify-content:space-between"><span style="color:#94a3b8">止损价</span><span class="mono" style="color:#ef4444" x-text="'¥'+(analyzeResult.stop_price||'?')"></span></div>
-            <div style="margin-top:4px;padding:8px;background:#0f172a;border-radius:6px;font-size:12px;color:#94a3b8;white-space:pre-wrap;line-height:1.4" x-text="analyzeResult.summary||''"></div>
+            <!-- Score + Rating -->
+            <div style="display:flex;align-items:center;gap:6px">
+              <span style="font-size:12px;color:#94a3b8">综合评分</span>
+              <div style="flex:1;height:6px;background:#1e293b;border-radius:3px;overflow:hidden">
+                <div :style="'width:'+(analyzeResult.total_score||0)+'%;background:'+((analyzeResult.total_score||0)>=60?'#22c55e':(analyzeResult.total_score||0)>=40?'#eab308':'#ef4444')+';height:100%'"></div>
+              </div>
+              <span class="mono" style="font-size:13px;color:#60a5fa;font-weight:600" x-text="(analyzeResult.total_score||0)+'/100'"></span>
+            </div>
+            <!-- Key indicators grid -->
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-top:4px">
+              <div style="display:flex;justify-content:space-between;padding:4px 6px;background:#0f172a;border-radius:4px">
+                <span style="font-size:11px;color:#94a3b8">PE(市盈率)</span>
+                <span class="mono" style="font-size:12px;font-weight:600" :class="(analyzeResult.indicators?.PE?.value||0)>40?'down':'up'" x-text="(analyzeResult.indicators?.PE?.value||'N/A')+'x'"></span>
+              </div>
+              <div style="display:flex;justify-content:space-between;padding:4px 6px;background:#0f172a;border-radius:4px">
+                <span style="font-size:11px;color:#94a3b8">ROE(净资产收益率)</span>
+                <span class="mono" style="font-size:12px;font-weight:600" :class="(analyzeResult.indicators?.ROE?.value||0)>=15?'up':'down'" x-text="(analyzeResult.indicators?.ROE?.value||'N/A')+'%'"></span>
+              </div>
+              <div style="display:flex;justify-content:space-between;padding:4px 6px;background:#0f172a;border-radius:4px">
+                <span style="font-size:11px;color:#94a3b8">毛利率</span>
+                <span class="mono" style="font-size:12px;font-weight:600" :class="(analyzeResult.indicators?.毛利率?.value||0)>=20?'up':'down'" x-text="(analyzeResult.indicators?.毛利率?.value||'N/A')+'%'"></span>
+              </div>
+              <div style="display:flex;justify-content:space-between;padding:4px 6px;background:#0f172a;border-radius:4px">
+                <span style="font-size:11px;color:#94a3b8">资产负债率</span>
+                <span class="mono" style="font-size:12px;font-weight:600" :class="(analyzeResult.indicators?.资产负债率?.value||0)>=60?'down':'up'" x-text="(analyzeResult.indicators?.资产负债率?.value||'N/A')+'%'"></span>
+              </div>
+            </div>
+            <!-- Target / Stop -->
+            <div x-show="analyzeResult.target_price" style="display:flex;gap:8px;margin-top:2px">
+              <div style="flex:1;padding:6px;background:#166534;border-radius:6px;text-align:center">
+                <div style="font-size:10px;color:#86efac">目标价</div>
+                <div style="font-size:14px;font-weight:700;color:#86efac" x-text="'¥'+(analyzeResult.target_price||'?')"></div>
+              </div>
+              <div style="flex:1;padding:6px;background:#991b1b;border-radius:6px;text-align:center">
+                <div style="font-size:10px;color:#fca5a5">止损价</div>
+                <div style="font-size:14px;font-weight:700;color:#fca5a5" x-text="'¥'+(analyzeResult.stop_price||'?')"></div>
+              </div>
+            </div>
+            <!-- Summary -->
+            <div style="margin-top:4px;padding:8px;background:#0f172a;border-radius:6px;font-size:11px;color:#94a3b8;line-height:1.5;white-space:pre-wrap" x-text="analyzeResult.summary||''"></div>
           </div>
         </template>
       </div>

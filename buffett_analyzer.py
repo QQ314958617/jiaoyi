@@ -417,22 +417,19 @@ def build_report(code: str) -> dict:
     name = quote.get('name', code)
     price = quote.get('price', 0)
     
-    # 2. 用 akshare stock_value_em 补充 PE/PB（腾讯字段41/43可能为空）
-    if not quote.get('pe') or not quote.get('pb'):
-        try:
-            df_val = ak.stock_value_em(symbol=code)
-            if df_val is not None and not df_val.empty:
-                latest = df_val.iloc[-1]
-                if not quote.get('pe'):
-                    pe_ttm = latest.get('PE(TTM)')
-                    if pe_ttm and pe_ttm > 0:
-                        quote['pe'] = float(pe_ttm)
-                if not quote.get('pb'):
-                    pb = latest.get('市净率')
-                    if pb and pb > 0:
-                        quote['pb'] = float(pb)
-        except Exception:
-            pass
+    # 2. 用 akshare stock_value_em 获取准确 PE（腾讯字段41经常错误）
+    try:
+        df_val = ak.stock_value_em(symbol=code)
+        if df_val is not None and not df_val.empty:
+            latest = df_val.iloc[-1]
+            pe_ttm = latest.get('PE(TTM)')
+            if pe_ttm and pe_ttm > 0 and pe_ttm < 200:  # 排除异常值
+                quote['pe'] = float(pe_ttm)
+            pb = latest.get('市净率')
+            if pb and pb > 0:
+                quote['pb'] = float(pb)
+    except Exception:
+        pass
     
     # 3. 获取财务数据
     financial = get_financial_data(code)
@@ -440,7 +437,12 @@ def build_report(code: str) -> dict:
     # 4. 获取行业PE
     industry_pe = get_industry_pe()
     
-    # 5. 评分
+    # 5. 如果财务EPS为空，用stock_value_em的PE反推EPS（用于计算目标价）
+    if not financial.get('eps') and quote.get('pe') and quote.get('price') > 0:
+        if quote['pe'] < 100:
+            financial['eps'] = round(quote['price'] / quote['pe'], 2)
+    
+    # 6. 评分
     result = calc_buffett_score(quote, financial, industry_pe)
     
     # 5. 生成报告文本
