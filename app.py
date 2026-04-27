@@ -685,12 +685,18 @@ def analyze_stock(stock_code):
     """巴菲特价值投资分析报告（支持代码或名称查询）"""
     import buffett_analyzer as ba
     try:
-        # 如果输入的是中文名称，先转代码
+        # 如果输入的是中文名称（含括号格式如"阳光电源(300274)"），先转代码
         if not stock_code.isdigit():
-            code = ba.get_code_by_name(stock_code)
-            if not code:
-                return jsonify({'error': f'未找到股票：{stock_code}'}), 404
-            stock_code = code
+            # 尝试提取括号里的代码
+            import re
+            match = re.search(r'\(?(\d{6})\)?', stock_code)
+            if match:
+                stock_code = match.group(1)
+            else:
+                code = ba.get_code_by_name(stock_code)
+                if not code:
+                    return jsonify({'error': f'未找到股票：{stock_code}'}), 404
+                stock_code = code
         report = ba.build_report(stock_code)
         return jsonify(report)
     except Exception as e:
