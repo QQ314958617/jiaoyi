@@ -184,6 +184,24 @@ td{padding:8px;border-bottom:1px solid #1e293b;font-size:13px}
           </div>
         </template>
       </div>
+
+      <!-- Buffett Analysis Result -->
+      <div x-show="analyzeResult" style="margin-top:10px">
+        <template x-if="analyzeResult">
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <div style="display:flex;align-items:center;gap:6px">
+              <span style="font-size:16px" x-text="'⭐'.repeat(analyzeResult.stars||0)"></span>
+              <span style="font-weight:600;color:#fff" x-text="(analyzeResult.rating||'')+' '+(analyzeResult.action||'')"></span>
+            </div>
+            <div style="display:flex;justify-content:space-between"><span style="color:#94a3b8">综合评分</span><span class="mono" style="color:#60a5fa" x-text="(analyzeResult.total_score||0)+'/100'"></span></div>
+            <div style="display:flex;justify-content:space-between"><span style="color:#94a3b8">PE</span><span class="mono" x-text="(analyzeResult.indicators?.PE?.value||'N/A')+'x'"></span></div>
+            <div style="display:flex;justify-content:space-between"><span style="color:#94a3b8">ROE</span><span class="mono" x-text="(analyzeResult.indicators?.ROE?.value||'N/A')+'%'"></span></div>
+            <div style="display:flex;justify-content:space-between"><span style="color:#94a3b8">目标价</span><span class="mono" style="color:#22c55e" x-text="'¥'+(analyzeResult.target_price||'?')"></span></div>
+            <div style="display:flex;justify-content:space-between"><span style="color:#94a3b8">止损价</span><span class="mono" style="color:#ef4444" x-text="'¥'+(analyzeResult.stop_price||'?')"></span></div>
+            <div style="margin-top:4px;padding:8px;background:#0f172a;border-radius:6px;font-size:12px;color:#94a3b8;white-space:pre-wrap;line-height:1.4" x-text="analyzeResult.summary||''"></div>
+          </div>
+        </template>
+      </div>
     </div>
 
     <!-- Reviews -->
@@ -219,7 +237,7 @@ function app(){
     },
     eqRange: 30, chart: null, lastUpdate: '-',
     mode: 'buy', code: '', shares: 100, reason: '', msg: '', msgOk: false,
-    queryCode: '', result: null,
+    queryCode: '', result: null, analyzeResult: null,
 
     get roi(){ return ((this.data.account.total_value - 50000) / 50000) * 100 },
 
@@ -281,8 +299,12 @@ function app(){
 
     async analyze(){
       if(!this.queryCode)return;
-      try{const r=await fetch('/api/quote/'+this.queryCode);this.result=await r.json();if(this.result.error)this.result=null}
-      catch(e){this.result=null}
+      try{
+        const r=await fetch('/api/analyze/'+this.queryCode);
+        const d=await r.json();
+        this.analyzeResult=d.error?null:d;
+        this.result=null;
+      }catch(e){this.analyzeResult=null}
     }
   };
 }
