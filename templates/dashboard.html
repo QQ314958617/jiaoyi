@@ -201,8 +201,13 @@ td{padding:8px;border-bottom:1px solid #1e293b;font-size:13px}
         </template>
       </div>
 
+      <!-- Loading -->
+      <div x-show="analyzing" style="text-align:center;padding:16px 0;color:#94a3b8;font-size:13px">
+        <span>🔄 分析中...</span>
+      </div>
+
       <!-- Buffett Analysis Result -->
-      <div x-show="analyzeResult" style="margin-top:10px">
+      <div x-show="analyzeResult && !analyzing" style="margin-top:10px">
         <template x-if="analyzeResult">
           <div style="display:flex;flex-direction:column;gap:6px">
             <div style="display:flex;align-items:center;gap:6px">
@@ -253,7 +258,7 @@ function app(){
     },
     eqRange: 30, chart: null, lastUpdate: '-',
     mode: 'buy', code: '', shares: 100, reason: '', msg: '', msgOk: false,
-    queryCode: '', result: null, analyzeResult: null, suggestions: [], showSuggestions: false,
+    queryCode: '', result: null, analyzeResult: null, suggestions: [], showSuggestions: false, analyzing: false,
     debounceSearch: null,
 
     get roi(){ return ((this.data.account.total_value - 50000) / 50000) * 100 },
@@ -322,12 +327,15 @@ function app(){
 
     async analyze(){
       if(!this.queryCode)return;
+      this.analyzing=true;
+      this.analyzeResult=null;
       try{
-        const r=await fetch('/api/analyze/'+this.queryCode);
+        const r=await fetch('/api/analyze/'+this.queryCode, {signal: AbortSignal.timeout(120000)});
         const d=await r.json();
         this.analyzeResult=d.error?null:d;
         this.result=null;
       }catch(e){this.analyzeResult=null}
+      finally{this.analyzing=false}
     },
     async searchStocks(kw){
       if(!kw||kw.length<1){this.suggestions=[];return}
