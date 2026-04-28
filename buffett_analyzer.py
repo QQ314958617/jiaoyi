@@ -385,23 +385,31 @@ def calc_buffett_score(quote: dict, financial: dict, industry_pe: float) -> dict
         action = "回避/卖出"
     
     # 目标价和止损价（基于PE回归）
+    # ⚠️ 目标价计算使用PE(TTM)反推的真实TTM EPS
+    # 原因：财务数据的eps_history可能是年报EPS序列，与TTM PE不匹配
+    # 例如：阳光电源 eps_history=[3.73,5.73,6.55,1.12]之和=17.13，但130元/20.24倍PE=6.42元
+    # 解决方案：用 当前价/PE(TTM) 反推真实TTM EPS
+    eps_for_target = None
+    eps_warning = None
+    if pe and pe > 0 and price > 0:
+        eps_for_target = round(price / pe, 2)  # 反推TTM EPS
+    
     # ⚠️ 微利股保护：EPS<0.05说明盈利微薄，PE估值无效，改用PB参考
     target_price = None
     stop_price = None
-    eps_warning = None
-    if eps and eps > 0 and pe:
+    if eps_for_target and eps_for_target > 0 and pe:
         fair_pe = min(industry_pe or 30, 25) if (industry_pe and industry_pe > 0) else 25
-        if eps < 0.05:
+        if eps_for_target < 0.05:
             # EPS微薄，PE估值失效，用PB作为辅助参考
             bps_val = financial.get('bps', 0)
             if bps_val and bps_val > 0:
                 # PB=2.0作为合理估值参考（优质工业股）
                 target_price = round(bps_val * 2.0, 2)
-                eps_warning = f"EPS={eps}元过薄，PE估值失真，参考PB估值¥{target_price}"
+                eps_warning = f"EPS={eps_for_target}元过薄（TTM），PE估值失真，参考PB估值¥{target_price}"
             else:
-                target_price = round(eps * fair_pe, 2)
+                target_price = round(eps_for_target * fair_pe, 2)
         else:
-            target_price = round(eps * fair_pe, 2)
+            target_price = round(eps_for_target * fair_pe, 2)
         
         # 止损价：固定-20%（微利股更激进）
         if price > 0:

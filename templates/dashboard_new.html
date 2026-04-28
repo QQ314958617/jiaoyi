@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🥚 蛋蛋基金 · 模拟交易平台</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+<style>
+/*** ========== BASE ========== ***/
+:root {
+  --bg-base: #020617;
+  --bg-card: #0f172a;
+  --bg-card-hover: #131c2e;
+  --border: #1e293b;
+  --border-light: #334155;
+  --text-primary: #f1f5f9;
+  --text-secondary: #94a3b8;
+  --text-muted: #475569;
+  --accent: #6366f1;
+  --accent-light: #818cf8;
+  --up: #10b981;
+  --up-bg: rgba(16,185,129,0.1);
+  --down: #f43f5e;
+  --down-bg: rgba(244,63,94,0.1);
+  --gold: #f59e0b;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg-base);
+  color: var(--text-primary);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  height: 100vh;
+  overflow: hidden;
+}
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border-light); border-radius: 4px; }
+
+/*** ========== TYPOGRAPHY ========== ***/
+.mono { font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace; }
+.text-xs { font-size: 11px; }
+.text-sm { font-size: 13px; }
+.text-base { font-size: 15px; }
+.text-lg { font-size: 17px; }
+.text-xl { font-size: 20px; }
+.text-2xl { font-size: 24px; }
+.font-medium { font-weight: 500; }
+.font-semibold { font-weight: 600; }
+.font-bold { font-weight: 700; }
+.text-muted { color: var(--text-muted); }
+.text-secondary { color: var(--text-secondary); }
+
+/*** ========== UP/DOWN ========== ***/
+.up { color: var(--up); }
+.down { color: var(--down); }
+.up-bg { background: var(--up-bg); }
+.down-bg { background: var(--down-bg); }
+
+/*** ========== CARDS ========== ***/
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 20px;
+}
+.card-sm {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px;
+}
+
+/*** ========== BADGES ========== ***/
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+.badge-up { background: var(--up-bg); color: var(--up); border: 1px solid rgba(16,185,129,0.2); }
+.badge-down { background: var(--down-bg); color: var(--down); border: 1px solid rgba(244,63,94,0.2); }
+.badge-neutral { background: rgba(148,163,184,0.1); color: var(--text-secondary); border: 1px solid var(--border-light); }
+.badge-accent { background: rgba(99,102,241,0.15); color: var(--accent-light); border: 1px solid rgba(99,102,241,0.25); }
+
+/*** ========== BUTTONS ========== ***/
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 18px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: all 0.15s ease;
+  gap: 6px;
+}
+.btn-buy { background: var(--down); color: #fff; }
+.btn-buy:hover { background: #e11d48; box-shadow: 0 0 16px rgba(244,63,94,0.3); }
+.btn-sell { background: var(--up); color: #fff; }
+.btn-sell:hover { background: #059669; box-shadow: 0 0 16px rgba(16,185,129,0.3); }
+.btn-blue { background: var(--accent); color: #fff; }
+.btn-blue:hover { background: var(--accent-light); box-shadow: 0 0 16px rgba(99,102,241,0.3); }
+.btn-ghost { background: transparent; color: var(--text-secondary); border: 1px solid var(--border-light); }
+.btn-ghost:hover { background: var(--border); color: var(--text-primary); }
+input, select {
+  background: var(--bg-base);
+  border: 1px solid var(--border-light);
+  color: var(--text-primary);
+  padding: 9px 12px;
+  border-radius: 10px;
+  outline: none;
+  width: 100%;
+  font-size: 13px;
+  transition: border-color 0.15s;
+}
+input:focus, select:focus { border-color: var(--accent); }
+
+/*** ========== TABLES ========== ***/
+table { width: 100%; border-collapse: collapse; }
+th {
+  text-align: left;
+  padding: 8px 10px;
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  border-bottom: 1px solid var(--border);
+}
+td {
+  padding: 10px 10px;
+  font-size: 13px;
+  border-bottom: 1px solid rgba(30,41,59,0.5);
+  color: var(--text-secondary);
+}
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: rgba(255,255,255,0.02); color: var(--text-primary); }
+
+/*** ========== TABS ========== ***/
+.tab {
+  padding: 5px 12px;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  font-size: 12px;
+  color: var(--text-muted);
+  border-radius: 6px 6px 0 0;
+  transition: all 0.15s;
+}
+.tab.active { border-color: var(--accent); color: var(--accent-light); background: rgba(99,102,241,0.08); }
+.tab:hover:not(.active) { color: var(--text-secondary); background: rgba(255,255,255,0.03); }
+
+/*** ========== STAT PILL ========== ***/
+.stat-pill {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  padding: 10px 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  min-width: 100px;
+}
+.stat-pill-label { font-size: 10px; color: var(--text-muted); font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; }
+.stat-pill-value { font-size: 18px; font-weight: 700; font-family: 'SF Mono', 'Fira Code', monospace; }
+
+/*** ========== DIVIDER ========== ***/
+.divider { height: 1px; background: var(--border); margin: 12px 0; }
+
+/*** ========== GRADIENT ACCENT ========== ***/
+.accent-gradient { background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); }
+
+/*** ========== CHART CONTAINER ========== ***/
+#eqChart { width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+
+<div x-data="app()" x-init="init()">
+
+<!-- ========== TOP BAR ========== -->
+<header style="background:var(--bg-card);border-bottom:1px solid var(--border);padding:0 24px;display:flex;align-items:center;justify-content:space-between;height:60px;flex-shrink:0;position:sticky;top:0;z-index:50">
+  <!-- Brand -->
+  <div style="display:flex;align-items:center;gap:12px">
+    <div style="width:36px;height:36px;background:linear-gradient(135deg,#6366f1,#8b5cf6);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px">🥚</div>
+    <div>
+      <div style="font-size:15px;font-weight:700;color:var(--text-primary);line-height:1.2">蛋蛋基金</div>
+      <div style="font-size:10px;color:var(--text-muted)">模拟交易平台 · v2.3</div>
+    </div>
+  </div>
+
+  <!-- Account Stats Row -->
+  <div style="display:flex;align-items:center;gap:10px">
+    <!-- Index pill -->
+    <template x-if="data.index.name">
+      <div style="display:flex;align-items:center;gap:10px;padding:6px 14px;background:var(--bg-base);border:1px solid var(--border);border-radius:10px">
+        <span style="font-size:12px;font-weight:600;color:var(--text-secondary)" x-text="data.index.name"></span>
+        <span class="mono text-sm font-bold" :class="(data.index.change_pct||0)>=0?'up':'down'" x-text="(data.index.price||0).toFixed(2)"></span>
+        <span class="mono text-xs font-medium" :class="(data.index.change_pct||0)>=0?'up':'down'" x-text="((data.index.change_pct||0)>=0?'+':'')+(data.index.change_pct||0).toFixed(2)+'%'"></span>
+        <div style="display:flex;gap:6px;margin-left:4px">
+          <span class="badge text-xs" :class="data.index.above_ma5?'badge-up':'badge-down'" x-text="data.index.above_ma5?'MA5↑':'MA5↓'"></span>
+        </div>
+      </div>
+    </template>
+
+    <div style="width:1px;height:28px;background:var(--border-light)"></div>
+
+    <!-- Cash -->
+    <div class="stat-pill">
+      <span class="stat-pill-label">现金</span>
+      <span class="stat-pill-value text-secondary" style="font-size:14px">¥<span x-text="fmt(data.account.cash)"></span></span>
+    </div>
+
+    <!-- Total Asset -->
+    <div class="stat-pill" style="border-color:rgba(99,102,241,0.3);background:rgba(99,102,241,0.05)">
+      <span class="stat-pill-label">总资产</span>
+      <span class="stat-pill-value" style="color:var(--accent-light)">¥<span x-text="fmt(data.account.total_value)"></span></span>
+    </div>
+
+    <!-- Profit -->
+    <div class="stat-pill">
+      <span class="stat-pill-label">总收益</span>
+      <span class="stat-pill-value" :class="(data.account.total_profit||0)>=0?'up':'down'">
+        <span x-text="((data.account.total_profit||0)>=0?'+':'')+fmt(data.account.total_profit)"></span>
+      </span>
+    </div>
+
+    <!-- ROI -->
+    <div class="stat-pill">
+      <span class="stat-pill-label">收益率</span>
+      <span class="stat-pill-value" :class="roi>=0?'up':'down'">
+        <span x-text="(roi>=0?'+':'')+roi.toFixed(2)+'%'"></span>
+      </span>
+    </div>
+
+    <!-- Last Update -->
+    <div style="font-size:10px;color:var(--text-muted);margin-left:8px">
+      <span x-text="lastUpdate"></span>
+    </div>
+  </div>
+</header>
+
+<!-- ========== MAIN CONTENT ========== -->
+<div style="display:flex;gap:16px;padding:16px;height:calc(100vh - 60px);overflow:hidden">
+
+  <!-- ========== LEFT COLUMN ========== -->
+  <div style="width:62%;display:flex;flex-direction:column;gap:14px;overflow:hidden">
+
+    <!-- Equity Chart Card -->
+    <div class="card" style="flex:1;min-height:0;display:flex;flex-direction:column;padding:16px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-shrink:0">
+        <div style="display:flex;align-items:center;gap:8px">
+          <div style="width:6px;height:20px;background:linear-gradient(180deg,#6366f1,#8b5cf6);border-radius:3px"></div>
+          <span style="font-size:14px;font-weight:600;color:var(--text-primary)">净值走势</span>
+        </div>
+        <div style="display:flex;gap:4px">
+          <button class="tab text-xs" :class="eqRange===7&&'active'" @click="eqRange=7;renderChart()">7天</button>
+          <button class="tab text-xs" :class="eqRange===30&&'active'" @click="eqRange=30;renderChart()">30天</button>
+          <button class="tab text-xs" :class="eqRange===60&&'active'" @click="eqRange=60;renderChart()">60天</button>
+        </div>
+      </div>
+      <div id="eqChart" style="flex:1;min-height:0"></div>
+    </div>
+
+    <!-- Positions + Trades side by side -->
+    <div style="display:flex;gap:14px;flex-shrink:0;max-height:280px">
+
+      <!-- Positions -->
+      <div class="card" style="flex:1;overflow:hidden;display:flex;flex-direction:column;padding:14px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <div style="display:flex;align-items:center;gap:6px">
+            <div style="width:5px;height:16px;background:var(--up);border-radius:3px"></div>
+            <span style="font-size:13px;font-weight:600;color:var(--text-primary)">持仓</span>
+            <span class="badge badge-neutral text-xs" x-text="Object.keys(data.positions).length"></span>
+          </div>
+          <template x-if="Object.keys(data.positions).length===0">
+            <span style="font-size:11px;color:var(--text-muted)">空仓中</span>
+          </template>
+        </div>
+        <div style="overflow:auto;flex:1">
+          <table>
+            <thead><tr>
+              <th>代码</th><th>名称</th><th>股数</th><th>成本</th><th>现价</th><th>市值</th><th>盈亏</th><th>操作</th>
+            </tr></thead>
+            <tbody>
+              <template x-for="(pos, code) in data.positions" :key="code">
+                <tr>
+                  <td class="mono text-xs" x-text="code"></td>
+                  <td style="color:var(--text-primary);font-weight:500" x-text="pos.stock_name"></td>
+                  <td class="mono" x-text="pos.shares"></td>
+                  <td class="mono" x-text="'¥'+Number(pos.avg_cost).toFixed(2)"></td>
+                  <td class="mono">-</td>
+                  <td class="mono">-</td>
+                  <td class="mono">-</td>
+                  <td><button @click="sellStock(code,pos.shares)" class="btn btn-sell" style="padding:4px 10px;font-size:11px">卖出</button></td>
+                </tr>
+              </template>
+              <tr x-show="Object.keys(data.positions).length===0">
+                <td colspan="8" style="text-align:center;color:var(--text-muted);padding:24px;font-size:12px">暂无持仓 — 等待尾盘建仓信号</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Recent Trades -->
+      <div class="card" style="flex:1;overflow:hidden;display:flex;flex-direction:column;padding:14px">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px">
+          <div style="width:5px;height:16px;background:var(--accent);border-radius:3px"></div>
+          <span style="font-size:13px;font-weight:600;color:var(--text-primary)">最近交易</span>
+          <span class="badge badge-neutral text-xs" x-text="data.trades.length"></span>
+        </div>
+        <div style="overflow:auto;flex:1">
+          <table>
+            <thead><tr><th>时间</th><th>代码</th><th>操作</th><th>价格</th><th>盈亏</th></tr></thead>
+            <tbody>
+              <template x-for="t in data.trades.slice(0,8)" :key="t.id">
+                <tr>
+                  <td class="mono text-xs" x-text="t.timestamp.slice(5,10)"></td>
+                  <td class="mono text-xs" x-text="t.stock_code"></td>
+                  <td><span class="badge text-xs" :class="t.action==='buy'?'badge-down':'badge-up'" x-text="t.action==='buy'?'买':'卖'"></span></td>
+                  <td class="mono text-xs" x-text="'¥'+Number(t.price).toFixed(2)"></td>
+                  <td class="mono text-xs" :class="(t.profit||0)>=0?'up':'down'" x-text="((t.profit||0)>=0?'+':'')+Number(t.profit||0).toFixed(0)"></td>
+                </tr>
+              </template>
+              <tr x-show="data.trades.length===0">
+                <td colspan="5" style="text-align:center;color:var(--text-muted);padding:24px;font-size:12px">暂无交易记录</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ========== RIGHT COLUMN ========== -->
+  <div style="width:38%;display:flex;flex-direction:column;gap:14px;overflow:hidden">
+
+    <!-- Stock Analysis Card -->
+    <div class="card" style="flex-shrink:0;padding:16px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
+        <div style="width:5px;height:18px;background:linear-gradient(180deg,#f59e0b,#f97316);border-radius:3px"></div>
+        <span style="font-size:14px;font-weight:600;color:var(--text-primary)">巴菲特价值分析</span>
+      </div>
+
+      <!-- Search Input -->
+      <div style="display:flex;gap:8px;margin-bottom:12px;position:relative">
+        <input type="text" placeholder="输入股票代码或名称" x-model="queryCode"
+          @input="debounceSearch()" @focus="showSuggestions=true"
+          @keydown.enter="showSuggestions=false;analyze()"
+          @keydown.escape="showSuggestions=false">
+        <button class="btn btn-blue" @click="showSuggestions=false;analyze()" style="flex-shrink:0">查询</button>
+        <!-- Search Suggestions -->
+        <div x-show="showSuggestions && suggestions.length"
+          style="position:absolute;top:calc(100% + 4px);left:0;right:60px;background:#1e293b;border:1px solid #334155;border-radius:10px;z-index:100;max-height:160px;overflow:auto;box-shadow:0 8px 24px rgba(0,0,0,0.4)">
+          <template x-for="s in suggestions" :key="s.code">
+            <div @click="queryCode=s.code;showSuggestions=false;analyze()"
+              style="padding:9px 14px;cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(51,65,85,0.5)">
+              <span style="color:var(--text-primary);font-weight:500" x-text="s.name"></span>
+              <span style="color:var(--text-muted);font-family:monospace;font-size:11px" x-text="s.code"></span>
+            </div>
+          </template>
+        </div>
+      </div>
+
+      <!-- Loading -->
+      <div x-show="analyzing" style="text-align:center;padding:24px 0;color:var(--text-muted)">
+        <div style="font-size:20px;animation:pulse 1.5s infinite">🔄</div>
+        <div style="font-size:12px;margin-top:8px;color:var(--text-muted)">分析中，请稍候...</div>
+      </div>
+
+      <!-- Analysis Result -->
+      <div x-show="analyzeResult && !analyzing">
+        <template x-if="analyzeResult">
+          <div>
+
+            <!-- Header: Name + Stars + Price -->
+            <div style="display:flex;align-items:center;gap:10px;padding:12px;background:var(--bg-base);border-radius:12px;margin-bottom:12px">
+              <div style="flex:1">
+                <div style="display:flex;align-items:center;gap:8px">
+                  <span style="font-size:16px;font-weight:700;color:var(--text-primary)" x-text="analyzeResult.name"></span>
+                  <span class="badge text-xs" :class="(analyzeResult.indicators?.PE?.value||0)>40?'badge-down':'badge-up'" x-text="'PE '+(analyzeResult.indicators?.PE?.value||'N/A')+'x'"></span>
+                </div>
+                <div style="display:flex;align-items:center;gap:6px;margin-top:4px">
+                  <span style="font-size:22px;font-weight:700" x-text="'⭐'.repeat(analyzeResult.stars||0)"></span>
+                  <span style="font-size:12px;color:var(--text-secondary)" x-text="analyzeResult.rating"></span>
+                  <span style="font-size:11px;color:var(--text-muted)" x-text="' | '+analyzeResult.action"></span>
+                </div>
+              </div>
+              <div style="text-align:right">
+                <div class="mono text-xl font-bold" :class="(analyzeResult.indicators?.PE?.value||0)>50?'down':'up'" x-text="analyzeResult.current_price+'元'"></div>
+              </div>
+            </div>
+
+            <!-- Score Bar -->
+            <div style="margin-bottom:12px">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+                <span style="font-size:11px;color:var(--text-muted);font-weight:500">综合评分</span>
+                <span class="mono text-sm font-bold" style="color:var(--accent-light)" x-text="(analyzeResult.total_score||0)+'/100'"></span>
+              </div>
+              <div style="height:8px;background:var(--border);border-radius:4px;overflow:hidden">
+                <div :style="'height:100%;border-radius:4px;transition:width 0.6s ease;width:'+(analyzeResult.total_score||0)+'%;background:'+((analyzeResult.total_score||0)>=70?'#10b981':(analyzeResult.total_score||0)>=45?'#f59e0b':'#f43f5e')"></div>
+              </div>
+            </div>
+
+            <!-- Indicator Grid -->
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:12px">
+              <!-- PE -->
+              <div style="padding:10px 12px;background:var(--bg-base);border-radius:10px;display:flex;justify-content:space-between;align-items:center">
+                <div>
+                  <div style="font-size:10px;color:var(--text-muted);margin-bottom:2px">市盈率 PE</div>
+                  <div class="mono font-bold text-sm" :class="(analyzeResult.indicators?.PE?.value||0)>40?'down':'up'" x-text="(analyzeResult.indicators?.PE?.value||'N/A')+'x'"></div>
+                </div>
+                <div style="font-size:10px;color:var(--up);background:var(--up-bg);padding:2px 6px;border-radius:4px" x-show="(analyzeResult.indicators?.PE?.value||0)<25">安全</div>
+              </div>
+              <!-- ROE -->
+              <div style="padding:10px 12px;background:var(--bg-base);border-radius:10px;display:flex;justify-content:space-between;align-items:center">
+                <div>
+                  <div style="font-size:10px;color:var(--text-muted);margin-bottom:2px">ROE</div>
+                  <div class="mono font-bold text-sm" :class="(analyzeResult.indicators?.ROE?.value||0)>=15?'up':'down'" x-text="(analyzeResult.indicators?.ROE?.value||'N/A')+'%'"></div>
+                </div>
+                <div style="font-size:10px;color:var(--text-muted)" x-text="(analyzeResult.indicators?.ROE?.value||0)>=15?'✅':'⚠️'"></div>
+              </div>
+              <!-- Gross Margin -->
+              <div style="padding:10px 12px;background:var(--bg-base);border-radius:10px;display:flex;justify-content:space-between;align-items:center">
+                <div>
+                  <div style="font-size:10px;color:var(--text-muted);margin-bottom:2px">毛利率</div>
+                  <div class="mono font-bold text-sm" x-text="(analyzeResult.indicators?.毛利率?.value||'N/A')+'%'"></div>
+                </div>
+              </div>
+              <!-- Debt Ratio -->
+              <div style="padding:10px 12px;background:var(--bg-base);border-radius:10px;display:flex;justify-content:space-between;align-items:center">
+                <div>
+                  <div style="font-size:10px;color:var(--text-muted);margin-bottom:2px">资产负债率</div>
+                  <div class="mono font-bold text-sm" :class="(analyzeResult.indicators?.资产负债率?.value||0)>=60?'down':'up'" x-text="(analyzeResult.indicators?.资产负债率?.value||'N/A')+'%'"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Target / Stop -->
+            <div x-show="analyzeResult.target_price" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+              <div style="padding:10px 14px;background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.2);border-radius:10px;text-align:center">
+                <div style="font-size:10px;color:var(--up);margin-bottom:3px">目标价</div>
+                <div class="mono font-bold text-base" style="color:var(--up)" x-text="'¥'+(analyzeResult.target_price||'?')"></div>
+              </div>
+              <div style="padding:10px 14px;background:rgba(244,63,94,0.08);border:1px solid rgba(244,63,94,0.2);border-radius:10px;text-align:center">
+                <div style="font-size:10px;color:var(--down);margin-bottom:3px">止损价</div>
+                <div class="mono font-bold text-base" style="color:var(--down)" x-text="'¥'+(analyzeResult.stop_price||'?')"></div>
+              </div>
+            </div>
+
+            <!-- Summary -->
+            <div style="padding:10px 12px;background:var(--bg-base);border-radius:10px;font-size:11px;color:var(--text-secondary);line-height:1.6;white-space:pre-wrap" x-text="analyzeResult.summary||''"></div>
+
+          </div>
+        </template>
+      </div>
+
+      <!-- Empty state -->
+      <div x-show="!analyzeResult && !analyzing" style="text-align:center;padding:20px 0;color:var(--text-muted);font-size:12px">
+        <div style="font-size:28px;margin-bottom:8px">📊</div>
+        <div>输入股票代码或名称</div>
+        <div style="margin-top:2px">查询巴菲特价值投资分析</div>
+      </div>
+    </div>
+
+    <!-- Trade Panel -->
+    <div class="card" style="flex-shrink:0;padding:16px">
+      <div style="display:flex;gap:6px;margin-bottom:14px">
+        <button class="btn" :class="mode==='buy'?'btn-buy':'btn-ghost'" @click="mode='buy'" style="flex:1">买入</button>
+        <button class="btn" :class="mode==='sell'?'btn-sell':'btn-ghost'" @click="mode='sell'" style="flex:1">卖出</button>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <div>
+          <label style="font-size:11px;color:var(--text-muted);display:block;margin-bottom:4px">股票代码</label>
+          <input type="text" placeholder="如 600036" x-model="code">
+        </div>
+        <div>
+          <label style="font-size:11px;color:var(--text-muted);display:block;margin-bottom:4px">数量（手）</label>
+          <input type="number" placeholder="100" x-model="shares" min="100" step="100">
+        </div>
+        <div>
+          <label style="font-size:11px;color:var(--text-muted);display:block;margin-bottom:4px">交易理由</label>
+          <input type="text" placeholder="选填" x-model="reason">
+        </div>
+        <div x-show="msg" style="padding:8px 10px;border-radius:8px;font-size:12px" :class="msgOk?'up-bg':'down-bg'" :style="'color:'+(msgOk?'var(--up)':'var(--down)')" x-text="msg"></div>
+        <button class="btn" :class="mode==='buy'?'btn-buy':'btn-sell'" style="width:100%;padding:10px" @click="trade()">
+          <span x-text="mode==='buy'?'确认买入':'确认卖出'"></span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Reviews -->
+    <div class="card" style="flex:1;overflow:hidden;display:flex;flex-direction:column;padding:14px;min-height:0">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px;flex-shrink:0">
+        <div style="width:5px;height:16px;background:#f59e0b;border-radius:3px"></div>
+        <span style="font-size:13px;font-weight:600;color:var(--text-primary)">复盘日志</span>
+        <span class="badge badge-neutral text-xs" x-text="data.reviews.length"></span>
+      </div>
+      <div style="overflow:auto;flex:1;display:flex;flex-direction:column;gap:8px">
+        <template x-for="r in data.reviews" :key="r.id||r.date">
+          <div style="padding:10px 12px;background:var(--bg-base);border-radius:10px;border-left:3px solid var(--accent)">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">
+              <span class="mono text-xs" style="color:var(--text-muted)" x-text="r.date"></span>
+              <template x-if="r.profit">
+                <span class="mono text-xs font-bold" :class="(r.profit||0)>=0?'up':'down'" x-text="((r.profit||0)>=0?'+':'')+Number(r.profit||0).toFixed(0)+'元'"></span>
+              </template>
+            </div>
+            <div style="font-size:12px;color:var(--text-secondary);line-height:1.5" x-text="r.content||''"></div>
+          </div>
+        </template>
+        <div x-show="data.reviews.length===0" style="text-align:center;padding:20px;color:var(--text-muted);font-size:12px">
+          暂无复盘记录
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ECharts resize hack
+function app(){
+  return {
+    data: {
+      account: {cash:0, total_value:50000, total_profit:0},
+      positions: {}, trades: [], reviews: [], equity: [], index: {}, stats: {}
+    },
+    eqRange: 30, chart: null, lastUpdate: '-',
+    mode: 'buy', code: '', shares: 100, reason: '', msg: '', msgOk: false,
+    queryCode: '', result: null, analyzeResult: null, suggestions: [], showSuggestions: false, analyzing: false,
+    debounceSearch: null,
+
+    get roi(){ return ((this.data.account.total_value - 50000) / 50000) * 100 },
+
+    async init(){
+      // setup debounce for search
+      let t;
+      this.debounceSearch = () => {
+        clearTimeout(t);
+        t = setTimeout(() => this.searchStocks(this.queryCode), 300);
+      };
+      await this.load();
+      setInterval(() => this.load(), 30000);
+    },
+
+    async load(){
+      try {
+        // 用 /api/dashboard 一次拿全部数据
+        const r = await fetch('/api/dashboard');
+        const d = await r.json();
+        if(d.error) { console.error('Dashboard error:', d.error); return; }
+        this.data.account = d.account || {cash:0,total_value:50000,total_profit:0};
+        this.data.positions = d.positions || {};
+        this.data.trades = d.trades || [];
+        this.data.reviews = (d.reviews && d.reviews.reviews) ? d.reviews.reviews : (Array.isArray(d.reviews) ? d.reviews : []);
+        this.data.equity = d.equity || [];
+        this.data.index = d.index || {};
+        this.data.stats = d.stats || {};
+        this.renderChart();
+        this.lastUpdate = new Date().toLocaleTimeString('zh-CN',{hour12:false});
+      } catch(e){ console.error('Load failed:', e); }
+    },
+
+    fmt(n){ if(n==null)return'0.00'; return Number(n).toLocaleString('zh-CN',{minimumFractionDigits:2,maximumFractionDigits:2}) },
+
+    renderChart(){
+      const el = document.getElementById('eqChart');
+      if(!el)return;
+      if(!this.chart) this.chart = echarts.init(el,'dark');
+      let d = this.data.equity;
+      if(this.eqRange>0) d = d.slice(-this.eqRange);
+      this.chart.setOption({
+        backgroundColor:'transparent',
+        tooltip:{trigger:'axis',formatter:p=>{const v=p[0];return v.name+'<br/>净值: ¥'+Number(v.value).toLocaleString()}},
+        grid:{left:70,right:20,top:20,bottom:30},
+        xAxis:{type:'category',data:d.map(i=>i.date),axisLine:{lineStyle:{color:'#334155'}},axisLabel:{color:'#94a3b8',fontSize:10}},
+        yAxis:{type:'value',axisLine:{lineStyle:{color:'#334155'}},axisLabel:{color:'#94a3b8',formatter:v=>'¥'+(v/10000).toFixed(1)+'万'},splitLine:{lineStyle:{color:'#1e293b'}}},
+        series:[{type:'line',data:d.map(i=>i.total_value),smooth:true,lineStyle:{color:'#3b82f6',width:2},areaStyle:{color:new echarts.graphic.LinearGradient(0,0,0,1,[{offset:0,color:'rgba(59,130,246,0.3)'},{offset:1,color:'rgba(59,130,246,0)'}])},itemStyle:{color:'#3b82f6'}}],
+      });
+      window.onresize = () => this.chart?.resize();
+    },
+
+    async trade(){
+      this.msg='';
+      if(!this.code||!this.shares){this.msg='请输入代码和数量';this.msgOk=false;return}
+      if(this.shares%100!==0){this.msg='数量必须是100的倍数';this.msgOk=false;return}
+      try{
+        const r=await fetch('/api/trade',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:this.mode,stock_code:this.code,shares:this.shares,reason:this.reason})});
+        const d=await r.json();
+        if(d.error){this.msg=d.error;this.msgOk=false}
+        else{this.msg=(this.mode==='buy'?'买入':'卖出')+'成功！';this.msgOk=true;this.code='';this.shares=100;this.reason='';await this.load()}
+      }catch(e){this.msg='失败: '+e.message;this.msgOk=false}
+    },
+
+    sellStock(code,shares){this.mode='sell';this.code=code;this.shares=shares},
+
+    async analyze(){
+      if(!this.queryCode)return;
+      this.analyzing=true;
+      this.analyzeResult=null;
+      try{
+        const r=await fetch('/api/analyze/'+this.queryCode, {signal: AbortSignal.timeout(120000)});
+        const d=await r.json();
+        this.analyzeResult=d.error?null:d;
+        this.result=null;
+      }catch(e){this.analyzeResult=null}
+      finally{this.analyzing=false}
+    },
+    async searchStocks(kw){
+      if(!kw||kw.length<1){this.suggestions=[];return}
+      try{
+        const r=await fetch('/api/search?q='+encodeURIComponent(kw));
+        this.suggestions=await r.json();
+      }catch(e){this.suggestions=[]}
+    }
+  };
+}
+// 全局resize
+window.addEventListener('resize',()=>{document.querySelectorAll('#eqChart').forEach(el=>{const c=echarts.getInstanceByDom(el);if(c)c.resize()})});
+</script>
+</body>
+</html>
