@@ -299,7 +299,7 @@ tr:hover td { background: rgba(255,255,255,0.02); color: var(--text-primary); }
                   <td class="mono">-</td>
                   <td class="mono">-</td>
                   <td class="mono">-</td>
-                  <td><button @click="sellStock(code,pos.shares)" class="btn btn-sell" style="padding:4px 10px;font-size:11px">卖出</button></td>
+                  <td><span class="badge text-xs badge-up">卖</span></td>
                 </tr>
               </template>
               <tr x-show="Object.keys(data.positions).length===0">
