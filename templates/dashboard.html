@@ -254,7 +254,7 @@ tr:hover td { background: rgba(255,255,255,0.02); color: var(--text-primary); }
   <div style="width:62%;display:flex;flex-direction:column;gap:14px;overflow:hidden">
 
     <!-- Equity Chart Card -->
-    <div class="card" style="flex:0 0 320px;min-height:0;display:flex;flex-direction:column;padding:16px">
+    <div class="card" style="flex:0 0 240px;min-height:0;display:flex;flex-direction:column;padding:14px">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-shrink:0">
         <div style="display:flex;align-items:center;gap:8px">
           <div style="width:6px;height:20px;background:linear-gradient(180deg,#6366f1,#8b5cf6);border-radius:3px"></div>
@@ -270,7 +270,7 @@ tr:hover td { background: rgba(255,255,255,0.02); color: var(--text-primary); }
     </div>
 
     <!-- Positions + Trades side by side -->
-    <div style="display:flex;gap:14px;flex-shrink:0;max-height:280px">
+    <div style="display:flex;gap:14px;flex-shrink:0;max-height:220px">
 
       <!-- Positions -->
       <div class="card" style="flex:1;overflow:hidden;display:flex;flex-direction:column;padding:14px">
@@ -480,7 +480,7 @@ tr:hover td { background: rgba(255,255,255,0.02); color: var(--text-primary); }
     </div>
 
     <!-- Trade Panel -->
-    <div class="card" style="flex-shrink:0;padding:16px">
+    <div class="card" style="flex-shrink:0;padding:14px;max-height:200px;overflow:auto">
       <div style="display:flex;gap:6px;margin-bottom:14px">
         <button class="btn" :class="mode==='buy'?'btn-buy':'btn-ghost'" @click="mode='buy'" style="flex:1">买入</button>
         <button class="btn" :class="mode==='sell'?'btn-sell':'btn-ghost'" @click="mode='sell'" style="flex:1">卖出</button>
