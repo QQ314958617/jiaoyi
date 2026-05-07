@@ -319,19 +319,20 @@ tr:hover td { background: rgba(255,255,255,0.02); color: var(--text-primary); }
         </div>
         <div style="overflow:auto;flex:1">
           <table>
-            <thead><tr><th>时间</th><th>代码</th><th>操作</th><th>价格</th><th>盈亏</th></tr></thead>
+            <thead><tr><th>时间</th><th>名称</th><th>操作</th><th>价格</th><th>总金额</th><th>盈亏</th></tr></thead>
             <tbody>
               <template x-for="t in data.trades.slice(0,8)" :key="t.id">
                 <tr>
                   <td class="mono text-xs" x-text="t.timestamp.slice(5,10)"></td>
-                  <td class="mono text-xs" x-text="t.stock_code"></td>
+                  <td class="mono text-xs" x-text="t.stock_name || t.stock_code"></td>
                   <td><span class="badge text-xs" :class="t.action==='buy'?'badge-down':'badge-up'" x-text="t.action==='buy'?'买':'卖'"></span></td>
                   <td class="mono text-xs" x-text="'¥'+Number(t.price).toFixed(2)"></td>
+                  <td class="mono text-xs" x-text="'¥'+Number(t.amount||0).toFixed(0)"></td>
                   <td class="mono text-xs" :class="(t.profit||0)>=0?'up':'down'" x-text="((t.profit||0)>=0?'+':'')+Number(t.profit||0).toFixed(0)"></td>
                 </tr>
               </template>
               <tr x-show="data.trades.length===0">
-                <td colspan="5" style="text-align:center;color:var(--text-muted);padding:24px;font-size:12px">暂无交易记录</td>
+                <td colspan="6" style="text-align:center;color:var(--text-muted);padding:24px;font-size:12px">暂无交易记录</td>
               </tr>
             </tbody>
           </table>
