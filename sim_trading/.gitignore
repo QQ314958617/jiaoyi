@@ -8,3 +8,4 @@ database.py
 openclaw
 trading
 start_gunicorn.sh
+templates
