@@ -6,7 +6,7 @@ import os
 from datetime import datetime, timezone, timedelta
 from contextlib import contextmanager
 
-DATABASE_FILE = os.path.join(os.path.dirname(__file__), 'data', 'trading.db')
+DATABASE_FILE = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'data', 'trading.db')
 
 def get_db_path():
     os.makedirs(os.path.dirname(DATABASE_FILE), exist_ok=True)
@@ -112,13 +112,17 @@ def init_database():
 # ========== 账户操作 ==========
 
 def get_account():
-    """获取账户信息"""
+    """获取账户信息（返回值四舍五入到2位小数）"""
     with get_connection() as conn:
         c = conn.cursor()
         c.execute('SELECT * FROM account WHERE id = 1')
         row = c.fetchone()
         if row:
-            return dict(row)
+            d = dict(row)
+            d['cash'] = round(d['cash'], 2)
+            d['total_value'] = round(d['total_value'], 2)
+            d['total_profit'] = round(d['total_profit'], 2)
+            return d
         return {'cash': 50000.0, 'total_value': 50000.0, 'total_profit': 0.0}
 
 def update_account(cash, total_value, total_profit):
@@ -153,7 +157,7 @@ def get_position(stock_code):
         return dict(row) if row else None
 
 def upsert_position(stock_code, stock_name, shares, avg_cost, buy_date=None):
-    """更新持仓（插入或更新）"""
+    """更新持仓（插入或更新，数值round到2位小数）"""
     bj_tz = timezone(timedelta(hours=8))
     now_bj = datetime.now(bj_tz).strftime('%Y-%m-%d %H:%M:%S')
     
@@ -166,7 +170,7 @@ def upsert_position(stock_code, stock_name, shares, avg_cost, buy_date=None):
                 stock_name = excluded.stock_name,
                 shares = excluded.shares,
                 avg_cost = excluded.avg_cost
-        ''', (stock_code, stock_name, shares, avg_cost, buy_date or now_bj, now_bj))
+        ''', (stock_code, stock_name, shares, round(avg_cost, 2), buy_date or now_bj, now_bj))
         conn.commit()
 
 def delete_position(stock_code):
@@ -179,7 +183,7 @@ def delete_position(stock_code):
 # ========== 交易记录 ==========
 
 def add_trade(action, stock_code, stock_name, price, shares, amount, commission=0, profit=0, reason=''):
-    """添加交易记录"""
+    """添加交易记录（所有数值round到2位小数）"""
     bj_tz = timezone(timedelta(hours=8))
     bj_time = datetime.now(bj_tz).strftime('%Y-%m-%d %H:%M:%S')
     
@@ -188,7 +192,7 @@ def add_trade(action, stock_code, stock_name, price, shares, amount, commission=
         c.execute('''
             INSERT INTO trades (action, stock_code, stock_name, price, shares, amount, commission, profit, reason, timestamp)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ''', (action, stock_code, stock_name, price, shares, amount, commission, profit, reason, bj_time))
+        ''', (action, stock_code, stock_name, round(price, 2), shares, round(amount, 2), round(commission, 2), round(profit, 2), reason, bj_time))
         conn.commit()
         return c.lastrowid
 
@@ -202,8 +206,7 @@ def get_trades(limit=100):
 # ========== 复盘记录 ==========
 
 def add_review(date, content, strategies='', profit=0, tags=''):
-    """添加复盘"""
-    # 使用北京时间（SQLite的CURRENT_TIMESTAMP是UTC，需要显式传入）
+    """添加复盘（数值round到2位小数）"""
     bj_tz = timezone(timedelta(hours=8))
     bj_time = datetime.now(bj_tz).strftime('%Y-%m-%d %H:%M:%S')
     
@@ -212,7 +215,7 @@ def add_review(date, content, strategies='', profit=0, tags=''):
         c.execute('''
             INSERT INTO daily_reviews (date, content, strategies, profit, tags, timestamp)
             VALUES (?, ?, ?, ?, ?, ?)
-        ''', (date, content, strategies, profit, tags, bj_time))
+        ''', (date, content, strategies, round(float(profit or 0), 2), tags, bj_time))
         conn.commit()
         return c.lastrowid
 
@@ -235,7 +238,7 @@ def get_reviews_paged(offset=0, limit=10):
 # ========== 净值曲线 ==========
 
 def add_equity_record(date, total_value, cash, position_value):
-    """记录净值"""
+    """记录净值（所有数值round到2位小数）"""
     bj_tz = timezone(timedelta(hours=8))
     bj_time = datetime.now(bj_tz).strftime('%Y-%m-%d %H:%M:%S')
     
@@ -244,7 +247,7 @@ def add_equity_record(date, total_value, cash, position_value):
         c.execute('''
             INSERT INTO equity_curve (date, total_value, cash, position_value, timestamp)
             VALUES (?, ?, ?, ?, ?)
-        ''', (date, total_value, cash, position_value, bj_time))
+        ''', (date, round(total_value, 2), round(cash, 2), round(position_value, 2), bj_time))
         conn.commit()
 
 def get_equity_curve(days=30):
@@ -260,28 +263,49 @@ def get_equity_curve(days=30):
 
 # ========== 统计分析 ==========
 
+def get_recently_sold_stocks(hours=48):
+    """获取最近N小时内卖出的股票代码列表（用于冷却期过滤）"""
+    bj_tz = timezone(timedelta(hours=8))
+    cutoff = datetime.now(bj_tz) - timedelta(hours=hours)
+    cutoff_str = cutoff.strftime('%Y-%m-%d %H:%M:%S')
+    
+    with get_connection() as conn:
+        c = conn.cursor()
+        c.execute('''
+            SELECT DISTINCT stock_code, stock_name, profit, timestamp
+            FROM trades 
+            WHERE action = 'sell' AND timestamp >= ?
+            ORDER BY timestamp DESC
+        ''', (cutoff_str,))
+        return [dict(row) for row in c.fetchall()]
+
+
 def get_trade_stats():
     """获取交易统计"""
     with get_connection() as conn:
         c = conn.cursor()
-        # 总交易次数
-        c.execute('SELECT COUNT(*) FROM trades')
-        total_trades = c.fetchone()[0]
-        # 盈利次数
-        c.execute("SELECT COUNT(*) FROM trades WHERE profit > 0")
+        # 只统计卖出记录（买入不计入交易次数）
+        c.execute("SELECT COUNT(*) FROM trades WHERE action = 'sell'")
+        total_closed = c.fetchone()[0]
+        # 盈利卖出次数
+        c.execute("SELECT COUNT(*) FROM trades WHERE action = 'sell' AND profit > 0")
         win_trades = c.fetchone()[0]
+        # 亏损卖出次数
+        c.execute("SELECT COUNT(*) FROM trades WHERE action = 'sell' AND profit < 0")
+        loss_trades = c.fetchone()[0]
         # 总盈利
         c.execute('SELECT SUM(profit) FROM trades WHERE profit > 0')
-        total_profit = c.fetchone()[0] or 0
+        total_profit = round(c.fetchone()[0] or 0, 2)
         # 总亏损
         c.execute('SELECT SUM(ABS(profit)) FROM trades WHERE profit < 0')
-        total_loss = c.fetchone()[0] or 0
+        total_loss = round(c.fetchone()[0] or 0, 2)
         
         return {
-            'total_trades': total_trades,
+            'total_trades': total_closed,
             'win_trades': win_trades,
-            'win_rate': round(win_trades / total_trades * 100, 2) if total_trades > 0 else 0,
+            'loss_trades': loss_trades,
+            'win_rate': round(win_trades / total_closed * 100, 2) if total_closed > 0 else 0,
             'total_profit': total_profit,
             'total_loss': total_loss,
-            'net_profit': total_profit - total_loss
+            'net_profit': round(total_profit - total_loss, 2)
         }

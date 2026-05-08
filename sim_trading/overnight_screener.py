@@ -30,7 +30,7 @@ v3.0 重大升级（基于AKShare接口测试）:
 import akshare as ak
 import pandas as pd
 import numpy as np
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 import json
 import sys
 import os
@@ -210,7 +210,26 @@ def screen_overnight_v3():
         log("❌ 市值50-200亿无股票")
         return [], index_data
     
-    # Step 6: 腾讯实时价格（仅展示，不过滤）
+    # Step 6: 冷却期过滤——排除最近48小时内卖出过的股票
+    log("⏳ Step6: 冷却期过滤（排除48h内卖出股票）...")
+    try:
+        sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+        import database as db
+        recently_sold = db.get_recently_sold_stocks(hours=48)
+        sold_codes = set(r['stock_code'] for r in recently_sold)
+        if sold_codes:
+            log(f"🔇 最近48h内卖出: {', '.join(sold_codes)}")
+            df_candidates = df_candidates[~df_candidates['代码'].isin(sold_codes)].copy()
+            log(f"✅ 冷却过滤后剩余: {len(df_candidates)} 只")
+            if len(df_candidates) == 0:
+                log("❌ 所有候选股均在冷却期")
+                return [], index_data
+        else:
+            log("✅ 无最近卖出记录，无需冷却过滤")
+    except Exception as e:
+        log(f"⚠️ 冷却期过滤失败(非致命): {e}")
+    
+    # Step 7: 腾讯实时价格（仅展示，不过滤）
     codes = df_candidates['代码'].tolist()
     quotes = get_tencent_quotes(codes)
     

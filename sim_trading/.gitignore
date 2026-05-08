@@ -1,0 +1,10 @@
+*.db
+*.bak
+tmp/
+venv/
+__pycache__/
+*.pyc
+database.py
+openclaw
+trading
+start_gunicorn.sh
