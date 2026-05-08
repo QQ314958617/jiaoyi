@@ -43,60 +43,57 @@ body {
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--border-light); border-radius: 4px; }
 
-.card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; transition: border-color 0.15s; }
-.card:hover { border-color: var(--border-light); }
+.card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; }
 .card-md { padding: 12px; }
-.card-sm { padding: 8px 10px; }
 
 .badge {
   display: inline-flex; align-items: center;
   padding: 1px 7px; border-radius: 999px;
-  font-size: 9px; font-weight: 600; letter-spacing: 0.03em; white-space: nowrap;
+  font-size: 9px; font-weight: 600; white-space: nowrap;
 }
 .badge-up { background: var(--up-bg); color: var(--up); border: 1px solid var(--up-border); }
 .badge-down { background: var(--down-bg); color: var(--down); border: 1px solid var(--down-border); }
 .badge-neutral { background: rgba(85,85,112,0.1); color: var(--text-muted); border: 1px solid var(--border-light); }
 .badge-accent { background: var(--accent-dim); color: var(--accent-light); border: 1px solid rgba(124,92,252,0.25); }
+.badge-gold { background: var(--gold-bg); color: var(--gold); border: 1px solid rgba(245,158,11,0.2); }
 
 .btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 4px;
-  padding: 6px 14px; border-radius: 8px;
-  font-size: 12px; font-weight: 600; cursor: pointer; border: none;
+  padding: 5px 12px; border-radius: 8px;
+  font-size: 11px; font-weight: 600; cursor: pointer; border: none;
   transition: all 0.12s;
 }
 .btn-buy { background: var(--down); color: #fff; }
-.btn-buy:hover { background: #ef4444; box-shadow: 0 0 14px rgba(248,113,113,0.25); }
+.btn-buy:hover { background: #ef4444; }
 .btn-sell { background: var(--up); color: #fff; }
-.btn-sell:hover { background: #10b981; box-shadow: 0 0 14px rgba(52,211,153,0.25); }
+.btn-sell:hover { background: #10b981; }
 .btn-accent { background: var(--accent); color: #fff; }
-.btn-accent:hover { background: var(--accent-light); box-shadow: 0 0 14px rgba(124,92,252,0.25); }
+.btn-accent:hover { background: var(--accent-light); }
 .btn-ghost { background: transparent; color: var(--text-secondary); border: 1px solid var(--border-light); }
 .btn-ghost:hover { background: var(--bg-elevated); color: var(--text-primary); }
 
-input, select {
+input {
   background: var(--bg-deep); border: 1px solid var(--border-light);
-  color: var(--text-primary); padding: 7px 10px; border-radius: 8px;
-  outline: none; width: 100%; font-size: 12px;
-  transition: border-color 0.12s;
+  color: var(--text-primary); padding: 6px 9px; border-radius: 7px;
+  outline: none; font-size: 11px; transition: border-color 0.12s;
 }
 input:focus { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-dim); }
 input::placeholder { color: var(--text-muted); }
 
 table { width: 100%; border-collapse: collapse; }
 th {
-  text-align: left; padding: 4px 6px; color: var(--text-muted);
-  font-size: 9px; font-weight: 600; text-transform: uppercase;
-  letter-spacing: 0.08em; border-bottom: 1px solid var(--border);
+  text-align: left; padding: 4px 5px; color: var(--text-muted);
+  font-size: 9px; font-weight: 600; letter-spacing: 0.08em;
+  border-bottom: 1px solid var(--border);
   position: sticky; top: 0; background: var(--bg-card);
 }
-td { padding: 5px 6px; font-size: 11px; color: var(--text-secondary); border-bottom: 1px solid rgba(30,30,48,0.5); }
+td { padding: 5px 5px; font-size: 11px; color: var(--text-secondary); border-bottom: 1px solid rgba(30,30,48,0.5); }
 tr:last-child td { border-bottom: none; }
 tr:hover td { background: rgba(255,255,255,0.012); color: var(--text-primary); }
 
 .tab {
-  padding: 3px 9px; cursor: pointer; font-size: 10px;
-  color: var(--text-muted); border-radius: 6px;
-  transition: all 0.12s;
+  padding: 2px 8px; cursor: pointer; font-size: 10px;
+  color: var(--text-muted); border-radius: 5px; transition: all 0.12s;
 }
 .tab:hover { color: var(--text-secondary); background: rgba(255,255,255,0.02); }
 .tab.active { color: var(--accent-light); background: var(--accent-dim); }
@@ -104,13 +101,13 @@ tr:hover td { background: rgba(255,255,255,0.012); color: var(--text-primary); }
 .s-line { width: 3px; height: 14px; border-radius: 2px; flex-shrink: 0; }
 
 .s-drop {
-  position: absolute; top: calc(100% + 2px); left: 0; right: 52px;
+  position: absolute; top: calc(100% + 2px); left: 0; right: 48px;
   background: var(--bg-elevated); border: 1px solid var(--border-light);
-  border-radius: 10px; z-index: 100; max-height: 140px; overflow: auto;
+  border-radius: 8px; z-index: 100; max-height: 130px; overflow: auto;
   box-shadow: 0 10px 30px rgba(0,0,0,0.5);
 }
 .s-drop > div {
-  padding: 6px 10px; cursor: pointer; font-size: 11px;
+  padding: 5px 9px; cursor: pointer; font-size: 10px;
   display: flex; align-items: center; justify-content: space-between;
   border-bottom: 1px solid rgba(42,42,64,0.5);
 }
@@ -130,9 +127,8 @@ tr:hover td { background: rgba(255,255,255,0.012); color: var(--text-primary); }
   <div style="display:flex;align-items:center;gap:8px;margin-right:12px">
     <div style="width:24px;height:24px;border-radius:7px;background:linear-gradient(135deg,#7c5cfc,#a78bfa);display:flex;align-items:center;justify-content:center;font-size:13px">🥚</div>
     <span style="font-size:12px;font-weight:700">蛋蛋基金</span>
-    <span style="font-size:8px;color:var(--text-muted);margin-left:-2px">v2.4</span>
+    <span style="font-size:8px;color:var(--text-muted);margin-left:-2px">⏰ 自动交易</span>
   </div>
-
   <template x-if="data.index.name">
     <div style="display:flex;align-items:center;gap:5px;padding:2px 8px;background:var(--bg-deep);border:1px solid var(--border);border-radius:7px;margin-right:8px">
       <span style="font-size:9px;font-weight:600;color:var(--text-secondary)" x-text="data.index.name"></span>
@@ -141,7 +137,6 @@ tr:hover td { background: rgba(255,255,255,0.012); color: var(--text-primary); }
       <span class="badge" style="font-size:7px" :class="data.index.above_ma5?'badge-up':'badge-down'" x-text="data.index.above_ma5?'5↑':'5↓'"></span>
     </div>
   </template>
-
   <div style="display:flex;align-items:center;gap:10px">
     <div style="display:flex;align-items:center;gap:3px">
       <span style="font-size:8px;color:var(--text-muted)">现金</span>
@@ -167,18 +162,20 @@ tr:hover td { background: rgba(255,255,255,0.012); color: var(--text-primary); }
   </div>
 </header>
 
-<!-- ═══ BODY ═══ -->
+<!-- ═══ BODY: 60/40 split (info / tools) ═══ -->
 <div style="display:flex;gap:10px;padding:10px;height:calc(100vh - 42px);overflow:hidden">
 
-  <!-- ═══ LEFT (40%): Chart compact + Position compact + Trade big ═══ -->
-  <div style="width:40%;display:flex;flex-direction:column;gap:10px;overflow:hidden">
+  <!-- ═══ LEFT (60%): Chart + Positions + Trades ═══ -->
+  <div style="width:60%;display:flex;flex-direction:column;gap:10px;overflow:hidden">
 
     <!-- ── Chart ── -->
-    <div class="card card-md" style="flex:0 0 110px;display:flex;flex-direction:column">
+    <div class="card card-md" style="flex:0 0 140px;display:flex;flex-direction:column">
       <div style="display:flex;align-items:center;justify-content:space-between;flex-shrink:0;margin-bottom:4px">
         <div style="display:flex;align-items:center;gap:6px">
           <div class="s-line" style="background:linear-gradient(180deg,#7c5cfc,#a78bfa)"></div>
-          <span style="font-size:10px;font-weight:600">净值走势</span>
+          <span style="font-size:11px;font-weight:600">净值走势</span>
+          <span class="badge badge-accent" x-show="data.stats.win_rate" x-text="'胜率 '+data.stats.win_rate+'%'"></span>
+          <span class="badge" :class="(data.stats.win_rate||0)>=50?'badge-up':'badge-down'" x-show="data.stats.net_profit" x-text="'净利 ¥'+(data.stats.net_profit||0).toFixed(0)"></span>
         </div>
         <div style="display:flex;gap:2px">
           <button class="tab" :class="eqRange===7&&'active'" @click="eqRange=7;renderChart()">7D</button>
@@ -189,194 +186,143 @@ tr:hover td { background: rgba(255,255,255,0.012); color: var(--text-primary); }
       <div id="eqChart" style="flex:1;min-height:0"></div>
     </div>
 
-    <!-- ── Positions (compact card) ── -->
+    <!-- ── Positions (compact card) + Mini trade panel ── -->
     <div class="card card-md" style="flex-shrink:0">
-      <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
         <div class="s-line" style="background:var(--up)"></div>
-        <span style="font-size:10px;font-weight:600">持仓</span>
+        <span style="font-size:11px;font-weight:600">当前持仓</span>
         <span class="badge badge-neutral" x-text="Object.keys(data.positions).length"></span>
         <span style="flex:1"></span>
-        <span class="badge badge-accent" x-show="data.stats.win_rate" x-text="'胜率 '+data.stats.win_rate+'%'"></span>
-        <span class="badge" :class="(data.stats.win_rate||0)>=50?'badge-up':'badge-down'" x-show="data.stats.net_profit" x-text="'净利 ¥'+(data.stats.net_profit||0).toFixed(0)"></span>
+        <span style="font-size:9px;color:var(--text-muted)" x-show="Object.keys(data.positions).length">下一操作 · 明早09:30自动卖出</span>
+        <span style="font-size:9px;color:var(--text-muted)" x-show="Object.keys(data.positions).length===0">下一操作 · 明早14:50自动选股</span>
       </div>
-      <!-- Position rows (card-style, not table) -->
+
       <template x-for="(pos, code) in data.positions" :key="code">
-        <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--bg-deep);border-radius:8px;margin-bottom:4px">
+        <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--bg-deep);border-radius:10px;margin-bottom:4px">
+          <div style="width:36px;height:36px;border-radius:8px;background:linear-gradient(135deg,#34d399,#2dd4bf);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">💎</div>
           <div style="flex:1">
             <div style="display:flex;align-items:center;gap:6px">
-              <span style="font-size:12px;font-weight:600;color:var(--text-primary)" x-text="pos.stock_name"></span>
-              <span class="mono" style="font-size:9px;color:var(--text-muted)" x-text="code"></span>
+              <span style="font-size:14px;font-weight:700;color:var(--text-primary)" x-text="pos.stock_name"></span>
+              <span class="mono" style="font-size:10px;color:var(--text-muted)" x-text="code"></span>
               <span class="badge badge-up" style="font-size:8px">持仓中</span>
             </div>
-            <div style="display:flex;gap:12px;margin-top:3px">
-              <span style="font-size:10px;color:var(--text-secondary)"><span style="color:var(--text-muted)">数量</span> <span class="mono font-medium" x-text="pos.shares+'股'"></span></span>
-              <span style="font-size:10px;color:var(--text-secondary)"><span style="color:var(--text-muted)">均价</span> <span class="mono font-medium" x-text="'¥'+Number(pos.avg_cost).toFixed(2)"></span></span>
-              <span style="font-size:10px;color:var(--text-secondary)"><span style="color:var(--text-muted)">市值</span> <span class="mono font-medium" x-text="'¥'+(pos.avg_cost*pos.shares).toFixed(0)"></span></span>
+            <div style="display:flex;gap:16px;margin-top:4px">
+              <span style="font-size:11px;color:var(--text-secondary)"><span style="color:var(--text-muted)">数量</span> <span class="mono font-semibold" x-text="pos.shares+'股'"></span></span>
+              <span style="font-size:11px;color:var(--text-secondary)"><span style="color:var(--text-muted)">成本</span> <span class="mono font-semibold" x-text="'¥'+Number(pos.avg_cost).toFixed(2)"></span></span>
+              <span style="font-size:11px;color:var(--text-secondary)"><span style="color:var(--text-muted)">市值</span> <span class="mono font-semibold" x-text="'¥'+(pos.avg_cost*pos.shares).toFixed(0)"></span></span>
             </div>
           </div>
-          <button class="btn btn-sell" style="padding:4px 12px;font-size:10px" @click="sellStock(code, pos.shares)">卖出</button>
+          <!-- Mini manual sell fallback -->
+          <button class="btn btn-ghost" style="font-size:10px;padding:3px 10px" @click="sellStock(code, pos.shares)">手动卖</button>
         </div>
       </template>
-      <div x-show="Object.keys(data.positions).length===0" style="text-align:center;padding:10px 0;color:var(--text-muted);font-size:10px">
-        空仓中 · 等待尾盘信号
+      <div x-show="Object.keys(data.positions).length===0" style="text-align:center;padding:16px 0;color:var(--text-muted);font-size:11px">
+        <div style="font-size:24px;margin-bottom:4px">🛌</div>
+        <div>空仓中 · 自动策略等待尾盘信号</div>
       </div>
     </div>
 
-    <!-- ── Trade Panel (prominent) ── -->
-    <div class="card card-md" style="flex:1;display:flex;flex-direction:column;min-height:0">
-      <div style="display:flex;gap:6px;margin-bottom:10px;flex-shrink:0">
-        <button class="btn" :class="mode==='buy'?'btn-buy':'btn-ghost'" @click="mode='buy';msg=''" style="flex:1;padding:8px;font-size:13px">买入</button>
-        <button class="btn" :class="mode==='sell'?'btn-sell':'btn-ghost'" @click="mode='sell';msg=''" style="flex:1;padding:8px;font-size:13px">卖出</button>
-      </div>
-      <div style="display:flex;flex-direction:column;gap:8px;flex:1">
-        <div>
-          <label style="font-size:9px;color:var(--text-muted);margin-bottom:2px;display:block">股票代码</label>
-          <input type="text" placeholder="如 600036" x-model="code" style="font-size:13px;padding:8px 10px">
-        </div>
-        <div style="display:flex;gap:8px">
-          <div style="flex:1">
-            <label style="font-size:9px;color:var(--text-muted);margin-bottom:2px;display:block">数量（股）</label>
-            <input type="number" placeholder="100" x-model="shares" min="100" step="100" style="font-size:13px;padding:8px 10px">
-          </div>
-          <div x-show="mode=='sell' && hasPosition" style="flex:0 0 100px">
-            <label style="font-size:9px;color:var(--text-muted);margin-bottom:2px;display:block">快捷</label>
-            <button class="btn btn-ghost" style="width:100%;padding:8px;font-size:12px" @click="sellAll()">全部卖出</button>
-          </div>
-        </div>
-        <div>
-          <label style="font-size:9px;color:var(--text-muted);margin-bottom:2px;display:block">理由（选填）</label>
-          <input type="text" placeholder="例如：一夜持股法止盈" x-model="reason" style="font-size:13px;padding:8px 10px">
-        </div>
-        <div x-show="msg" style="padding:6px 10px;border-radius:6px;font-size:11px;font-weight:500" :class="msgOk?'up-bg':'down-bg'" :style="'color:'+(msgOk?'var(--up)':'var(--down)')" x-text="msg"></div>
-        <div style="flex:1"></div>
-        <button class="btn" :class="mode==='buy'?'btn-buy':'btn-sell'" style="width:100%;padding:10px;font-size:13px;font-weight:700" @click="trade()">
-          <span x-text="mode==='buy'?'💵 确认买入':'💰 确认卖出'"></span>
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <!-- ═══ RIGHT (60%): Trades + Analysis + Reviews ═══ -->
-  <div style="width:60%;display:flex;flex-direction:column;gap:10px;overflow:hidden">
-
-    <!-- ── Recent Trades ── -->
+    <!-- ── Trades ── -->
     <div class="card card-md" style="flex:1;display:flex;flex-direction:column;overflow:hidden;min-height:0">
       <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;flex-shrink:0">
         <div class="s-line" style="background:var(--accent)"></div>
-        <span style="font-size:10px;font-weight:600">交易记录</span>
+        <span style="font-size:11px;font-weight:600">交易记录</span>
         <span class="badge badge-neutral" x-text="(data.trades||[]).length"></span>
         <span style="flex:1"></span>
-        <button class="tab text-xs" :class="tradesFilter==='all'&&'active'" @click="tradesFilter='all'">全部</button>
-        <button class="tab text-xs" :class="tradesFilter==='buy'&&'active'" @click="tradesFilter='buy'">买入</button>
-        <button class="tab text-xs" :class="tradesFilter==='sell'&&'active'" @click="tradesFilter='sell'">卖出</button>
+        <button class="tab" :class="tradesFilter==='all'&&'active'" @click="tradesFilter='all'">全部</button>
+        <button class="tab" :class="tradesFilter==='buy'&&'active'" @click="tradesFilter='buy'">买入</button>
+        <button class="tab" :class="tradesFilter==='sell'&&'active'" @click="tradesFilter='sell'">卖出</button>
       </div>
       <div style="overflow:auto;flex:1">
         <table>
-          <thead><tr><th>日期</th><th>名称</th><th>买卖</th><th>价格</th><th>金额</th><th>盈亏</th></tr></thead>
+          <thead><tr><th>日期</th><th>名称</th><th>买卖</th><th>价格</th><th>金额</th><th>盈亏</th><th>理由</th></tr></thead>
           <tbody>
             <template x-for="t in filteredTrades" :key="t.id">
               <tr>
-                <td class="mono" style="font-size:10px" x-text="t.timestamp.slice(5,16)"></td>
+                <td class="mono" style="font-size:9px" x-text="t.timestamp.slice(5,16)"></td>
                 <td style="font-size:10px;font-weight:500" x-text="t.stock_name||t.stock_code"></td>
                 <td><span class="badge" :class="t.action==='buy'?'badge-down':'badge-up'" x-text="t.action==='buy'?'买':'卖'"></span></td>
                 <td class="mono" style="font-size:10px" x-text="'¥'+Number(t.price).toFixed(2)"></td>
                 <td class="mono" style="font-size:10px" x-text="'¥'+(t.amount||0).toFixed(0)"></td>
                 <td class="mono" style="font-size:10px;font-weight:500" :class="(t.profit||0)>0?'up':(t.profit||0)<0?'down':''" x-text="t.profit?((t.profit>0?'+':'')+Number(t.profit).toFixed(0)):'-'"></td>
+                <td style="font-size:9px;color:var(--text-muted);max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" x-text="(t.reason||'').slice(0,20)"></td>
               </tr>
             </template>
           </tbody>
         </table>
       </div>
     </div>
+  </div>
 
-    <!-- ── Bottom: Analysis + Reviews ── -->
-    <div style="display:flex;gap:10px;flex-shrink:0;height:300px">
+  <!-- ═══ RIGHT (40%): Analysis + Reviews + Mini Trade ═══ -->
+  <div style="width:40%;display:flex;flex-direction:column;gap:10px;overflow:hidden">
 
-      <!-- Stock Analysis -->
-      <div class="card card-md" style="flex:1;display:flex;flex-direction:column;overflow:hidden">
-        <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;flex-shrink:0">
-          <div class="s-line" style="background:linear-gradient(180deg,#f59e0b,#f97316)"></div>
-          <span style="font-size:10px;font-weight:600">🔍 价值分析</span>
-        </div>
-        <div style="position:relative;flex-shrink:0;margin-bottom:6px;display:flex;gap:6px">
-          <input type="text" placeholder="代码或名称" x-model="queryCode"
-            @input="debounceSearch()" @focus="showSuggestions=true"
-            @keydown.enter="showSuggestions=false;analyze()" @keydown.escape="showSuggestions=false" style="font-size:12px">
-          <button class="btn btn-accent" @click="showSuggestions=false;analyze()" style="flex-shrink:0;padding:4px 10px">分析</button>
-          <div x-show="showSuggestions && suggestions.length" class="s-drop">
-            <template x-for="s in suggestions" :key="s.code">
-              <div @click="queryCode=s.code;showSuggestions=false;analyze()">
-                <span style="color:var(--text-primary)" x-text="s.name"></span>
-                <span style="color:var(--text-muted);font-family:monospace;font-size:10px" x-text="s.code"></span>
-              </div>
-            </template>
-          </div>
-        </div>
-        <div x-show="analyzing" style="text-align:center;padding:10px 0;color:var(--text-muted)">
-          <div style="font-size:14px;animation:pulse 1.5s infinite">🔄</div>
-          <div style="font-size:9px;margin-top:3px">分析中...</div>
-        </div>
-        <div x-show="analyzeResult && !analyzing" class="fi" style="overflow:auto;flex:1">
-          <template x-if="analyzeResult">
-            <div>
-              <div style="display:flex;align-items:center;gap:6px;padding:7px 8px;background:var(--bg-deep);border-radius:7px;margin-bottom:5px">
-                <div style="flex:1">
-                  <div style="display:flex;align-items:center;gap:4px">
-                    <span style="font-size:12px;font-weight:700" x-text="analyzeResult.name"></span>
-                    <span class="badge" style="font-size:7px" :class="(analyzeResult.indicators?.PE?.value||0)>40?'badge-down':'badge-up'" x-text="'PE '+(analyzeResult.indicators?.PE?.value||'N/A')+'x'"></span>
-                  </div>
-                  <div style="font-size:9px;color:var(--text-secondary);margin-top:1px" x-text="'⭐'.repeat(Math.min(analyzeResult.stars||0,5))+' '+analyzeResult.rating+(analyzeResult.action?' | '+analyzeResult.action:'')"></div>
-                </div>
-                <div style="text-align:right">
-                  <div class="mono text-sm font-bold" :class="(analyzeResult.indicators?.PE?.value||0)>50?'down':'up'" x-text="analyzeResult.current_price+'元'"></div>
-                </div>
-              </div>
-              <div style="margin-bottom:5px">
-                <div style="display:flex;justify-content:space-between;margin-bottom:2px">
-                  <span style="font-size:8px;color:var(--text-muted)">评分</span>
-                  <span class="mono text-xs font-bold" style="color:var(--accent-light)" x-text="(analyzeResult.total_score||0)+''"></span>
-                </div>
-                <div style="height:3px;background:var(--border);border-radius:2px;overflow:hidden">
-                  <div :style="'height:100%;border-radius:2px;width:'+(analyzeResult.total_score||0)+'%;background:'+((analyzeResult.total_score||0)>=70?'#34d399':(analyzeResult.total_score||0)>=45?'#f59e0b':'#f87171')"></div>
-                </div>
-              </div>
-              <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:3px;margin-bottom:5px">
-                <div style="padding:4px 6px;background:var(--bg-deep);border-radius:5px">
-                  <div style="font-size:7px;color:var(--text-muted)">PE</div>
-                  <div class="mono font-bold text-xs" :class="(analyzeResult.indicators?.PE?.value||0)>40?'down':'up'" x-text="(analyzeResult.indicators?.PE?.value||'N/A')+'x'"></div>
-                </div>
-                <div style="padding:4px 6px;background:var(--bg-deep);border-radius:5px">
-                  <div style="font-size:7px;color:var(--text-muted)">ROE</div>
-                  <div class="mono font-bold text-xs" :class="(analyzeResult.indicators?.ROE?.value||0)>=15?'up':'down'" x-text="(analyzeResult.indicators?.ROE?.value||'N/A')+'%'"></div>
-                </div>
-                <div style="padding:4px 6px;background:var(--bg-deep);border-radius:5px">
-                  <div style="font-size:7px;color:var(--text-muted)">毛利率</div>
-                  <div class="mono font-bold text-xs" x-text="(analyzeResult.indicators?.毛利率?.value||'N/A')+'%'"></div>
-                </div>
-              </div>
-              <div x-show="analyzeResult.target_price" style="display:grid;grid-template-columns:1fr 1fr;gap:3px;margin-bottom:5px">
-                <div style="padding:4px 5px;background:var(--up-bg);border:1px solid var(--up-border);border-radius:5px;text-align:center">
-                  <div style="font-size:7px;color:var(--up)">目标价</div>
-                  <div class="mono font-bold text-xs" style="color:var(--up)" x-text="'¥'+(analyzeResult.target_price||'?')"></div>
-                </div>
-                <div style="padding:4px 5px;background:var(--down-bg);border:1px solid var(--down-border);border-radius:5px;text-align:center">
-                  <div style="font-size:7px;color:var(--down)">止损价</div>
-                  <div class="mono font-bold text-xs" style="color:var(--down)" x-text="'¥'+(analyzeResult.stop_price||'?')"></div>
-                </div>
-              </div>
-              <div x-show="analyzeResult.eps_warning" style="padding:3px 6px;background:var(--gold-bg);border:1px solid rgba(245,158,11,0.2);border-radius:5px;margin-bottom:5px;display:flex;align-items:center;gap:4px">
-                <span style="font-size:9px">⚠️</span>
-                <span style="font-size:8px;color:var(--gold)" x-text="analyzeResult.eps_warning"></span>
-              </div>
-              <div style="padding:5px 6px;background:var(--bg-deep);border-radius:5px;font-size:9px;color:var(--text-secondary);line-height:1.5" x-text="analyzeResult.summary||''"></div>
+    <!-- ── Stock Analysis ── -->
+    <div class="card card-md" style="flex:1;display:flex;flex-direction:column;overflow:hidden;min-height:0">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;flex-shrink:0">
+        <div class="s-line" style="background:linear-gradient(180deg,#f59e0b,#f97316)"></div>
+        <span style="font-size:11px;font-weight:600">🔍 价值分析</span>
+      </div>
+      <div style="position:relative;flex-shrink:0;margin-bottom:6px;display:flex;gap:6px">
+        <input type="text" placeholder="输入代码或名称" x-model="queryCode"
+          @input="debounceSearch()" @focus="showSuggestions=true"
+          @keydown.enter="showSuggestions=false;analyze()" @keydown.escape="showSuggestions=false">
+        <button class="btn btn-accent" @click="showSuggestions=false;analyze()" style="flex-shrink:0">分析</button>
+        <div x-show="showSuggestions && suggestions.length" class="s-drop">
+          <template x-for="s in suggestions" :key="s.code">
+            <div @click="queryCode=s.code;showSuggestions=false;analyze()">
+              <span style="color:var(--text-primary)" x-text="s.name"></span>
+              <span style="color:var(--text-muted);font-family:monospace;font-size:10px" x-text="s.code"></span>
             </div>
           </template>
         </div>
-        <div x-show="!analyzeResult && !analyzing" style="text-align:center;padding:12px 0;color:var(--text-muted);font-size:10px">
-          <div style="font-size:18px;margin-bottom:3px">📊</div>
-          <div>输入代码查询价值分析</div>
-        </div>
       </div>
+      <div x-show="analyzing" style="text-align:center;padding:12px 0;color:var(--text-muted)">
+        <div style="font-size:14px;animation:pulse 1.5s infinite">🔄</div>
+        <div style="font-size:9px;margin-top:3px">分析中...</div>
+      </div>
+      <div x-show="analyzeResult && !analyzing" class="fi" style="overflow:auto;flex:1">
+        <template x-if="analyzeResult">
+          <div>
+            <div style="display:flex;align-items:center;gap:6px;padding:8px 10px;background:var(--bg-deep);border-radius:8px;margin-bottom:6px">
+              <div style="flex:1">
+                <div style="display:flex;align-items:center;gap:4px">
+                  <span style="font-size:13px;font-weight:700" x-text="analyzeResult.name"></span>
+                  <span class="badge" style="font-size:7px" :class="(analyzeResult.indicators?.PE?.value||0)>40?'badge-down':'badge-up'" x-text="'PE '+(analyzeResult.indicators?.PE?.value||'N/A')+'x'"></span>
+                </div>
+                <div style="font-size:9px;color:var(--text-secondary);margin-top:2px" x-text="'⭐'.repeat(Math.min(analyzeResult.stars||0,5))+' '+analyzeResult.rating+(analyzeResult.action?' | '+analyzeResult.action:'')"></div>
+              </div>
+              <div style="text-align:right">
+                <div class="mono text-sm font-bold" :class="(analyzeResult.indicators?.PE?.value||0)>50?'down':'up'" x-text="analyzeResult.current_price+'元'"></div>
+              </div>
+            </div>
+            <div style="margin-bottom:6px"><div style="display:flex;justify-content:space-between;margin-bottom:2px"><span style="font-size:8px;color:var(--text-muted)">评分</span><span class="mono text-xs font-bold" style="color:var(--accent-light)" x-text="(analyzeResult.total_score||0)+''"></span></div>
+              <div style="height:4px;background:var(--border);border-radius:2px;overflow:hidden">
+                <div :style="'height:100%;border-radius:2px;width:'+(analyzeResult.total_score||0)+'%;background:'+((analyzeResult.total_score||0)>=70?'#34d399':(analyzeResult.total_score||0)>=45?'#f59e0b':'#f87171')"></div>
+              </div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:3px;margin-bottom:6px">
+              <div style="padding:5px 7px;background:var(--bg-deep);border-radius:6px"><div style="font-size:8px;color:var(--text-muted)">PE</div><div class="mono font-bold text-xs" :class="(analyzeResult.indicators?.PE?.value||0)>40?'down':'up'" x-text="(analyzeResult.indicators?.PE?.value||'N/A')+'x'"></div></div>
+              <div style="padding:5px 7px;background:var(--bg-deep);border-radius:6px"><div style="font-size:8px;color:var(--text-muted)">ROE</div><div class="mono font-bold text-xs" :class="(analyzeResult.indicators?.ROE?.value||0)>=15?'up':'down'" x-text="(analyzeResult.indicators?.ROE?.value||'N/A')+'%'"></div></div>
+              <div style="padding:5px 7px;background:var(--bg-deep);border-radius:6px"><div style="font-size:8px;color:var(--text-muted)">毛利率</div><div class="mono font-bold text-xs" x-text="(analyzeResult.indicators?.毛利率?.value||'N/A')+'%'"></div></div>
+            </div>
+            <div x-show="analyzeResult.target_price" style="display:grid;grid-template-columns:1fr 1fr;gap:3px;margin-bottom:5px">
+              <div style="padding:5px;background:var(--up-bg);border:1px solid var(--up-border);border-radius:6px;text-align:center"><div style="font-size:8px;color:var(--up)">目标价</div><div class="mono font-bold text-xs" style="color:var(--up)" x-text="'¥'+(analyzeResult.target_price||'?')"></div></div>
+              <div style="padding:5px;background:var(--down-bg);border:1px solid var(--down-border);border-radius:6px;text-align:center"><div style="font-size:8px;color:var(--down)">止损价</div><div class="mono font-bold text-xs" style="color:var(--down)" x-text="'¥'+(analyzeResult.stop_price||'?')"></div></div>
+            </div>
+            <div x-show="analyzeResult.eps_warning" style="padding:4px 7px;background:var(--gold-bg);border:1px solid rgba(245,158,11,0.2);border-radius:6px;margin-bottom:5px;display:flex;align-items:center;gap:4px"><span style="font-size:9px">⚠️</span><span style="font-size:8px;color:var(--gold)" x-text="analyzeResult.eps_warning"></span></div>
+            <div style="padding:6px 8px;background:var(--bg-deep);border-radius:6px;font-size:9px;color:var(--text-secondary);line-height:1.5" x-text="analyzeResult.summary||''"></div>
+          </div>
+        </template>
+      </div>
+      <div x-show="!analyzeResult && !analyzing" style="text-align:center;padding:16px 0;color:var(--text-muted);font-size:10px">
+        <div style="font-size:20px;margin-bottom:4px">📊</div>
+        <div>输入代码查询价值投资分析</div>
+      </div>
+    </div>
+
+    <!-- ── Reviews + Mini Trade Panel ── -->
+    <div style="display:flex;gap:10px;flex-shrink:0;height:240px">
 
       <!-- Reviews -->
       <div class="card card-md" style="flex:1;display:flex;flex-direction:column;overflow:hidden">
@@ -385,7 +331,7 @@ tr:hover td { background: rgba(255,255,255,0.012); color: var(--text-primary); }
           <span style="font-size:10px;font-weight:600">复盘日志</span>
           <span class="badge badge-neutral" x-text="reviewList.length"></span>
         </div>
-        <div style="overflow:auto;flex:1;display:flex;flex-direction:column;gap:4px">
+        <div style="overflow:auto;flex:1;display:flex;flex-direction:column;gap:3px">
           <template x-for="r in reviewList" :key="r.id||r.date">
             <div style="padding:5px 7px;background:var(--bg-deep);border-radius:6px;border-left:2px solid var(--accent)" class="fi">
               <div style="display:flex;align-items:center;gap:4px;margin-bottom:1px">
@@ -397,7 +343,31 @@ tr:hover td { background: rgba(255,255,255,0.012); color: var(--text-primary); }
               <div style="font-size:9px;color:var(--text-secondary);line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden" x-text="(r.content||'').replace(/\*\*/g,'').slice(0,100)"></div>
             </div>
           </template>
-          <div x-show="reviewList.length===0" style="text-align:center;padding:12px;color:var(--text-muted);font-size:10px">暂无复盘</div>
+          <div x-show="reviewList.length===0" style="text-align:center;padding:12px;color:var(--text-muted);font-size:9px">暂无复盘</div>
+        </div>
+      </div>
+
+      <!-- Mini Trade Panel (fallback only) -->
+      <div class="card card-md" style="flex:0 0 160px;display:flex;flex-direction:column">
+        <div style="display:flex;align-items:center;gap:4px;margin-bottom:6px;flex-shrink:0">
+          <div class="s-line" style="background:var(--text-muted)"></div>
+          <span style="font-size:9px;font-weight:500;color:var(--text-muted)">手动交易</span>
+        </div>
+        <div style="display:flex;gap:4px;margin-bottom:6px;flex-shrink:0">
+          <button class="btn" :class="mode==='buy'?'btn-buy':'btn-ghost'" @click="mode='buy';msg=''" style="flex:1;padding:4px;font-size:10px">买入</button>
+          <button class="btn" :class="mode==='sell'?'btn-sell':'btn-ghost'" @click="mode='sell';msg=''" style="flex:1;padding:4px;font-size:10px">卖出</button>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:4px;flex:1">
+          <input type="text" placeholder="代码" x-model="code" style="font-size:10px;padding:4px 7px">
+          <div style="display:flex;gap:4px">
+            <input type="number" placeholder="股数" x-model="shares" min="100" step="100" style="font-size:10px;padding:4px 7px;flex:1">
+            <button class="btn btn-ghost" style="padding:4px 6px;font-size:9px" @click="sellAll()" x-show="mode=='sell'">全仓</button>
+          </div>
+          <div x-show="msg" style="padding:3px 7px;border-radius:4px;font-size:9px" :class="msgOk?'up-bg':'down-bg'" :style="'color:'+(msgOk?'var(--up)':'var(--down)')" x-text="msg"></div>
+          <div style="flex:1"></div>
+          <button class="btn" :class="mode==='buy'?'btn-buy':'btn-sell'" style="width:100%;padding:5px;font-size:10px" @click="trade()">
+            <span x-text="mode==='buy'?'确认':'确认'"></span>
+          </button>
         </div>
       </div>
 
@@ -415,13 +385,12 @@ function app(){
     tradesFilter: 'all', debounceSearch: null,
 
     get roi(){ return ((this.data.account.total_value-50000)/50000)*100 },
-    get hasPosition(){ return Object.keys(this.data.positions).length>0 },
     get filteredTrades(){
       const t = this.data.trades||[];
-      if(this.tradesFilter==='all') return t.slice(0,14);
-      return t.filter(x=>x.action===this.tradesFilter).slice(0,14);
+      if(this.tradesFilter==='all') return t.slice(0,15);
+      return t.filter(x=>x.action===this.tradesFilter).slice(0,15);
     },
-    get reviewList(){ return Array.isArray(this.data.reviews)?this.data.reviews.slice(0,8):[] },
+    get reviewList(){ return Array.isArray(this.data.reviews)?this.data.reviews.slice(0,6):[] },
 
     async init(){
       let t; this.debounceSearch = ()=>{ clearTimeout(t); t=setTimeout(()=>this.searchStocks(this.queryCode),300); };
@@ -446,15 +415,13 @@ function app(){
       if(!this.chart) this.chart=echarts.init(el,'dark');
       let d=this.data.equity; if(this.eqRange>0) d=d.slice(-this.eqRange);
       this.chart.setOption({
-        backgroundColor:'transparent',
-        tooltip:{trigger:'axis',formatter:p=>p[0].name+'<br/>¥'+Number(p[0].value).toLocaleString()},
-        grid:{left:40,right:6,top:4,bottom:14},
+        backgroundColor:'transparent',tooltip:{trigger:'axis',formatter:p=>p[0].name+'<br/>¥'+Number(p[0].value).toLocaleString()},
+        grid:{left:45,right:8,top:6,bottom:18},
         xAxis:{type:'category',data:d.map(i=>i.date),axisLine:{lineStyle:{color:'#1e1e30'}},axisLabel:{color:'#555570',fontSize:7}},
         yAxis:{type:'value',axisLine:{lineStyle:{color:'#1e1e30'}},axisLabel:{color:'#555570',fontSize:7,formatter:v=>'¥'+(v/10000).toFixed(1)+'万'},splitLine:{lineStyle:{color:'#12121e'}}},
         series:[{type:'line',data:d.map(i=>i.total_value),smooth:true,lineStyle:{color:'#7c5cfc',width:1.5},areaStyle:{color:new echarts.graphic.LinearGradient(0,0,0,1,[{offset:0,color:'rgba(124,92,252,0.2)'},{offset:1,color:'rgba(124,92,252,0)'}])},itemStyle:{color:'#7c5cfc'},symbol:'none'}]
       });
     },
-
     async trade(){
       this.msg=''; if(!this.code||!this.shares){this.msg='请输入代码和数量';this.msgOk=false;return}
       if(this.shares%100!==0){this.msg='数量须为100的倍数';this.msgOk=false;return}
