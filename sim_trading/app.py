@@ -31,6 +31,11 @@ import akshare as ak
 import database as db
 from trading.strategies import StrategyManager
 
+# 多策略框架 - 注册策略模块
+from strategies.overnight_strategy import OvernightStrategy  # noqa: F401
+from strategies.value_strategy import ValueInvestingStrategy  # noqa: F401
+from strategies.trend_strategy import TrendFollowingStrategy  # noqa: F401
+
 # OpenClaw 基础设施
 from openclaw.feature_flags import feature, is_feature_enabled
 from openclaw.context_cache import session_cache, heartbeat_cache
@@ -178,18 +183,95 @@ def index():
 
 @app.route('/api/portfolio')
 def get_portfolio():
-    """获取当前持仓"""
+    """获取当前持仓（支持按策略过滤）"""
+    strategy_id = request.args.get('strategy_id', type=int)
     account = db.get_account()
-    positions = db.get_positions()
+    positions = db.get_positions(strategy_id=strategy_id)
     return jsonify({
         **account,
-        'positions': {p['stock_code']: p for p in positions}
+        'positions': {p['stock_code']: p for p in positions},
+        'strategy_id': strategy_id
     })
+
+# ========== 多策略管理API ==========
+
+@app.route('/api/strategies')
+def get_strategies():
+    """获取策略列表"""
+    strategies = db.get_strategies()
+    # 附加各策略统计
+    result = []
+    for s in strategies:
+        stats = db.get_trade_stats(strategy_id=s['id'])
+        positions = db.get_positions(strategy_id=s['id'])
+        s['stats'] = stats
+        s['position_count'] = len(positions)
+        result.append(s)
+    return jsonify(result)
+
+
+@app.route('/api/strategies/<int:strategy_id>')
+def get_strategy_detail(strategy_id):
+    """获取策略详情"""
+    strategy = db.get_strategy(strategy_id)
+    if not strategy:
+        return jsonify({'error': '策略不存在'}), 404
+    
+    stats = db.get_trade_stats(strategy_id=strategy_id)
+    positions = db.get_positions(strategy_id=strategy_id)
+    equity = db.get_equity_curve(days=60, strategy_id=strategy_id)
+    
+    return jsonify({
+        **strategy,
+        'stats': stats,
+        'positions': positions,
+        'equity_curve': equity,
+    })
+
+
+@app.route('/api/strategies/<int:strategy_id>/toggle', methods=['POST'])
+def toggle_strategy(strategy_id):
+    """启用/禁用策略"""
+    data = request.get_json() or {}
+    is_active = data.get('is_active', True)
+    db.update_strategy_activity(strategy_id, is_active)
+    return jsonify({'success': True, 'is_active': is_active})
+
+
+@app.route('/api/strategies/<int:strategy_id>/capital', methods=['POST'])
+def update_strategy_capital(strategy_id):
+    """更新策略资金分配"""
+    data = request.get_json() or {}
+    capital = float(data.get('capital', 0))
+    if capital < 0:
+        return jsonify({'error': '资金不能为负数'}), 400
+    db.update_strategy_capital(strategy_id, capital)
+    return jsonify({'success': True, 'capital': capital})
+
+
+@app.route('/api/strategies/sync-capital')
+def sync_strategy_capital():
+    """同步策略资金分配（自动计算）"""
+    account = db.get_account()
+    strategies = db.get_strategies(active_only=True)
+    total_capital = account.get('total_value', 0)
+    active_count = len(strategies)
+    
+    if active_count > 0:
+        each = round(total_capital / active_count, 2)
+        for s in strategies:
+            db.update_strategy_capital(s['id'], each)
+    
+    return jsonify({'success': True, 'total': total_capital, 'per_strategy': each if active_count > 0 else 0})
+
+
+# ========== 交易API ==========
 
 @app.route('/api/trades')
 def get_trades():
-    """获取历史交易记录"""
-    trades = db.get_trades(limit=100)
+    """获取历史交易记录（支持按策略过滤）"""
+    strategy_id = request.args.get('strategy_id', type=int)
+    trades = db.get_trades(limit=100, strategy_id=strategy_id)
     return jsonify(trades)
 
 @app.route('/api/daily')
@@ -225,13 +307,15 @@ def get_daily():
 
 @app.route('/api/stats')
 def get_stats():
-    """获取交易统计"""
-    return jsonify(db.get_trade_stats())
+    """获取交易统计（支持按策略过滤）"""
+    strategy_id = request.args.get('strategy_id', type=int)
+    return jsonify(db.get_trade_stats(strategy_id=strategy_id))
 
 @app.route('/api/equity')
 def get_equity():
-    """获取净值曲线"""
-    curve = db.get_equity_curve(days=60)
+    """获取净值曲线（支持按策略过滤）"""
+    strategy_id = request.args.get('strategy_id', type=int)
+    curve = db.get_equity_curve(days=60, strategy_id=strategy_id)
     return jsonify(curve)
 
 @app.route('/api/quote/<stock_code>')
@@ -505,10 +589,27 @@ def get_dashboard():
             'profit_pct': ((cp - pos['avg_cost']) / pos['avg_cost'] * 100) if pos['avg_cost'] else 0,
         }
 
+    # 多策略信息
+    strategies = db.get_strategies()
+    strategy_stats = {}
+    for s in strategies:
+        sid = s['id']
+        s_stats = db.get_trade_stats(strategy_id=sid)
+        s_positions = db.get_positions(strategy_id=sid)
+        strategy_stats[str(sid)] = {
+            'name': s['name'],
+            'type': s['type'],
+            'capital': s['capital'],
+            'is_active': s['is_active'],
+            'stats': s_stats,
+            'position_count': len(s_positions),
+        }
+
     return jsonify({
         'account': account, 'positions': pos_detail,
         'trades': trades, 'reviews': reviews,
         'stats': stats, 'equity': equity, 'index': index_data,
+        'strategies': strategy_stats,
     })
 
 @app.route('/api/risk/check', methods=['POST'])
@@ -564,6 +665,12 @@ def execute_trade():
     except Exception as e:
         return jsonify({"error": f"获取行情失败: {str(e)}"}), 500
     
+    # 策略ID支持
+    strategy_id = int(data.get('strategy_id', 1))
+    strategy = db.get_strategy(strategy_id)
+    if not strategy:
+        return jsonify({'error': '策略不存在'}), 404
+    
     commission = 0
     profit = 0
     
@@ -580,10 +687,10 @@ def execute_trade():
             total_shares = position['shares'] + shares
             total_cost = position['avg_cost'] * position['shares'] + price * shares
             new_avg_cost = total_cost / total_shares
-            db.upsert_position(stock_code, name, total_shares, new_avg_cost)
+            db.upsert_position(stock_code, name, total_shares, new_avg_cost, strategy_id=strategy_id)
         else:
             # 新买入
-            db.upsert_position(stock_code, name, shares, price)
+            db.upsert_position(stock_code, name, shares, price, strategy_id=strategy_id)
         
         commission = cost - price * shares
         new_cash -= commission
@@ -628,12 +735,13 @@ def execute_trade():
     # 记录交易
     trade_id = db.add_trade(
         action, stock_code, name, price, shares,
-        price * shares, commission, profit, data.get('reason', '')
+        price * shares, commission, profit, data.get('reason', ''),
+        strategy_id=strategy_id
     )
     
     # 记录净值
     position_value = total_value - new_cash
-    db.add_equity_record(date.today().isoformat(), total_value, new_cash, position_value)
+    db.add_equity_record(date.today().isoformat(), total_value, new_cash, position_value, strategy_id=strategy_id)
     
     return jsonify({
         "success": True,
