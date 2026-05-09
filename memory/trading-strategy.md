@@ -160,7 +160,58 @@ curl -X POST http://localhost/api/review \
 
 ---
 
-## 六、进化记录
+## 六、多策略系统 v1.0（2026-05-09）
+
+### 系统架构
+```
+蛋蛋多策略交易系统
+├─ [1] 一夜持股法 (overnight)  ¥25,000
+│   └─ 尾盘14:50-14:55买入，次日早盘09:30-10:30卖出
+├─ [2] 价值投资 (value)       ¥15,000
+│   └─ 巴菲特价值分析，PE<15/ROE>15%，中线1-3个月
+└─ [3] 趋势跟踪 (trend)       ¥10,000
+    └─ 均线金叉+放量突破，持股1-2周
+```
+
+### 数据库结构
+- `strategies` 表：策略注册与资金分配
+- `trades.strategy_id`：交易归属策略
+- `positions.strategy_id`：持仓归属策略
+- `equity_curve.strategy_id`：净值曲线按策略
+
+### API变更
+- 新增 `/api/strategies` — 获取全部策略及统计
+- 新增 `/api/strategies/<id>` — 策略详情
+- 新增 `/api/strategies/<id>/toggle` — 启用/禁用
+- 新增 `/api/strategies/<id>/capital` — 更新资金分配
+- 原有API加 `?strategy_id=` 参数过滤
+
+### Cron任务
+| 时间 | 策略 | 任务 |
+|------|------|------|
+| 每日14:50-14:55 | 一夜持股法 | 尾盘选股+买入 |
+| 每日09:30-10:30 | 一夜持股法 | 早盘卖出(每5分钟) |
+| 每周一09:30 | 价值投资 | 每周价值扫描 |
+| 每日10:00 | 趋势跟踪 | 趋势信号扫描 |
+| 每日15:30 | 全部 | 复盘报告 |
+
+### 前端调用示例
+```
+# 获取一夜持股法持仓
+GET /api/portfolio?strategy_id=1
+
+# 获取价值投资交易记录
+GET /api/trades?strategy_id=2
+
+# 指定策略买入
+POST /api/trade
+{"action":"buy","stock_code":"xxx","shares":100,
+ "reason":"价值投资","strategy_id":2}
+```
+
+---
+
+## 七、进化记录
 
 ### 2026-04-01 v1.0
 - 初始版本

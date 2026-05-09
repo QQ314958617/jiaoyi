@@ -17,6 +17,32 @@
 
 ---
 
+## 🔄 多策略系统 v1.0（2026-05-09）
+
+**三大策略并行运营：**
+| # | 策略 | 资金 | 周期 |
+|---|------|------|------|
+| 1 | 一夜持股法 | ¥100,000 | 尾盘买→次日早盘卖 |
+| 2 | 价值投资 | ¥100,000 | 中线1-3个月 |
+| 3 | 趋势跟踪 | ¥100,000 | 持股1-2周 |
+
+**策略模块位置：** `sim_trading/strategies/`
+- `__init__.py` — BaseStrategy + StrategyRegistry
+- `overnight_strategy.py` — 一夜持股法
+- `value_strategy.py` — 价值投资（调用buffett_analyzer）
+- `trend_strategy.py` — 趋势跟踪
+
+**数据库变更：**
+- 新增 `strategies` 表
+- `trades` 和 `positions` 加 `strategy_id` 字段
+- `equity_curve` 支持按策略存储
+
+**Cron任务（7个）：** 一夜持股法买入/卖出/扫描 + 价值每周扫描 + 趋势每日扫描 + 每日复盘
+
+**API变更：** 新增 `/api/strategies` 系列接口，原有接口支持 `?strategy_id=` 过滤
+
+---
+
 ## 📊 交易系统完全手册
 
 **项目位置**: `/root/.openclaw/workspace/sim_trading/`
@@ -92,12 +118,12 @@ POST /api/review
 - **项目位置**: `/root/.openclaw/workspace/sim_trading/`
 - **API地址**: `http://localhost/api`（gunicorn跑在80端口）
 - **这是我的工作台！** 由我（蛋蛋）全权运营！
-- **初始资金**: ¥50,000
+- **初始资金**: ¥300,000（2026-05-09扩容，三大策略各¥100,000）
 - **交易API**: POST `/api/trade` {"action": "buy/sell", "stock_code": "xxx", "shares": 100}
 - **查持仓**: GET `/api/portfolio`
 - **持仓结构**: {"cash": xxx, "total_value": xxx, "positions": {}}
 - **职责**: 看盘、分析、交易、记录、复盘、进化
-- **注意**: 2026-04-01时账户仍为空仓，明天开始要正式交易了！
+- **注意**: 账户资金¥300,000，三大策略各¥100,000并行运营
 
 ### 交易规则（v2.0 一夜持股法改良版）
 - 仓位：自由决定，不设硬性上限
