@@ -2241,6 +2241,64 @@ def get_market_analysis():
 
 # ==================== 午盘/尾盘点评 API ====================
 
+@app.route('/api/market/fullscan', methods=['GET'])
+def market_fullscan():
+    """全市场扫描API（腾讯方案，无IP限制）"""
+    try:
+        from market_scanner import scan_market, filter_overnight_candidates, get_market_overview
+        
+        mode = request.args.get('mode', 'overnight')
+        
+        if mode == 'overview':
+            result = get_market_overview()
+            return jsonify(result)
+        
+        elif mode == 'overnight':
+            df = scan_market()
+            candidates = filter_overnight_candidates(df)
+            if candidates.empty:
+                return jsonify({'total': 0, 'candidates': []})
+            
+            # 只返回关键字段
+            result = []
+            for _, r in candidates.iterrows():
+                result.append({
+                    'code': r['code'],
+                    'name': r['name'],
+                    'price': r['price'],
+                    'change_pct': r['change_pct'],
+                    'turnover': r['turnover'],
+                    'circulate_mv_yi': r.get('circulate_mv_yi', 0),
+                    'volume_ratio': r['volume_ratio'],
+                })
+            return jsonify({
+                'total_stocks': len(df),
+                'total_candidates': len(result),
+                'candidates': result,
+                'scan_time': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+            })
+        
+        elif mode == 'top':
+            df = scan_market()
+            top = df.nlargest(20, 'change_pct') if not df.empty else pd.DataFrame()
+            result = []
+            for _, r in top.iterrows():
+                result.append({
+                    'code': r['code'], 'name': r['name'],
+                    'price': r['price'], 'change_pct': r['change_pct'],
+                    'turnover': r['turnover'], 'volume_ratio': r['volume_ratio'],
+                })
+            return jsonify({'total': len(result), 'stocks': result})
+        
+        else:
+            return jsonify({'error': f'未知模式: {mode}'}), 400
+            
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+
 @app.route('/api/market/comment', methods=['GET', 'POST'])
 def market_comment():
     """
