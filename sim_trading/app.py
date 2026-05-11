@@ -24,7 +24,7 @@ except Exception:
 import time
 import threading
 import requests
-from datetime import datetime, date
+from datetime import datetime, date, timezone, timedelta
 from flask import Flask, render_template, jsonify, request, make_response
 
 import akshare as ak
@@ -504,7 +504,6 @@ def get_dashboard():
     """一次请求拿全部面板数据（减少前端请求次数）"""
     # 自动补全缺失的每日净值记录
     try:
-        from datetime import datetime, date, timedelta
         from zoneinfo import ZoneInfo
         bj = ZoneInfo("Asia/Shanghai")
         today = datetime.now(bj).date()
@@ -646,13 +645,49 @@ def risk_check():
     return jsonify({'pass': len(errors) == 0, 'errors': errors})
 
 
+# ========== A股市场规则常量 ==========
+MARKET_OPEN = 9   # 开盘小时
+MARKET_OPEN_MIN = 30  # 开盘分钟
+MARKET_CLOSE = 15  # 收盘小时
+MARKET_CLOSE_MIN = 0  # 收盘分钟
+AM_CLOSE = 11  # 午休开始小时
+AM_CLOSE_MIN = 30  # 午休开始分钟
+PM_OPEN = 13  # 午休结束小时
+
+def is_market_open():
+    """检查当前是否在A股交易时段 (09:30-11:30, 13:00-15:00)"""
+    bj_tz = timezone(timedelta(hours=8))
+    now = datetime.now(bj_tz)
+    h, m = now.hour, now.minute
+    # 上午盘 09:30-11:30
+    if (h == 9 and m >= 30) or (h == 10) or (h == 11 and m <= 30):
+        return True
+    # 下午盘 13:00-15:00
+    if (h == 13) or (h == 14) or (h == 15 and m == 0):
+        return True
+    return False
+
+def calc_buy_commission(amount):
+    """A股买入手续费: 佣金万2.5(最低5元) + 过户费万0.1 ≈ 0.026%"""
+    fee = amount * 0.00026
+    return max(fee, 5.0)  # 最低5元佣金
+
+def calc_sell_commission(amount):
+    """A股卖出手续费: 佣金万2.5(最低5元) + 过户费万0.1 + 印花税千1 ≈ 0.126%"""
+    fee = amount * 0.00126
+    return max(fee, 5.0)  # 最低5元佣金
+
 @app.route('/api/trade', methods=['POST'])
 def execute_trade():
-    """执行交易"""
+    """执行交易 (带风控+T+1+交易时间检查)"""
     data = request.json
     action = data.get('action')
     stock_code = data.get('stock_code')
     shares = int(data.get('shares', 100))
+    
+    # === 检查1：交易时间 ===
+    if not is_market_open():
+        return jsonify({"error": "非交易时间 (A股09:30-11:30/13:00-15:00)"}), 400
     
     account = db.get_account()
     
@@ -676,25 +711,27 @@ def execute_trade():
     profit = 0
     
     if action == 'buy':
-        cost = price * shares * 1.0003  # 手续费+印花税
+        amount = price * shares
+        commission = calc_buy_commission(amount)
+        cost = amount + commission
+        
         if cost > account['cash']:
             return jsonify({"error": "资金不足"}), 400
         
         new_cash = account['cash'] - cost
+        bj_tz = timezone(timedelta(hours=8))
+        now_bj = datetime.now(bj_tz).strftime('%Y-%m-%d %H:%M:%S')
         position = db.get_position(stock_code)
         
         if position:
             # 追加买入
             total_shares = position['shares'] + shares
-            total_cost = position['avg_cost'] * position['shares'] + price * shares
+            total_cost = position['avg_cost'] * position['shares'] + amount
             new_avg_cost = total_cost / total_shares
             db.upsert_position(stock_code, name, total_shares, new_avg_cost, strategy_id=strategy_id)
         else:
             # 新买入
-            db.upsert_position(stock_code, name, shares, price, strategy_id=strategy_id)
-        
-        commission = cost - price * shares
-        new_cash -= commission
+            db.upsert_position(stock_code, name, shares, price, buy_date=now_bj, strategy_id=strategy_id)
         
     elif action == 'sell':
         position = db.get_position(stock_code)
@@ -703,10 +740,19 @@ def execute_trade():
         if position['shares'] < shares:
             return jsonify({"error": "持仓不足"}), 400
         
-        revenue = price * shares * 0.9997  # 扣除手续费
-        profit = (price - position['avg_cost']) * shares * 0.9997
+        # === 检查2：T+1 ===
+        bj_tz = timezone(timedelta(hours=8))
+        today = datetime.now(bj_tz).strftime('%Y-%m-%d')
+        buy_date_raw = position.get('buy_date') or ''
+        buy_date = buy_date_raw.split(' ')[0] if buy_date_raw else ''
+        if buy_date == today:
+            return jsonify({"error": f"T+1规则：{stock_code}今日买入不可卖出"}), 400
+        
+        amount = price * shares
+        commission = calc_sell_commission(amount)
+        revenue = amount - commission
+        profit = (price - position['avg_cost']) * shares - commission
         new_cash = account['cash'] + revenue
-        commission = price * shares - revenue
         
         remaining = position['shares'] - shares
         if remaining == 0:
@@ -730,8 +776,7 @@ def execute_trade():
         for pos in positions:
             total_value += pos['avg_cost'] * pos['shares']
     
-    total_profit = total_value - 50000.0
-    db.update_account(new_cash, total_value, total_profit)
+    db.update_account(new_cash, total_value)  # total_profit自动计算
     
     # 记录交易
     trade_id = db.add_trade(
@@ -740,8 +785,9 @@ def execute_trade():
         strategy_id=strategy_id
     )
     
-    # 记录净值
+    # 记录净值（同时写入策略专属和总览）
     position_value = total_value - new_cash
+    db.add_equity_record(date.today().isoformat(), total_value, new_cash, position_value, strategy_id=0)
     db.add_equity_record(date.today().isoformat(), total_value, new_cash, position_value, strategy_id=strategy_id)
     
     return jsonify({
@@ -756,13 +802,13 @@ def execute_trade():
             "price": price,
             "shares": shares,
             "amount": price * shares,
-            "commission": commission,
-            "profit": profit
+            "commission": round(commission, 2),
+            "profit": round(profit, 2)
         },
         "portfolio": {
-            "cash": new_cash,
-            "total_value": total_value,
-            "total_profit": total_profit
+            "cash": round(new_cash, 2),
+            "total_value": round(total_value, 2),
+            "total_profit": round(total_value - account.get('initial_capital', 300000.0), 2)
         }
     })
 

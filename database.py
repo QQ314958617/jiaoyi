@@ -131,11 +131,23 @@ def init_database():
         if 'strategy_id' not in cols_equity:
             c.execute('ALTER TABLE equity_curve ADD COLUMN strategy_id INTEGER DEFAULT 0')
         
-        # 初始化默认策略
+        # 兼容旧表：添加initial_capital列
+        c.execute('PRAGMA table_info(account)')
+        cols_account = [r[1] for r in c.fetchall()]
+        if 'initial_capital' not in cols_account:
+            c.execute('ALTER TABLE account ADD COLUMN initial_capital REAL DEFAULT 50000.0')
+            # 如果总资产已变化，将initial_capital同步为当前total_value（避免旧利润虚高）
+            c.execute('SELECT total_value FROM account WHERE id = 1')
+            row = c.fetchone()
+            if row and row[0] > 50100:
+                c.execute('UPDATE account SET initial_capital = total_value WHERE id = 1')
+                print(f"  📌 已同步 initial_capital={row[0]} (防止旧数据利润虚高)")
+        
+        # 初始化默认策略（每个¥100K）
         default_strategies = [
-            ('一夜持股法', 'overnight', '尾盘14:50-14:55买入，次日早盘09:30-10:30卖出，超短线一夜持股', 25000.0, 1, '{}'),
-            ('价值投资', 'value', '巴菲特价值投资理念，PE<15、ROE>15%，中线持有到合理估值', 15000.0, 1, '{}'),
-            ('趋势跟踪', 'trend', '强势股趋势波段，均线金叉+放量突破，持股1-2周', 10000.0, 1, '{}'),
+            ('一夜持股法', 'overnight', '尾盘14:50-14:55买入，次日早盘09:30-10:30卖出，超短线一夜持股', 100000.0, 1, '{}'),
+            ('价值投资', 'value', '巴菲特价值投资理念，PE<15、ROE>15%，中线持有到合理估值', 100000.0, 1, '{}'),
+            ('趋势跟踪', 'trend', '强势股趋势波段，均线金叉+放量突破，持股1-2周', 100000.0, 1, '{}'),
         ]
         for s in default_strategies:
             c.execute('''
@@ -156,6 +168,8 @@ def init_database():
 
 # ========== 账户操作 ==========
 
+INITIAL_CAPITAL = 300000.0  # 当前总账户初始资金（三大策略各¥100,000）
+
 def get_account():
     """获取账户信息"""
     with get_connection() as conn:
@@ -166,22 +180,29 @@ def get_account():
             d = dict(row)
             d['cash'] = round(d['cash'], 2)
             d['total_value'] = round(d['total_value'], 2)
-            d['total_profit'] = round(d['total_profit'], 2)
+            d['initial_capital'] = d.get('initial_capital', INITIAL_CAPITAL) or INITIAL_CAPITAL
+            d['total_profit'] = round(d['total_value'] - d['initial_capital'], 2)
             return d
-        return {'cash': 50000.0, 'total_value': 50000.0, 'total_profit': 0.0}
+        return {'cash': INITIAL_CAPITAL, 'total_value': INITIAL_CAPITAL, 'total_profit': 0.0, 'initial_capital': INITIAL_CAPITAL}
 
-def update_account(cash, total_value, total_profit):
+def update_account(cash, total_value, total_profit=None):
     """更新账户"""
     bj_tz = timezone(timedelta(hours=8))
     now_bj = datetime.now(bj_tz).strftime('%Y-%m-%d %H:%M:%S')
     
     with get_connection() as conn:
         c = conn.cursor()
+        # 获取initial_capital自动计算利润
+        c.execute('SELECT initial_capital FROM account WHERE id = 1')
+        row = c.fetchone()
+        ic = row[0] if row and row[0] else INITIAL_CAPITAL
+        if total_profit is None:
+            total_profit = round(total_value - ic, 2)
         c.execute('''
             UPDATE account 
             SET cash = ?, total_value = ?, total_profit = ?, updated_at = ?
             WHERE id = 1
-        ''', (cash, total_value, total_profit, now_bj))
+        ''', (round(cash, 2), round(total_value, 2), round(total_profit, 2), now_bj))
         conn.commit()
 
 # ========== 策略操作 ==========
