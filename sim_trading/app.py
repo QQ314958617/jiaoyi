@@ -587,6 +587,7 @@ def get_dashboard():
             'market_value': cp * pos['shares'],
             'profit': (cp - pos['avg_cost']) * pos['shares'],
             'profit_pct': ((cp - pos['avg_cost']) / pos['avg_cost'] * 100) if pos['avg_cost'] else 0,
+            'strategy_id': pos.get('strategy_id'),
         }
 
     # 多策略信息
