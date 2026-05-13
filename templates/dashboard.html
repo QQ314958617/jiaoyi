@@ -724,7 +724,7 @@ window.addEventListener('resize',()=>{const el=document.getElementById('eqChart'
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
   // 粒子系统 - 数据流风格
-  const particleCount = 2000;
+  const particleCount = 800;
   const positions = new Float32Array(particleCount * 3);
   const velocities = new Float32Array(particleCount * 3);
   const colors = new Float32Array(particleCount * 3);
@@ -754,21 +754,21 @@ window.addEventListener('resize',()=>{const el=document.getElementById('eqChart'
   geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
   geo.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
 
-  // 圆形粒子纹理
+  // 圆形粒子纹理(小而精致)
   const circleTexture = (function(){
-    const c = document.createElement('canvas'); c.width=64; c.height=64;
+    const c = document.createElement('canvas'); c.width=32; c.height=32;
     const ctx = c.getContext('2d');
-    const g = ctx.createRadialGradient(32,32,0,32,32,32);
+    const g = ctx.createRadialGradient(16,16,0,16,16,16);
     g.addColorStop(0,'rgba(255,255,255,1)');
-    g.addColorStop(0.3,'rgba(255,255,255,0.8)');
-    g.addColorStop(0.7,'rgba(255,255,255,0.3)');
+    g.addColorStop(0.2,'rgba(255,255,255,0.6)');
+    g.addColorStop(0.5,'rgba(255,255,255,0.1)');
     g.addColorStop(1,'rgba(255,255,255,0)');
-    ctx.fillStyle=g; ctx.fillRect(0,0,64,64);
+    ctx.fillStyle=g; ctx.fillRect(0,0,32,32);
     const tex = new THREE.CanvasTexture(c); return tex;
   })();
 
   const mat = new THREE.PointsMaterial({
-    size: 2, vertexColors: true, transparent: true, opacity: 0.9,
+    size: 0.08, vertexColors: true, transparent: true, opacity: 0.7,
     blending: THREE.AdditiveBlending, sizeAttenuation: true,
     map: circleTexture, depthWrite: false
   });
@@ -852,7 +852,7 @@ window.addEventListener('resize',()=>{const el=document.getElementById('eqChart'
   }
   const bgGeo = new THREE.BufferGeometry();
   bgGeo.setAttribute('position', new THREE.BufferAttribute(bgPos, 3));
-  const bgMat = new THREE.PointsMaterial({color:0x7c5cfc, size:2, transparent:true, opacity:0.5, blending:THREE.AdditiveBlending, map:circleTexture, depthWrite:false});
+  const bgMat = new THREE.PointsMaterial({color:0x7c5cfc, size:0.06, transparent:true, opacity:0.4, blending:THREE.AdditiveBlending, map:circleTexture, depthWrite:false, sizeAttenuation:true});
   const bgPoints = new THREE.Points(bgGeo, bgMat);
   bgScene.add(bgPoints);
   bgCamera.position.z = 15;
