@@ -1,7 +1,7 @@
 """
 AI 策略校准服务 (Strategy Calibration)
 
-借鉴 QuantDinger 的 AI Calibration 思路，适配蛋蛋基金 A 股场景。
+借鉴 QuantDinger 的 AI Calibration 思路，适配蛋蛋交易系统 A 股场景。
 
 核心逻辑：
 - 用历史交易的实际收益率，反向校准策略参数阈值

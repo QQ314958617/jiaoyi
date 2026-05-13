@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>🥚 蛋蛋基金 · 量化交易系统</title>
+<title>🥚 蛋蛋交易系统</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
 <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
@@ -185,7 +185,7 @@ tr:hover td { background: rgba(255,255,255,0.015); color: var(--text-primary); }
   <div style="display:flex;align-items:center;min-height:44px;padding:8px 16px;flex-wrap:wrap;gap:8px" class="header-stats">
     <div style="display:flex;align-items:center;gap:8px;margin-right:12px">
       <div style="width:26px;height:26px;border-radius:8px;background:linear-gradient(135deg,#7c5cfc,#a78bfa);display:flex;align-items:center;justify-content:center;font-size:14px">🥚</div>
-      <span style="font-size:13px;font-weight:700">蛋蛋基金</span>
+      <span style="font-size:13px;font-weight:700">蛋蛋交易系统</span>
     </div>
     <template x-if="data.index.name">
       <div class="header-index" style="display:flex;align-items:center;gap:6px;padding:3px 10px;background:var(--bg-deep);border:1px solid var(--border);border-radius:8px">
@@ -798,8 +798,8 @@ window.addEventListener('resize',()=>{const el=document.getElementById('eqChart'
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
-  // 生成目标点云("蛋蛋基金"文字)
-  const targetPoints = textToPoints('蛋蛋基金', PARTICLE_COUNT, 16);
+  // 生成目标点云("蛋蛋交易系统"文字)
+  const targetPoints = textToPoints('蛋蛋交易系统', PARTICLE_COUNT, 16);
 
   // 粒子属性
   const startPos = new Float32Array(PARTICLE_COUNT*3);  // 初始位置(飞散)
