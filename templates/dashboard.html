@@ -706,7 +706,7 @@ window.addEventListener('resize',()=>{const el=document.getElementById('eqChart'
 <script>
 (function(){
   // === 配置 ===
-  const PARTICLE_COUNT = 5000;
+  const PARTICLE_COUNT = 8000;
   const BG_PARTICLES = 2000;
   const SCATTER_DURATION = 0.5;  // 初始飞散时间(s)
   const ASSEMBLE_DURATION = 2.5; // 重组时间(s)
@@ -732,19 +732,19 @@ window.addEventListener('resize',()=>{const el=document.getElementById('eqChart'
   function textToPoints(text, count, spread){
     const c = document.createElement('canvas');
     const ctx = c.getContext('2d');
-    c.width = 512; c.height = 128;
-    ctx.fillStyle = '#000'; ctx.fillRect(0,0,512,128);
+    c.width = 1024; c.height = 256;
+    ctx.fillStyle = '#000'; ctx.fillRect(0,0,1024,256);
     ctx.fillStyle = '#fff';
-    ctx.font = 'bold 60px -apple-system,PingFang SC,sans-serif';
+    ctx.font = 'bold 120px -apple-system,PingFang SC,Microsoft YaHei,sans-serif';
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText(text, 256, 64);
-    const data = ctx.getImageData(0,0,512,128).data;
+    ctx.fillText(text, 512, 128);
+    const data = ctx.getImageData(0,0,1024,256).data;
     const pts = [];
-    // 采样白色像素
-    for(let y=0;y<128;y+=2){
-      for(let x=0;x<512;x+=2){
-        if(data[(y*512+x)*4]>128){
-          pts.push([(x-256)/256*spread, (64-y)/128*spread*0.5, 0]);
+    // 采样白色像素(更密集的采样)
+    for(let y=0;y<256;y+=1){
+      for(let x=0;x<1024;x+=1){
+        if(data[(y*1024+x)*4]>128){
+          pts.push([(x-512)/512*spread, (128-y)/256*spread*0.5, 0]);
         }
       }
     }
@@ -773,9 +773,9 @@ window.addEventListener('resize',()=>{const el=document.getElementById('eqChart'
     void main(){
       vColor = aColor;
       // 透明度随重组进度增加
-      vAlpha = smoothstep(0.0, 0.3, uProgress) * (0.6 + 0.4*sin(aRandom*6.28+uTime*2.0));
+      vAlpha = smoothstep(0.0, 0.3, uProgress) * (0.7 + 0.3*sin(aRandom*6.28+uTime*2.0));
       vec4 mvPos = modelViewMatrix * vec4(position, 1.0);
-      gl_PointSize = aSize * uPixelRatio * (60.0 / -mvPos.z);
+      gl_PointSize = aSize * uPixelRatio * (40.0 / -mvPos.z);
       gl_Position = projectionMatrix * mvPos;
     }
   `;
@@ -794,7 +794,7 @@ window.addEventListener('resize',()=>{const el=document.getElementById('eqChart'
   const overlay = document.getElementById('intro-overlay');
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(50, window.innerWidth/window.innerHeight, 0.1, 200);
-  camera.position.z = 20;
+  camera.position.z = 14;
   const renderer = new THREE.WebGLRenderer({canvas:introCanvas, alpha:true, antialias:true});
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -819,7 +819,7 @@ window.addEventListener('resize',()=>{const el=document.getElementById('eqChart'
     // 初始位置: 球形爆炸分布
     const theta = Math.random()*Math.PI*2;
     const phi = Math.acos(Math.random()*2-1);
-    const r = 15 + Math.random()*25;
+    const r = 8 + Math.random()*15;
     startPos[i*3] = r*Math.sin(phi)*Math.cos(theta);
     startPos[i*3+1] = r*Math.sin(phi)*Math.sin(theta);
     startPos[i*3+2] = r*Math.cos(phi);
@@ -829,7 +829,7 @@ window.addEventListener('resize',()=>{const el=document.getElementById('eqChart'
     targetPos[i*3+2] = targetPoints[i][2] + (Math.random()-0.5)*0.5;
     // 当前位置初始化为起始位置
     currentPos[i*3]=startPos[i*3]; currentPos[i*3+1]=startPos[i*3+1]; currentPos[i*3+2]=startPos[i*3+2];
-    sizes[i] = Math.random()*1.8+0.4;
+    sizes[i] = Math.random()*1.0+0.3;
     randoms[i] = Math.random();
     const c = palette[Math.floor(Math.random()*palette.length)];
     pColors[i*3]=c[0]; pColors[i*3+1]=c[1]; pColors[i*3+2]=c[2];
