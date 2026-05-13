@@ -775,7 +775,7 @@ window.addEventListener('resize',()=>{const el=document.getElementById('eqChart'
       // 透明度随重组进度增加
       vAlpha = smoothstep(0.0, 0.3, uProgress) * (0.7 + 0.3*sin(aRandom*6.28+uTime*2.0));
       vec4 mvPos = modelViewMatrix * vec4(position, 1.0);
-      gl_PointSize = aSize * uPixelRatio * (40.0 / -mvPos.z);
+      gl_PointSize = aSize * uPixelRatio * (70.0 / -mvPos.z);
       gl_Position = projectionMatrix * mvPos;
     }
   `;
@@ -829,7 +829,7 @@ window.addEventListener('resize',()=>{const el=document.getElementById('eqChart'
     targetPos[i*3+2] = targetPoints[i][2] + (Math.random()-0.5)*0.5;
     // 当前位置初始化为起始位置
     currentPos[i*3]=startPos[i*3]; currentPos[i*3+1]=startPos[i*3+1]; currentPos[i*3+2]=startPos[i*3+2];
-    sizes[i] = Math.random()*1.0+0.3;
+    sizes[i] = Math.random()*2.0+0.8;
     randoms[i] = Math.random();
     const c = palette[Math.floor(Math.random()*palette.length)];
     pColors[i*3]=c[0]; pColors[i*3+1]=c[1]; pColors[i*3+2]=c[2];
