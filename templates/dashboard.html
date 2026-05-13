@@ -732,19 +732,19 @@ window.addEventListener('resize',()=>{const el=document.getElementById('eqChart'
   function textToPoints(text, count, spread){
     const c = document.createElement('canvas');
     const ctx = c.getContext('2d');
-    c.width = 1024; c.height = 256;
-    ctx.fillStyle = '#000'; ctx.fillRect(0,0,1024,256);
+    c.width = 2048; c.height = 512;
+    ctx.fillStyle = '#000'; ctx.fillRect(0,0,2048,512);
     ctx.fillStyle = '#fff';
-    ctx.font = 'bold 120px -apple-system,PingFang SC,Microsoft YaHei,sans-serif';
+    ctx.font = 'bold 240px -apple-system,PingFang SC,Microsoft YaHei,sans-serif';
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText(text, 512, 128);
-    const data = ctx.getImageData(0,0,1024,256).data;
+    ctx.fillText(text, 1024, 256);
+    const data = ctx.getImageData(0,0,2048,512).data;
     const pts = [];
-    // 采样白色像素(更密集的采样)
-    for(let y=0;y<256;y+=1){
-      for(let x=0;x<1024;x+=1){
-        if(data[(y*1024+x)*4]>128){
-          pts.push([(x-512)/512*spread, (128-y)/256*spread*0.5, 0]);
+    // 采样白色像素(每2像素采样一次，2048分辨率足够精细)
+    for(let y=0;y<512;y+=2){
+      for(let x=0;x<2048;x+=2){
+        if(data[(y*2048+x)*4]>128){
+          pts.push([(x-1024)/1024*spread, (256-y)/512*spread*0.5, 0]);
         }
       }
     }
