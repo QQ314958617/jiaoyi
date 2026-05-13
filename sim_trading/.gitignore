@@ -6,4 +6,3 @@ __pycache__/
 *.pyc
 start_gunicorn.sh
 data/
-openclaw
