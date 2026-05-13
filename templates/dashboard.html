@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <title>🥚 蛋蛋基金 · 量化交易系统</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
@@ -216,7 +217,7 @@ tr:hover td { background: rgba(255,255,255,0.015); color: var(--text-primary); }
       </div>
       <!-- Loading skeleton -->
       <div x-show="loading" class="skeleton" style="height:160px;width:100%"></div>
-      <div x-show="!loading" id="eqChart" style="height:160px;width:100%"></div>
+      <div id="eqChart" :style="loading?'height:0;overflow:hidden':'height:160px;width:100%'"></div>
       <!-- 关键统计 -->
       <div x-show="!loading" style="display:flex;gap:20px;margin-top:10px;padding-top:10px;border-top:1px solid var(--border);flex-wrap:wrap">
         <div style="min-width:60px"><span style="font-size:10px;color:var(--text-muted);display:block;margin-bottom:2px">总交易</span><span class="mono" style="font-size:14px;font-weight:700" x-text="data.stats.total_trades||0"></span></div>
@@ -405,7 +406,7 @@ tr:hover td { background: rgba(255,255,255,0.015); color: var(--text-primary); }
           <div class="fi" style="padding:10px;background:var(--bg-deep);border-radius:8px;margin-bottom:6px">
             <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
               <span style="font-size:10px;color:var(--text-muted)" x-text="r.timestamp?.slice(0,16)||r.date||''"></span>
-              <template x-for="tag in (Array.isArray(r.tags)?r.tags:(typeof r.tags==='string'?JSON.parse(r.tags||'[]'):[]))" :key="tag">
+              <template x-for="tag in parseTags(r.tags)" :key="tag">
                 <span class="badge badge-accent" style="font-size:8px" x-text="tag"></span>
               </template>
             </div>
@@ -504,10 +505,17 @@ function app(){
     },
 
     fmt(n){ if(n==null)return'0.00'; return Number(n).toLocaleString('zh-CN',{minimumFractionDigits:2,maximumFractionDigits:2}); },
+    parseTags(tags){
+      if(Array.isArray(tags)) return tags;
+      if(typeof tags==='string' && tags.startsWith('[')){
+        try{ return JSON.parse(tags); }catch(e){ return []; }
+      }
+      return [];
+    },
 
     renderChart(){
-      this.$nextTick(()=>{
-        const el=document.getElementById('eqChart'); if(!el||el.offsetHeight===0)return;
+      setTimeout(()=>{
+        const el=document.getElementById('eqChart'); if(!el||el.offsetWidth===0)return;
         if(!this.chart) this.chart=echarts.init(el,'dark');
         let d=this.data.equity;
         if(this.eqRange<60) d=d.slice(-this.eqRange);
@@ -521,7 +529,7 @@ function app(){
         series:[{type:'line',data:d.map(i=>i.total_value),smooth:true,lineStyle:{color:'#7c5cfc',width:2},areaStyle:{color:new echarts.graphic.LinearGradient(0,0,0,1,[{offset:0,color:'rgba(124,92,252,0.25)'},{offset:1,color:'rgba(124,92,252,0)'}])},itemStyle:{color:'#7c5cfc'},symbol:'none'}]
       });
       this.chart.resize();
-      });
+      }, 100);
     },
 
     async trade(){
