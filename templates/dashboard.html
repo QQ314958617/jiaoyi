@@ -51,7 +51,8 @@ body {
 #intro-overlay {
   position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 9999;
   display: flex; align-items: center; justify-content: center; flex-direction: column;
-  transition: opacity 0.8s ease-out;
+  background: radial-gradient(ellipse at center, rgba(14,14,22,0.8) 0%, rgba(7,7,13,0.95) 70%);
+  transition: opacity 1s ease-out;
 }
 #intro-overlay.fade-out { opacity: 0; pointer-events: none; }
 #intro-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
@@ -711,161 +712,222 @@ function app(){
 window.addEventListener('resize',()=>{const el=document.getElementById('eqChart');if(el){const c=echarts.getInstanceByDom(el);if(c)c.resize()}});
 </script>
 
-<!-- Three.js 入场 + 背景粒子 -->
+<!-- Three.js 梦幻粒子特效 -->
 <script>
 (function(){
+  // === 配置 ===
+  const INTRO_PARTICLES = 6000;
+  const BG_PARTICLES = 3000;
+  const INTRO_DURATION = 3000; // ms
+  const FADE_DURATION = 1000;
+
+  // === 圆形发光纹理 ===
+  const glowTexture = (function(){
+    const c = document.createElement('canvas'); c.width=64; c.height=64;
+    const ctx = c.getContext('2d');
+    const g = ctx.createRadialGradient(32,32,0,32,32,32);
+    g.addColorStop(0,'rgba(255,255,255,1)');
+    g.addColorStop(0.15,'rgba(255,255,255,0.8)');
+    g.addColorStop(0.4,'rgba(255,255,255,0.2)');
+    g.addColorStop(0.7,'rgba(255,255,255,0.05)');
+    g.addColorStop(1,'rgba(255,255,255,0)');
+    ctx.fillStyle=g; ctx.fillRect(0,0,64,64);
+    return new THREE.CanvasTexture(c);
+  })();
+
+  // === 自定义着色器 ===
+  const vertexShader = `
+    attribute float aSize;
+    attribute float aLife;
+    attribute vec3 aColor;
+    varying vec3 vColor;
+    varying float vAlpha;
+    uniform float uTime;
+    uniform float uPixelRatio;
+    void main(){
+      vColor = aColor;
+      float life = mod(aLife + uTime*0.1, 1.0);
+      vAlpha = sin(life * 3.14159) * 0.8;
+      vec4 mvPos = modelViewMatrix * vec4(position, 1.0);
+      gl_PointSize = aSize * uPixelRatio * (80.0 / -mvPos.z);
+      gl_Position = projectionMatrix * mvPos;
+    }
+  `;
+  const fragmentShader = `
+    varying vec3 vColor;
+    varying float vAlpha;
+    uniform sampler2D uTexture;
+    void main(){
+      vec4 tex = texture2D(uTexture, gl_PointCoord);
+      gl_FragColor = vec4(vColor, vAlpha * tex.a);
+    }
+  `;
+
   // === 入场动画 ===
   const introCanvas = document.getElementById('intro-canvas');
   const overlay = document.getElementById('intro-overlay');
   const scene = new THREE.Scene();
-  const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+  const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 100);
+  camera.position.z = 30;
   const renderer = new THREE.WebGLRenderer({canvas:introCanvas, alpha:true, antialias:true});
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
-  // 粒子系统 - 数据流风格
-  const particleCount = 800;
-  const positions = new Float32Array(particleCount * 3);
-  const velocities = new Float32Array(particleCount * 3);
-  const colors = new Float32Array(particleCount * 3);
-  const sizes = new Float32Array(particleCount);
+  // 粒子属性
+  const iPos = new Float32Array(INTRO_PARTICLES*3);
+  const iVel = new Float32Array(INTRO_PARTICLES*3);
+  const iSize = new Float32Array(INTRO_PARTICLES);
+  const iLife = new Float32Array(INTRO_PARTICLES);
+  const iColor = new Float32Array(INTRO_PARTICLES*3);
 
-  const palette = [
-    [0.486, 0.361, 0.988],  // accent purple
-    [0.204, 0.827, 0.600],  // green (up)
-    [0.961, 0.620, 0.043],  // gold
-    [0.655, 0.545, 0.980],  // light purple
+  const colors = [
+    [0.49,0.36,0.99],[0.65,0.55,0.98],[0.20,0.83,0.60],
+    [0.96,0.62,0.04],[0.40,0.70,0.99],[0.85,0.40,0.95]
   ];
 
-  for(let i=0; i<particleCount; i++){
-    positions[i*3] = (Math.random()-0.5)*20;
-    positions[i*3+1] = (Math.random()-0.5)*20;
-    positions[i*3+2] = (Math.random()-0.5)*20;
-    velocities[i*3] = (Math.random()-0.5)*0.02;
-    velocities[i*3+1] = (Math.random()-0.5)*0.02;
-    velocities[i*3+2] = (Math.random()-0.5)*0.02;
-    const c = palette[Math.floor(Math.random()*palette.length)];
-    colors[i*3]=c[0]; colors[i*3+1]=c[1]; colors[i*3+2]=c[2];
-    sizes[i] = Math.random()*3+1;
+  for(let i=0;i<INTRO_PARTICLES;i++){
+    // 星云漩涡分布
+    const angle = Math.random()*Math.PI*2;
+    const radius = Math.random()*15 + 2;
+    const height = (Math.random()-0.5)*8;
+    iPos[i*3] = Math.cos(angle)*radius;
+    iPos[i*3+1] = height;
+    iPos[i*3+2] = Math.sin(angle)*radius;
+    // 旋转速度
+    const speed = 0.02 + Math.random()*0.03;
+    iVel[i*3] = -Math.sin(angle)*speed;
+    iVel[i*3+1] = (Math.random()-0.5)*0.01;
+    iVel[i*3+2] = Math.cos(angle)*speed;
+    iSize[i] = Math.random()*2+0.5;
+    iLife[i] = Math.random();
+    const c = colors[Math.floor(Math.random()*colors.length)];
+    iColor[i*3]=c[0]; iColor[i*3+1]=c[1]; iColor[i*3+2]=c[2];
   }
 
-  const geo = new THREE.BufferGeometry();
-  geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-  geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-  geo.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+  const iGeo = new THREE.BufferGeometry();
+  iGeo.setAttribute('position', new THREE.BufferAttribute(iPos, 3));
+  iGeo.setAttribute('aSize', new THREE.BufferAttribute(iSize, 1));
+  iGeo.setAttribute('aLife', new THREE.BufferAttribute(iLife, 1));
+  iGeo.setAttribute('aColor', new THREE.BufferAttribute(iColor, 3));
 
-  // 圆形粒子纹理(小而精致)
-  const circleTexture = (function(){
-    const c = document.createElement('canvas'); c.width=32; c.height=32;
-    const ctx = c.getContext('2d');
-    const g = ctx.createRadialGradient(16,16,0,16,16,16);
-    g.addColorStop(0,'rgba(255,255,255,1)');
-    g.addColorStop(0.2,'rgba(255,255,255,0.6)');
-    g.addColorStop(0.5,'rgba(255,255,255,0.1)');
-    g.addColorStop(1,'rgba(255,255,255,0)');
-    ctx.fillStyle=g; ctx.fillRect(0,0,32,32);
-    const tex = new THREE.CanvasTexture(c); return tex;
-  })();
-
-  const mat = new THREE.PointsMaterial({
-    size: 0.08, vertexColors: true, transparent: true, opacity: 0.7,
-    blending: THREE.AdditiveBlending, sizeAttenuation: true,
-    map: circleTexture, depthWrite: false
+  const iMat = new THREE.ShaderMaterial({
+    vertexShader, fragmentShader,
+    uniforms:{
+      uTime:{value:0},
+      uTexture:{value:glowTexture},
+      uPixelRatio:{value:Math.min(window.devicePixelRatio,2)}
+    },
+    transparent:true, depthWrite:false,
+    blending:THREE.AdditiveBlending
   });
-  const points = new THREE.Points(geo, mat);
-  scene.add(points);
+  const iPoints = new THREE.Points(iGeo, iMat);
+  scene.add(iPoints);
 
-  // 连接线(数据网络感)
-  const lineGeo = new THREE.BufferGeometry();
-  const linePositions = new Float32Array(300 * 6);
-  lineGeo.setAttribute('position', new THREE.BufferAttribute(linePositions, 3));
-  const lineMat = new THREE.LineBasicMaterial({color:0x7c5cfc, transparent:true, opacity:0.15});
-  const lines = new THREE.LineSegments(lineGeo, lineMat);
-  scene.add(lines);
+  // 鼠标交互
+  let mouseX=0, mouseY=0;
+  document.addEventListener('mousemove',(e)=>{
+    mouseX = (e.clientX/window.innerWidth-0.5)*2;
+    mouseY = (e.clientY/window.innerHeight-0.5)*2;
+  });
 
-  camera.position.z = 8;
   let introActive = true;
-  let startTime = Date.now();
-
-  function updateLines(){
-    const pos = geo.attributes.position.array;
-    let li = 0;
-    for(let i=0; i<Math.min(particleCount,100) && li<300; i++){
-      for(let j=i+1; j<Math.min(particleCount,100) && li<300; j++){
-        const dx=pos[i*3]-pos[j*3], dy=pos[i*3+1]-pos[j*3+1], dz=pos[i*3+2]-pos[j*3+2];
-        const dist = dx*dx+dy*dy+dz*dz;
-        if(dist < 4){
-          linePositions[li*6]=pos[i*3]; linePositions[li*6+1]=pos[i*3+1]; linePositions[li*6+2]=pos[i*3+2];
-          linePositions[li*6+3]=pos[j*3]; linePositions[li*6+4]=pos[j*3+1]; linePositions[li*6+5]=pos[j*3+2];
-          li++;
-        }
-      }
-    }
-    for(let k=li*6;k<300*6;k++) linePositions[k]=0;
-    lineGeo.attributes.position.needsUpdate = true;
-  }
+  const startTime = Date.now();
 
   function animateIntro(){
     if(!introActive) return;
     requestAnimationFrame(animateIntro);
     const elapsed = (Date.now()-startTime)/1000;
-    const pos = geo.attributes.position.array;
-    for(let i=0;i<particleCount;i++){
-      pos[i*3]+=velocities[i*3]; pos[i*3+1]+=velocities[i*3+1]; pos[i*3+2]+=velocities[i*3+2];
-      if(Math.abs(pos[i*3])>10) velocities[i*3]*=-1;
-      if(Math.abs(pos[i*3+1])>10) velocities[i*3+1]*=-1;
-      if(Math.abs(pos[i*3+2])>10) velocities[i*3+2]*=-1;
+    iMat.uniforms.uTime.value = elapsed;
+
+    const pos = iGeo.attributes.position.array;
+    for(let i=0;i<INTRO_PARTICLES;i++){
+      pos[i*3]+=iVel[i*3]; pos[i*3+1]+=iVel[i*3+1]; pos[i*3+2]+=iVel[i*3+2];
+      // 鼠标扰动
+      const dx = pos[i*3]-mouseX*10;
+      const dy = pos[i*3+1]+mouseY*10;
+      const dist = Math.sqrt(dx*dx+dy*dy);
+      if(dist<5){
+        pos[i*3]+=dx*0.002;
+        pos[i*3+1]+=dy*0.002;
+      }
     }
-    geo.attributes.position.needsUpdate = true;
-    updateLines();
-    points.rotation.y += 0.003;
-    points.rotation.x += 0.001;
-    camera.position.z = 8 - elapsed*0.5;
+    iGeo.attributes.position.needsUpdate = true;
+
+    // 漩涡旋转
+    iPoints.rotation.y += 0.004;
+    iPoints.rotation.x = mouseY*0.1;
+    camera.position.z = 30 - elapsed*3;
+    camera.lookAt(0,0,0);
     renderer.render(scene, camera);
   }
   animateIntro();
 
-  // 2.5秒后淡出
+  // 淡出
   setTimeout(()=>{
     overlay.classList.add('fade-out');
-    setTimeout(()=>{ introActive=false; overlay.remove(); renderer.dispose(); }, 800);
-  }, 2500);
+    setTimeout(()=>{ introActive=false; overlay.remove(); renderer.dispose(); }, FADE_DURATION);
+  }, INTRO_DURATION);
 
-  // === 背景粒子(微弱流动) ===
+  // === 背景粒子(常驻梦幻流) ===
   const bgCanvas = document.getElementById('bg-canvas');
   const bgScene = new THREE.Scene();
-  const bgCamera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 500);
+  const bgCamera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 200);
+  bgCamera.position.z = 50;
   const bgRenderer = new THREE.WebGLRenderer({canvas:bgCanvas, alpha:true});
   bgRenderer.setSize(window.innerWidth, window.innerHeight);
   bgRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
 
-  const bgCount = 500;
-  const bgPos = new Float32Array(bgCount*3);
-  const bgVel = new Float32Array(bgCount*3);
-  for(let i=0;i<bgCount;i++){
-    bgPos[i*3]=(Math.random()-0.5)*40;
-    bgPos[i*3+1]=(Math.random()-0.5)*40;
-    bgPos[i*3+2]=(Math.random()-0.5)*20-10;
-    bgVel[i*3]=(Math.random()-0.5)*0.005;
-    bgVel[i*3+1]=-Math.random()*0.01-0.005;
-    bgVel[i*3+2]=0;
+  const bPos = new Float32Array(BG_PARTICLES*3);
+  const bSize = new Float32Array(BG_PARTICLES);
+  const bLife = new Float32Array(BG_PARTICLES);
+  const bColor = new Float32Array(BG_PARTICLES*3);
+  const bVel = new Float32Array(BG_PARTICLES*3);
+
+  for(let i=0;i<BG_PARTICLES;i++){
+    bPos[i*3]=(Math.random()-0.5)*80;
+    bPos[i*3+1]=(Math.random()-0.5)*60;
+    bPos[i*3+2]=(Math.random()-0.5)*40-10;
+    bSize[i]=Math.random()*1.5+0.3;
+    bLife[i]=Math.random();
+    const c = colors[Math.floor(Math.random()*colors.length)];
+    bColor[i*3]=c[0]*0.6; bColor[i*3+1]=c[1]*0.6; bColor[i*3+2]=c[2]*0.6;
+    bVel[i*3]=(Math.random()-0.5)*0.01;
+    bVel[i*3+1]=-Math.random()*0.02-0.01;
+    bVel[i*3+2]=(Math.random()-0.5)*0.005;
   }
-  const bgGeo = new THREE.BufferGeometry();
-  bgGeo.setAttribute('position', new THREE.BufferAttribute(bgPos, 3));
-  const bgMat = new THREE.PointsMaterial({color:0x7c5cfc, size:0.06, transparent:true, opacity:0.4, blending:THREE.AdditiveBlending, map:circleTexture, depthWrite:false, sizeAttenuation:true});
-  const bgPoints = new THREE.Points(bgGeo, bgMat);
-  bgScene.add(bgPoints);
-  bgCamera.position.z = 15;
+
+  const bGeo = new THREE.BufferGeometry();
+  bGeo.setAttribute('position', new THREE.BufferAttribute(bPos, 3));
+  bGeo.setAttribute('aSize', new THREE.BufferAttribute(bSize, 1));
+  bGeo.setAttribute('aLife', new THREE.BufferAttribute(bLife, 1));
+  bGeo.setAttribute('aColor', new THREE.BufferAttribute(bColor, 3));
+
+  const bMat = new THREE.ShaderMaterial({
+    vertexShader, fragmentShader,
+    uniforms:{
+      uTime:{value:0},
+      uTexture:{value:glowTexture},
+      uPixelRatio:{value:Math.min(window.devicePixelRatio,1.5)}
+    },
+    transparent:true, depthWrite:false,
+    blending:THREE.AdditiveBlending
+  });
+  const bPoints = new THREE.Points(bGeo, bMat);
+  bgScene.add(bPoints);
 
   function animateBg(){
     requestAnimationFrame(animateBg);
-    const pos = bgGeo.attributes.position.array;
-    for(let i=0;i<bgCount;i++){
-      pos[i*3]+=bgVel[i*3]; pos[i*3+1]+=bgVel[i*3+1];
-      if(pos[i*3+1]<-20){pos[i*3+1]=20; pos[i*3]=(Math.random()-0.5)*40;}
+    bMat.uniforms.uTime.value = (Date.now()-startTime)/1000;
+    const pos = bGeo.attributes.position.array;
+    for(let i=0;i<BG_PARTICLES;i++){
+      pos[i*3]+=bVel[i*3]; pos[i*3+1]+=bVel[i*3+1]; pos[i*3+2]+=bVel[i*3+2];
+      if(pos[i*3+1]<-30){pos[i*3+1]=30; pos[i*3]=(Math.random()-0.5)*80;}
+      // 鼠标微弱扰动
+      pos[i*3]+=mouseX*0.001;
+      pos[i*3+1]-=mouseY*0.001;
     }
-    bgGeo.attributes.position.needsUpdate=true;
-    bgPoints.rotation.y+=0.0003;
+    bGeo.attributes.position.needsUpdate=true;
+    bPoints.rotation.y+=0.0002;
     bgRenderer.render(bgScene, bgCamera);
   }
   animateBg();
