@@ -754,9 +754,23 @@ window.addEventListener('resize',()=>{const el=document.getElementById('eqChart'
   geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
   geo.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
 
+  // 圆形粒子纹理
+  const circleTexture = (function(){
+    const c = document.createElement('canvas'); c.width=64; c.height=64;
+    const ctx = c.getContext('2d');
+    const g = ctx.createRadialGradient(32,32,0,32,32,32);
+    g.addColorStop(0,'rgba(255,255,255,1)');
+    g.addColorStop(0.3,'rgba(255,255,255,0.8)');
+    g.addColorStop(0.7,'rgba(255,255,255,0.3)');
+    g.addColorStop(1,'rgba(255,255,255,0)');
+    ctx.fillStyle=g; ctx.fillRect(0,0,64,64);
+    const tex = new THREE.CanvasTexture(c); return tex;
+  })();
+
   const mat = new THREE.PointsMaterial({
-    size: 2, vertexColors: true, transparent: true, opacity: 0.8,
-    blending: THREE.AdditiveBlending, sizeAttenuation: true
+    size: 2, vertexColors: true, transparent: true, opacity: 0.9,
+    blending: THREE.AdditiveBlending, sizeAttenuation: true,
+    map: circleTexture, depthWrite: false
   });
   const points = new THREE.Points(geo, mat);
   scene.add(points);
@@ -838,7 +852,7 @@ window.addEventListener('resize',()=>{const el=document.getElementById('eqChart'
   }
   const bgGeo = new THREE.BufferGeometry();
   bgGeo.setAttribute('position', new THREE.BufferAttribute(bgPos, 3));
-  const bgMat = new THREE.PointsMaterial({color:0x7c5cfc, size:1.5, transparent:true, opacity:0.4, blending:THREE.AdditiveBlending});
+  const bgMat = new THREE.PointsMaterial({color:0x7c5cfc, size:2, transparent:true, opacity:0.5, blending:THREE.AdditiveBlending, map:circleTexture, depthWrite:false});
   const bgPoints = new THREE.Points(bgGeo, bgMat);
   bgScene.add(bgPoints);
   bgCamera.position.z = 15;
