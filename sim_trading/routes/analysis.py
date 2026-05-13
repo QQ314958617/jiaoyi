@@ -1,0 +1,150 @@
+"""
+分析相关路由: /api/analyze, /api/search, /api/indicators, /api/screen/overnight
+"""
+import logging
+import re
+import traceback
+from datetime import datetime
+from flask import Blueprint, jsonify, request
+
+import akshare as ak
+import database as db
+
+logger = logging.getLogger(__name__)
+
+analysis_bp = Blueprint('analysis', __name__)
+
+
+@analysis_bp.route('/api/analyze/<stock_code>')
+def analyze_stock(stock_code):
+    """巴菲特价值投资分析报告（支持代码或名称查询）"""
+    import buffett_analyzer as ba
+    try:
+        if not stock_code.isdigit():
+            match = re.search(r'\(?(\d{6})\)?', stock_code)
+            if match:
+                stock_code = match.group(1)
+            else:
+                code = ba.get_code_by_name(stock_code)
+                if not code:
+                    return jsonify({'error': f'未找到股票：{stock_code}'}), 404
+                stock_code = code
+        report = ba.build_report(stock_code)
+        return jsonify(report)
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+
+@analysis_bp.route('/api/search')
+def search_stocks():
+    """股票搜索（名称或代码模糊匹配）"""
+    import buffett_analyzer as ba
+    keyword = request.args.get('q', '').strip()
+    if not keyword or len(keyword) < 1:
+        return jsonify([])
+    results = ba.search_stocks(keyword)
+    return jsonify(results)
+
+
+@analysis_bp.route('/api/indicators/<stock_code>')
+def get_indicators(stock_code):
+    """获取股票技术指标 RSI / MACD / KDJ / 布林带"""
+    try:
+        import pandas as pd
+        import numpy as np
+        from openclaw.indicators import (
+            calculate_rsi, calculate_macd, calculate_kdj,
+            calculate_bollinger, calculate_volume_ratio, get_signal
+        )
+
+        try:
+            symbol = f"sh{stock_code}" if stock_code.startswith(('6', '5')) else f"sz{stock_code}"
+            df = ak.stock_zh_a_hist(symbol=symbol, period="daily", adjust="qfq").tail(60)
+
+            if df.empty or len(df) < 20:
+                return jsonify({"error": "数据不足"}), 400
+
+            close = df['收盘'].tolist()
+            high = df['最高'].tolist()
+            low = df['最低'].tolist()
+            volume = df['成交量'].tolist()
+        except Exception as e:
+            return jsonify({"error": f"获取数据失败: {str(e)}"}), 500
+
+        result = {
+            "code": stock_code,
+            "close": close[-1],
+            "high": high[-1],
+            "low": low[-1],
+            "volume": volume[-1],
+            "date": str(df.iloc[-1]['日期']),
+        }
+
+        rsi = calculate_rsi(close)
+        if rsi:
+            result["rsi"] = rsi
+
+        macd = calculate_macd(close)
+        if macd:
+            result["macd"] = macd
+
+        kdj = calculate_kdj(high, low, close)
+        if kdj:
+            result["kdj"] = kdj
+
+        bollinger = calculate_bollinger(close)
+        if bollinger:
+            result["bollinger"] = bollinger
+
+        vol_ratio = calculate_volume_ratio(volume)
+        if vol_ratio:
+            result["volume_ratio"] = vol_ratio
+
+        result["signal"] = get_signal(
+            result.get("rsi"),
+            result.get("macd"),
+            result.get("kdj")
+        )
+
+        return jsonify(result)
+
+    except Exception as e:
+        return jsonify({"error": str(e), "traceback": traceback.format_exc()}), 500
+
+
+@analysis_bp.route('/api/screen/overnight', methods=['GET'])
+def screen_overnight_route():
+    """一夜持股法选股API"""
+    try:
+        import sys
+        sys.path.insert(0, '/root/.openclaw/workspace/sim_trading')
+        from overnight_screener import screen_overnight_v3, format_report_v3, Config
+
+        results, index_data = screen_overnight_v3()
+
+        return jsonify({
+            "success": True,
+            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "strategy": "一夜持股法v3.0",
+            "config": {
+                "rise_min": Config.RISE_MIN,
+                "rise_max": Config.RISE_MAX,
+                "turnover_min": Config.TURNOVER_MIN,
+                "turnover_max": Config.TURNOVER_MAX,
+                "market_cap_min": Config.MARKET_CAP_MIN,
+                "market_cap_max": Config.MARKET_CAP_MAX,
+                "max_stocks": Config.MAX_STOCKS,
+            },
+            "index": index_data,
+            "results": results,
+            "count": len(results),
+            "report": format_report_v3(results, index_data),
+        })
+
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc(),
+        }), 500
