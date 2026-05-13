@@ -35,8 +35,9 @@
   --gold-bg: rgba(245,158,11,0.08);
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
+html { background: var(--bg-deep); }
 body {
-  background: var(--bg-deep);
+  background: transparent;
   color: var(--text-primary);
   font-family: -apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Noto Sans SC',system-ui,sans-serif;
   min-height: 100vh;
@@ -177,7 +178,7 @@ tr:hover td { background: rgba(255,255,255,0.015); color: var(--text-primary); }
 <!-- 背景粒子画布 -->
 <canvas id="bg-canvas"></canvas>
 
-<div x-data="app()" x-init="init()" style="position:relative;z-index:1">
+<div x-data="app()" x-init="init()" style="position:relative;z-index:1;background:transparent">
 
 <!-- ═══ TOP BAR ═══ -->
 <header style="background:var(--bg-surface);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:50;">
