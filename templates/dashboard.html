@@ -72,7 +72,7 @@ body {
 /* 背景粒子(主界面) */
 #bg-canvas {
   position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-  z-index: 100; pointer-events: none; opacity: 0.5;
+  z-index: 100; pointer-events: none; opacity: 1;
 }
 .up { color: var(--up); }
 .down { color: var(--down); }
@@ -917,100 +917,69 @@ window.addEventListener('resize',()=>{const el=document.getElementById('eqChart'
     setTimeout(()=>{ introActive=false; overlay.remove(); renderer.dispose(); }, FADE_DURATION*1000);
   }, fadeStart);
 
-  // === 背景粒子(常驻流动) ===
-  const bgCanvas = document.getElementById('bg-canvas');
-  const bgScene = new THREE.Scene();
-  const bgCamera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 200);
-  bgCamera.position.z = 50;
-  const bgRenderer = new THREE.WebGLRenderer({canvas:bgCanvas, alpha:true});
-  bgRenderer.setSize(window.innerWidth, window.innerHeight);
-  bgRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+})();
+</script>
 
-  // 背景着色器(简化版)
-  const bgVertexShader = `
-    attribute float aSize;
-    attribute vec3 aColor;
-    attribute float aRandom;
-    varying vec3 vColor;
-    varying float vAlpha;
-    uniform float uTime;
-    uniform float uPixelRatio;
-    void main(){
-      vColor = aColor;
-      vAlpha = 0.5 + 0.3*sin(aRandom*6.28+uTime*0.5);
-      vec4 mvPos = modelViewMatrix * vec4(position, 1.0);
-      gl_PointSize = aSize * uPixelRatio * (40.0 / -mvPos.z);
-      gl_Position = projectionMatrix * mvPos;
-    }
-  `;
-  const bgFragmentShader = `
-    varying vec3 vColor;
-    varying float vAlpha;
-    uniform sampler2D uTexture;
-    void main(){
-      vec4 tex = texture2D(uTexture, gl_PointCoord);
-      gl_FragColor = vec4(vColor, vAlpha * tex.a);
-    }
-  `;
+<!-- 独立的背景粒子(确保不被入场动画报错影响) -->
+<script>
+(function(){
+  const canvas = document.getElementById('bg-canvas');
+  if(!canvas) return;
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 200);
+  camera.position.z = 40;
+  const renderer = new THREE.WebGLRenderer({canvas:canvas, alpha:true});
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
-  const bPos = new Float32Array(BG_PARTICLES*3);
-  const bSize = new Float32Array(BG_PARTICLES);
-  const bRandom = new Float32Array(BG_PARTICLES);
-  const bColor = new Float32Array(BG_PARTICLES*3);
-  const bVel = new Float32Array(BG_PARTICLES*3);
-
-  for(let i=0;i<BG_PARTICLES;i++){
-    bPos[i*3]=(Math.random()-0.5)*80;
-    bPos[i*3+1]=(Math.random()-0.5)*60;
-    bPos[i*3+2]=(Math.random()-0.5)*30-10;
-    bSize[i]=Math.random()*2.0+0.5;
-    bRandom[i]=Math.random();
-    const c = palette[Math.floor(Math.random()*palette.length)];
-    bColor[i*3]=c[0]*0.8; bColor[i*3+1]=c[1]*0.8; bColor[i*3+2]=c[2]*0.8;
-    bVel[i*3]=(Math.random()-0.5)*0.008;
-    bVel[i*3+1]=-Math.random()*0.015-0.005;
-    bVel[i*3+2]=(Math.random()-0.5)*0.003;
+  const count = 500;
+  const positions = new Float32Array(count*3);
+  const velocities = new Float32Array(count*3);
+  for(let i=0;i<count;i++){
+    positions[i*3]=(Math.random()-0.5)*60;
+    positions[i*3+1]=(Math.random()-0.5)*40;
+    positions[i*3+2]=(Math.random()-0.5)*20;
+    velocities[i*3]=(Math.random()-0.5)*0.01;
+    velocities[i*3+1]=-Math.random()*0.02-0.01;
+    velocities[i*3+2]=0;
   }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
 
-  const bGeo = new THREE.BufferGeometry();
-  bGeo.setAttribute('position', new THREE.BufferAttribute(bPos, 3));
-  bGeo.setAttribute('aSize', new THREE.BufferAttribute(bSize, 1));
-  bGeo.setAttribute('aRandom', new THREE.BufferAttribute(bRandom, 1));
-  bGeo.setAttribute('aColor', new THREE.BufferAttribute(bColor, 3));
+  // 简单的发光纹理
+  const c2 = document.createElement('canvas'); c2.width=32; c2.height=32;
+  const ctx = c2.getContext('2d');
+  const g = ctx.createRadialGradient(16,16,0,16,16,16);
+  g.addColorStop(0,'rgba(255,255,255,1)');
+  g.addColorStop(0.3,'rgba(255,255,255,0.5)');
+  g.addColorStop(1,'rgba(255,255,255,0)');
+  ctx.fillStyle=g; ctx.fillRect(0,0,32,32);
+  const tex = new THREE.CanvasTexture(c2);
 
-  const bMat = new THREE.ShaderMaterial({
-    vertexShader:bgVertexShader, fragmentShader:bgFragmentShader,
-    uniforms:{
-      uTime:{value:0},
-      uTexture:{value:glowTexture},
-      uPixelRatio:{value:Math.min(window.devicePixelRatio,1.5)}
-    },
-    transparent:true, depthWrite:false,
-    blending:THREE.AdditiveBlending
+  const mat = new THREE.PointsMaterial({
+    size:3, color:0x7c5cfc, transparent:true, opacity:0.7,
+    map:tex, blending:THREE.AdditiveBlending, depthWrite:false, sizeAttenuation:true
   });
-  const bPoints = new THREE.Points(bGeo, bMat);
-  bgScene.add(bPoints);
+  const points = new THREE.Points(geo, mat);
+  scene.add(points);
 
-  function animateBg(){
-    requestAnimationFrame(animateBg);
-    bMat.uniforms.uTime.value = (Date.now()-startTime)/1000;
-    const pos = bGeo.attributes.position.array;
-    for(let i=0;i<BG_PARTICLES;i++){
-      pos[i*3]+=bVel[i*3]; pos[i*3+1]+=bVel[i*3+1]; pos[i*3+2]+=bVel[i*3+2];
-      if(pos[i*3+1]<-30){pos[i*3+1]=30; pos[i*3]=(Math.random()-0.5)*80;}
-      pos[i*3]+=mouseX*0.001;
-      pos[i*3+1]-=mouseY*0.001;
+  function animate(){
+    requestAnimationFrame(animate);
+    const pos = geo.attributes.position.array;
+    for(let i=0;i<count;i++){
+      pos[i*3]+=velocities[i*3];
+      pos[i*3+1]+=velocities[i*3+1];
+      if(pos[i*3+1]<-20){pos[i*3+1]=20;pos[i*3]=(Math.random()-0.5)*60;}
     }
-    bGeo.attributes.position.needsUpdate=true;
-    bPoints.rotation.y+=0.0001;
-    bgRenderer.render(bgScene, bgCamera);
+    geo.attributes.position.needsUpdate=true;
+    renderer.render(scene, camera);
   }
-  animateBg();
+  animate();
 
   window.addEventListener('resize',()=>{
-    bgRenderer.setSize(window.innerWidth, window.innerHeight);
-    bgCamera.aspect=window.innerWidth/window.innerHeight;
-    bgCamera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    camera.aspect=window.innerWidth/window.innerHeight;
+    camera.updateProjectionMatrix();
   });
 })();
 </script>
