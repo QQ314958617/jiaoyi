@@ -83,7 +83,7 @@ class ValueInvestingStrategy(BaseStrategy):
                 'total_mv': float(fields[45]) if len(fields) > 45 and fields[45] and fields[45] != '-' else None,
                 'circulate_mv': float(fields[44]) if len(fields) > 44 and fields[44] and fields[44] != '-' else None,
             }
-        except:
+        except Exception:
             return {}
     
     # ─── 评分体系 ───

@@ -92,7 +92,7 @@ class TrendFollowingStrategy(BaseStrategy):
                 'pe': float(fields[39]) if fields[39] != '-' else 0,
                 'amount': float(fields[37]) if len(fields) > 37 and fields[37] != '-' else 0,
             }
-        except:
+        except Exception:
             return {}
     
     def _get_kline(self, code: str, days: int = 120) -> pd.DataFrame:
@@ -104,7 +104,7 @@ class TrendFollowingStrategy(BaseStrategy):
                     df = df.sort_values('日期')
                     df = df.tail(days).copy()
                     return df
-            except:
+            except Exception:
                 pytime.sleep(1)
                 continue
         return pd.DataFrame()
@@ -152,7 +152,7 @@ class TrendFollowingStrategy(BaseStrategy):
                     row = df.iloc[i]
                     name = str(row.iloc[0])
                     boards.append(name)
-        except:
+        except Exception:
             pass
         return boards
     
@@ -170,7 +170,7 @@ class TrendFollowingStrategy(BaseStrategy):
                     # 过滤：涨幅3%-10%的强势股（排除涨停和太弱的）
                     if 3 <= pct <= 10:
                         candidates.append({'code': code, 'name': name, 'pct': pct})
-        except:
+        except Exception:
             pass
         
         # 补充：昨日涨停今日回调的（涨停后企稳模式）
@@ -183,7 +183,7 @@ class TrendFollowingStrategy(BaseStrategy):
                     code = str(row.get('代码', '')).strip()
                     if code not in [c['code'] for c in candidates]:
                         candidates.append({'code': code, 'name': str(row.get('名称', '')), 'pct': 0, 'pre_zt': True})
-        except:
+        except Exception:
             pass
         
         return candidates

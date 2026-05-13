@@ -1,0 +1,7 @@
+flask==3.1.1
+gunicorn==23.0.0
+requests==2.32.3
+pandas==2.2.3
+numpy==2.2.5
+akshare==1.16.78
+lxml==5.4.0

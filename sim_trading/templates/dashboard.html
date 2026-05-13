@@ -3,10 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <title>🥚 蛋蛋基金 · 量化交易系统</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
 <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.160/build/three.min.js"></script>
 <style>
 :root {
   --bg-deep: #07070d;
@@ -31,8 +35,9 @@
   --gold-bg: rgba(245,158,11,0.08);
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
+html { background: var(--bg-deep); }
 body {
-  background: var(--bg-deep);
+  background: transparent;
   color: var(--text-primary);
   font-family: -apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Noto Sans SC',system-ui,sans-serif;
   min-height: 100vh;
@@ -42,10 +47,37 @@ body {
 ::-webkit-scrollbar { width: 4px; height: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--border-light); border-radius: 4px; }
+
+/* Three.js 入场动画 */
+#intro-overlay {
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 9999;
+  display: flex; align-items: center; justify-content: center; flex-direction: column;
+  background: radial-gradient(ellipse at center, rgba(14,14,22,0.8) 0%, rgba(7,7,13,0.95) 70%);
+  transition: opacity 1s ease-out;
+}
+#intro-overlay.fade-out { opacity: 0; pointer-events: none; }
+#intro-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+#intro-text {
+  position: relative; z-index: 1; text-align: center;
+  margin-top: 60%;
+}
+#intro-text p {
+  font-size: 12px; color: var(--accent-light); letter-spacing: 4px;
+  opacity: 0; animation: introFadeIn 0.8s 1.5s forwards;
+}
+@keyframes introFadeIn {
+  to { opacity: 1; }
+}
+
+/* 背景粒子(主界面) */
+#bg-canvas {
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  z-index: 0; pointer-events: none; opacity: 0.6;
+}
 .up { color: var(--up); }
 .down { color: var(--down); }
 
-.card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px; padding: 16px; }
+.card { background: rgba(20,20,31,0.85); border: 1px solid var(--border); border-radius: 14px; padding: 16px; }
 .badge {
   display: inline-flex; align-items: center;
   padding: 2px 8px; border-radius: 999px;
@@ -58,8 +90,8 @@ body {
 
 .btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 4px;
-  padding: 6px 14px; border-radius: 8px;
-  font-size: 12px; font-weight: 600; cursor: pointer; border: none;
+  padding: 5px 12px; border-radius: 8px;
+  font-size: 11px; font-weight: 600; cursor: pointer; border: none;
   transition: all 0.15s;
 }
 .btn-buy { background: var(--down); color: #fff; }
@@ -73,8 +105,8 @@ body {
 
 input, select {
   background: var(--bg-deep); border: 1px solid var(--border-light);
-  color: var(--text-primary); padding: 8px 12px; border-radius: 8px;
-  outline: none; font-size: 12px; transition: border-color 0.15s;
+  color: var(--text-primary); padding: 8px 16px !important; border-radius: 8px;
+  outline: none; font-size: 10px !important; transition: border-color 0.15s;
 }
 input:focus, select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-dim); }
 input::placeholder { color: var(--text-muted); }
@@ -135,10 +167,21 @@ tr:hover td { background: rgba(255,255,255,0.015); color: var(--text-primary); }
 </head>
 <body>
 
-<div x-data="app()" x-init="init()">
+<!-- Three.js 入场动画覆盖层 -->
+<div id="intro-overlay">
+  <canvas id="intro-canvas"></canvas>
+  <div id="intro-text">
+    <p>QUANTITATIVE TRADING SYSTEM</p>
+  </div>
+</div>
+
+<!-- 背景粒子画布 -->
+<canvas id="bg-canvas"></canvas>
+
+<div x-data="app()" x-init="init()" style="position:relative;z-index:1;background:transparent">
 
 <!-- ═══ TOP BAR ═══ -->
-<header style="background:var(--bg-surface);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:50;">
+<header style="background:rgba(14,14,22,0.9);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:50;">
   <div style="display:flex;align-items:center;min-height:44px;padding:8px 16px;flex-wrap:wrap;gap:8px" class="header-stats">
     <div style="display:flex;align-items:center;gap:8px;margin-right:12px">
       <div style="width:26px;height:26px;border-radius:8px;background:linear-gradient(135deg,#7c5cfc,#a78bfa);display:flex;align-items:center;justify-content:center;font-size:14px">🥚</div>
@@ -194,7 +237,7 @@ tr:hover td { background: rgba(255,255,255,0.015); color: var(--text-primary); }
 </header>
 
 <!-- ═══ BODY ═══ -->
-<div class="desktop-split" style="display:flex;gap:12px;padding:12px;min-height:calc(100vh - 100px)">
+<div class="desktop-split" style="display:flex;gap:12px;padding:12px;overflow:auto">
 
   <!-- LEFT (60%) -->
   <div style="width:60%;display:flex;flex-direction:column;gap:12px">
@@ -215,15 +258,15 @@ tr:hover td { background: rgba(255,255,255,0.015); color: var(--text-primary); }
         </div>
       </div>
       <!-- Loading skeleton -->
-      <div x-show="loading" class="skeleton" style="height:140px;width:100%"></div>
-      <div x-show="!loading" id="eqChart" style="height:140px"></div>
+      <div x-show="loading" class="skeleton" style="height:160px;width:100%"></div>
+      <div id="eqChart" :style="loading?'height:0;overflow:hidden':'height:160px;width:100%'"></div>
       <!-- 关键统计 -->
-      <div x-show="!loading" style="display:flex;gap:16px;margin-top:8px;padding-top:8px;border-top:1px solid var(--border)">
-        <div><span style="font-size:10px;color:var(--text-muted)">总交易</span><br><span class="mono" style="font-size:12px;font-weight:600" x-text="data.stats.total_trades||0"></span></div>
-        <div><span style="font-size:10px;color:var(--text-muted)">盈利笔数</span><br><span class="mono up" style="font-size:12px;font-weight:600" x-text="data.stats.win_trades||0"></span></div>
-        <div><span style="font-size:10px;color:var(--text-muted)">亏损笔数</span><br><span class="mono down" style="font-size:12px;font-weight:600" x-text="data.stats.loss_trades||0"></span></div>
-        <div><span style="font-size:10px;color:var(--text-muted)">最大单笔盈利</span><br><span class="mono up" style="font-size:12px;font-weight:600" x-text="'¥'+(data.stats.max_profit||0).toFixed(0)"></span></div>
-        <div><span style="font-size:10px;color:var(--text-muted)">最大单笔亏损</span><br><span class="mono down" style="font-size:12px;font-weight:600" x-text="'¥'+(data.stats.max_loss||0).toFixed(0)"></span></div>
+      <div :style="loading?'display:none':'display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)'">
+        <div><div style="font-size:10px;color:var(--text-muted);margin-bottom:3px">总交易</div><div class="mono" style="font-size:14px;font-weight:700" x-text="data.stats.total_trades||0"></div></div>
+        <div><div style="font-size:10px;color:var(--text-muted);margin-bottom:3px">盈利笔数</div><div class="mono up" style="font-size:14px;font-weight:700" x-text="data.stats.win_trades||0"></div></div>
+        <div><div style="font-size:10px;color:var(--text-muted);margin-bottom:3px">亏损笔数</div><div class="mono down" style="font-size:14px;font-weight:700" x-text="data.stats.loss_trades||0"></div></div>
+        <div><div style="font-size:10px;color:var(--text-muted);margin-bottom:3px">最大盈利</div><div class="mono up" style="font-size:14px;font-weight:700" x-text="'¥'+(data.stats.max_profit||0).toFixed(0)"></div></div>
+        <div><div style="font-size:10px;color:var(--text-muted);margin-bottom:3px">最大亏损</div><div class="mono down" style="font-size:14px;font-weight:700" x-text="'¥'+(data.stats.max_loss||0).toFixed(0)"></div></div>
       </div>
     </div>
 
@@ -299,7 +342,7 @@ tr:hover td { background: rgba(255,255,255,0.015); color: var(--text-primary); }
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
         <div class="s-line" style="background:var(--accent)"></div>
         <span style="font-size:13px;font-weight:600">交易记录</span>
-        <span class="badge badge-neutral" x-text="filteredTrades.length+'笔'"></span>
+        <span class="badge badge-neutral" x-text="data.trades.length+'笔'+(tradeHasMore?'+':'')"></span>
         <span style="flex:1"></span>
         <div style="display:flex;gap:3px">
           <button class="tab" :class="tradeRange==='7d'&&'active'" @click="tradeRange='7d'">7天</button>
@@ -311,7 +354,7 @@ tr:hover td { background: rgba(255,255,255,0.015); color: var(--text-primary); }
         <table>
           <thead><tr><th>时间</th><th>操作</th><th>股票</th><th>价格</th><th>数量</th><th>盈亏</th></tr></thead>
           <tbody>
-            <template x-for="t in filteredTrades.slice(0,30)" :key="t.id">
+            <template x-for="t in filteredTrades" :key="t.id">
               <tr class="fi">
                 <td class="mono" style="font-size:10px" x-text="t.timestamp?.slice(5,16)||''"></td>
                 <td><span class="badge" :class="t.action==='buy'?'badge-down':'badge-up'" x-text="t.action==='buy'?'买入':'卖出'"></span></td>
@@ -323,7 +366,22 @@ tr:hover td { background: rgba(255,255,255,0.015); color: var(--text-primary); }
             </template>
           </tbody>
         </table>
-        <div x-show="filteredTrades.length===0" style="text-align:center;padding:20px;color:var(--text-muted);font-size:12px">暂无交易记录</div>
+        <div x-show="tradeLoading" style="text-align:center;padding:12px;color:var(--text-muted);font-size:11px">加载中...</div>
+        <div x-show="data.trades.length===0 && !tradeLoading" style="text-align:center;padding:20px;color:var(--text-muted);font-size:12px">暂无交易记录</div>
+      </div>
+      <!-- 分页器 -->
+      <div x-show="tradeTotal>tradePageSize" style="display:flex;align-items:center;justify-content:center;gap:4px;padding:10px 0;border-top:1px solid var(--border);margin-top:8px">
+        <button class="btn btn-ghost" style="padding:4px 8px;font-size:11px" :disabled="tradePage<=1" @click="gotoPage(tradePage-1)">←</button>
+        <template x-for="p in Array.from({length:Math.min(totalPages,7)},(_,i)=>{
+          if(totalPages<=7) return i+1;
+          if(tradePage<=4) return i+1;
+          if(tradePage>=totalPages-3) return totalPages-6+i;
+          return tradePage-3+i;
+        })" :key="p">
+          <button class="btn" :class="p===tradePage?'btn-accent':'btn-ghost'" style="padding:4px 10px;font-size:11px;min-width:28px" @click="gotoPage(p)" x-text="p"></button>
+        </template>
+        <button class="btn btn-ghost" style="padding:4px 8px;font-size:11px" :disabled="tradePage>=totalPages" @click="gotoPage(tradePage+1)">→</button>
+        <span style="font-size:10px;color:var(--text-muted);margin-left:8px" x-text="'共'+tradeTotal+'笔'"></span>
       </div>
     </div>
   </div>
@@ -398,21 +456,37 @@ tr:hover td { background: rgba(255,255,255,0.015); color: var(--text-primary); }
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
         <div class="s-line" style="background:#60a5fa"></div>
         <span style="font-size:13px;font-weight:600">📝 复盘日志</span>
-        <span class="badge badge-neutral" x-text="data.reviews.length+'条'"></span>
+        <span class="badge badge-neutral" x-text="reviewTotal+'条'"></span>
       </div>
       <div style="overflow:auto;flex:1">
-        <template x-for="r in data.reviews.slice(0,10)" :key="r.id||r.timestamp">
-          <div class="fi" style="padding:10px;background:var(--bg-deep);border-radius:8px;margin-bottom:6px">
+        <template x-for="(r,idx) in data.reviews" :key="r.id||r.timestamp">
+          <div class="fi" style="padding:10px;background:var(--bg-deep);border-radius:8px;margin-bottom:6px;cursor:pointer" @click="expandedReview===idx?expandedReview=null:expandedReview=idx">
             <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
               <span style="font-size:10px;color:var(--text-muted)" x-text="r.timestamp?.slice(0,16)||r.date||''"></span>
-              <template x-for="tag in (r.tags||[])" :key="tag">
+              <template x-for="tag in parseTags(r.tags)" :key="tag">
                 <span class="badge badge-accent" style="font-size:8px" x-text="tag"></span>
               </template>
+              <span style="margin-left:auto;font-size:9px;color:var(--text-muted)" x-text="expandedReview===idx?'▲ 收起':'▼ 展开'"></span>
             </div>
-            <div style="font-size:11px;color:var(--text-secondary);line-height:1.5;white-space:pre-wrap;max-height:80px;overflow:hidden" x-text="r.content||r.summary||''"></div>
+            <div :style="expandedReview===idx?'white-space:pre-wrap;font-size:11px;color:var(--text-secondary);line-height:1.6':'font-size:11px;color:var(--text-secondary);line-height:1.5;max-height:36px;overflow:hidden'" x-text="r.content||r.summary||''"></div>
           </div>
         </template>
-        <div x-show="data.reviews.length===0" style="text-align:center;padding:20px;color:var(--text-muted);font-size:12px">暂无复盘记录</div>
+        <div x-show="reviewLoading" style="text-align:center;padding:12px;color:var(--text-muted);font-size:11px">加载中...</div>
+        <div x-show="data.reviews.length===0 && !reviewLoading" style="text-align:center;padding:20px;color:var(--text-muted);font-size:12px">暂无复盘记录</div>
+      </div>
+      <!-- 复盘分页器 -->
+      <div x-show="reviewTotal>reviewPageSize" style="display:flex;align-items:center;justify-content:center;gap:4px;padding:8px 0;border-top:1px solid var(--border);margin-top:6px">
+        <button class="btn btn-ghost" style="padding:3px 7px;font-size:10px" :disabled="reviewPage<=1" @click="gotoReviewPage(reviewPage-1)">←</button>
+        <template x-for="p in Array.from({length:Math.min(reviewTotalPages,5)},(_,i)=>{
+          if(reviewTotalPages<=5) return i+1;
+          if(reviewPage<=3) return i+1;
+          if(reviewPage>=reviewTotalPages-2) return reviewTotalPages-4+i;
+          return reviewPage-2+i;
+        })" :key="p">
+          <button class="btn" :class="p===reviewPage?'btn-accent':'btn-ghost'" style="padding:3px 8px;font-size:10px;min-width:24px" @click="gotoReviewPage(p)" x-text="p"></button>
+        </template>
+        <button class="btn btn-ghost" style="padding:3px 7px;font-size:10px" :disabled="reviewPage>=reviewTotalPages" @click="gotoReviewPage(reviewPage+1)">→</button>
+        <span style="font-size:9px;color:var(--text-muted);margin-left:6px" x-text="'共'+reviewTotal+'条'"></span>
       </div>
     </div>
   </div>
@@ -428,11 +502,22 @@ function app(){
     currentStrategy: 0,
     eqRange: 30,
     tradeRange: '30d',
+    tradePage: 1,
+    tradeHasMore: true,
+    tradeLoading: false,
+    tradeTotal: 0,
+    tradePageSize: 10,
     chart: null,
     lastUpdate: '',
     // Trade panel
     mode: 'buy', code: '', shares: 100, reason: '', msg: '', msgOk: false,
     suggestions: [],
+    // Review pagination
+    reviewPage: 1,
+    reviewTotal: 0,
+    reviewPageSize: 5,
+    reviewLoading: false,
+    expandedReview: null,
     // Analysis
     queryCode: '', analyzing: false, analyzeResult: null,
 
@@ -472,20 +557,26 @@ function app(){
     async load(){
       try{
         const qs = this.currentStrategy>0 ? '?strategy_id='+this.currentStrategy : '';
-        const [pRes,tRes,sRes,eRes,iRes,dRes] = await Promise.all([
-          fetch('/api/portfolio'+qs), fetch('/api/trades'+qs),
+        const [pRes,sRes,eRes,iRes] = await Promise.all([
+          fetch('/api/portfolio'+qs),
           fetch('/api/stats'+qs), fetch('/api/equity'+qs),
-          fetch('/api/index'), fetch('/api/daily')
+          fetch('/api/index')
         ]);
-        const [p,t,s,e,i,d] = await Promise.all([pRes.json(),tRes.json(),sRes.json(),eRes.json(),iRes.json(),dRes.json()]);
+        const [p,s,e,i] = await Promise.all([pRes.json(),sRes.json(),eRes.json(),iRes.json()]);
 
         this.data.account = p || {cash:0,total_value:300000,total_profit:0};
         this.data.positions = p.positions || {};
-        this.data.trades = Array.isArray(t) ? t : [];
         this.data.stats = s || {};
         this.data.equity = Array.isArray(e) ? e : [];
         this.data.index = i || {};
-        this.data.reviews = (d?.reviews) ? d.reviews : (Array.isArray(d) ? d : []);
+
+        // 加载交易记录（分页）
+        this.tradePage = 1;
+        this.tradeHasMore = true;
+        await this.loadTrades(true);
+
+        // 加载复盘日志（分页）
+        await this.loadReviews();
 
         this.renderChart();
         this.lastUpdate = new Date().toLocaleTimeString('zh-CN',{hour12:false});
@@ -504,13 +595,27 @@ function app(){
     },
 
     fmt(n){ if(n==null)return'0.00'; return Number(n).toLocaleString('zh-CN',{minimumFractionDigits:2,maximumFractionDigits:2}); },
+    parseTags(tags){
+      if(Array.isArray(tags)) return tags;
+      if(typeof tags==='string' && tags.startsWith('[')){
+        try{ return JSON.parse(tags); }catch(e){ return []; }
+      }
+      return [];
+    },
+    fmtReview(text){
+      if(!text) return '';
+      // 去掉markdown格式符、分隔线、emoji，只保留纯文字摘要
+      return text.replace(/[*#━─═—]+/g,'').replace(/\n+/g,' ').replace(/\s{2,}/g,' ').trim().slice(0,120);
+    },
 
     renderChart(){
-      const el=document.getElementById('eqChart'); if(!el)return;
-      if(!this.chart) this.chart=echarts.init(el,'dark');
-      let d=this.data.equity;
-      if(this.eqRange<60) d=d.slice(-this.eqRange);
-      this.chart.setOption({
+      setTimeout(()=>{
+        const el=document.getElementById('eqChart'); if(!el||el.offsetWidth===0)return;
+        if(!this.chart) this.chart=echarts.init(el,'dark');
+        let d=this.data.equity;
+        if(this.eqRange<60) d=d.slice(-this.eqRange);
+        if(!d.length) return;
+        this.chart.setOption({
         backgroundColor:'transparent',
         tooltip:{trigger:'axis',formatter:p=>p[0].name+'<br/>¥'+Number(p[0].value).toLocaleString()},
         grid:{left:50,right:12,top:10,bottom:24},
@@ -518,6 +623,8 @@ function app(){
         yAxis:{type:'value',axisLine:{lineStyle:{color:'#1e1e30'}},axisLabel:{color:'#555570',fontSize:9,formatter:v=>'¥'+(v/10000).toFixed(1)+'万'},splitLine:{lineStyle:{color:'#12121e'}}},
         series:[{type:'line',data:d.map(i=>i.total_value),smooth:true,lineStyle:{color:'#7c5cfc',width:2},areaStyle:{color:new echarts.graphic.LinearGradient(0,0,0,1,[{offset:0,color:'rgba(124,92,252,0.25)'},{offset:1,color:'rgba(124,92,252,0)'}])},itemStyle:{color:'#7c5cfc'},symbol:'none'}]
       });
+      this.chart.resize();
+      }, 100);
     },
 
     async trade(){
@@ -543,10 +650,338 @@ function app(){
     async searchStocks(kw){
       if(!kw||kw.length<1){this.suggestions=[];return}
       try{const r=await fetch('/api/search?q='+encodeURIComponent(kw));this.suggestions=await r.json()}catch(e){this.suggestions=[]}
-    }
+    },
+    async loadTrades(reset){
+      if(this.tradeLoading) return;
+      this.tradeLoading = true;
+      try{
+        const qs = this.currentStrategy>0 ? '&strategy_id='+this.currentStrategy : '';
+        const r = await fetch('/api/trades?page='+this.tradePage+'&page_size='+this.tradePageSize+qs);
+        const d = await r.json();
+        const trades = d.trades || (Array.isArray(d) ? d : []);
+        this.data.trades = trades;
+        this.tradeHasMore = d.has_more !== false;
+        this.tradeTotal = d.total || 0;
+      }catch(e){ console.error('loadTrades error:', e); }
+      finally{ this.tradeLoading = false; }
+    },
+    async loadMoreTrades(){
+      if(!this.tradeHasMore || this.tradeLoading) return;
+      this.tradePage++;
+      await this.loadTrades(false);
+    },
+    async gotoPage(p){
+      if(p<1) p=1;
+      const maxPage = Math.ceil(this.tradeTotal/this.tradePageSize)||1;
+      if(p>maxPage) p=maxPage;
+      this.tradePage = p;
+      await this.loadTrades(true);
+    },
+    get totalPages(){ return Math.ceil(this.tradeTotal/this.tradePageSize)||1; },
+
+    // 复盘分页
+    async loadReviews(){
+      this.reviewLoading = true;
+      try{
+        const r = await fetch('/api/daily?page='+this.reviewPage+'&page_size='+this.reviewPageSize);
+        const d = await r.json();
+        this.data.reviews = d.reviews || [];
+        this.reviewTotal = d.total || 0;
+      }catch(e){ console.error('loadReviews error:', e); }
+      finally{ this.reviewLoading = false; }
+    },
+    async gotoReviewPage(p){
+      const maxP = Math.ceil(this.reviewTotal/this.reviewPageSize)||1;
+      if(p<1) p=1; if(p>maxP) p=maxP;
+      this.reviewPage = p;
+      this.expandedReview = null;
+      await this.loadReviews();
+    },
+    get reviewTotalPages(){ return Math.ceil(this.reviewTotal/this.reviewPageSize)||1; }
   };
 }
 window.addEventListener('resize',()=>{const el=document.getElementById('eqChart');if(el){const c=echarts.getInstanceByDom(el);if(c)c.resize()}});
+</script>
+
+<!-- Three.js 碎片重组特效 -->
+<script>
+(function(){
+  // === 配置 ===
+  const PARTICLE_COUNT = 12000;
+  const BG_PARTICLES = 2000;
+  const SCATTER_DURATION = 0.5;  // 初始飞散时间(s)
+  const ASSEMBLE_DURATION = 2.5; // 重组时间(s)
+  const HOLD_DURATION = 1.0;     // 停留时间(s)
+  const FADE_DURATION = 0.8;     // 淡出时间(s)
+  const TOTAL_DURATION = (SCATTER_DURATION+ASSEMBLE_DURATION+HOLD_DURATION+FADE_DURATION)*1000;
+
+  // === 发光纹理 ===
+  const glowTexture = (function(){
+    const c = document.createElement('canvas'); c.width=64; c.height=64;
+    const ctx = c.getContext('2d');
+    const g = ctx.createRadialGradient(32,32,0,32,32,32);
+    g.addColorStop(0,'rgba(255,255,255,1)');
+    g.addColorStop(0.12,'rgba(255,255,255,0.7)');
+    g.addColorStop(0.35,'rgba(255,255,255,0.2)');
+    g.addColorStop(0.6,'rgba(255,255,255,0.05)');
+    g.addColorStop(1,'rgba(255,255,255,0)');
+    ctx.fillStyle=g; ctx.fillRect(0,0,64,64);
+    return new THREE.CanvasTexture(c);
+  })();
+
+  // === 从文字生成目标点云 ===
+  function textToPoints(text, count, spread){
+    const c = document.createElement('canvas');
+    const ctx = c.getContext('2d');
+    c.width = 4096; c.height = 1024;
+    ctx.fillStyle = '#000'; ctx.fillRect(0,0,4096,1024);
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 480px -apple-system,PingFang SC,Microsoft YaHei,sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(text, 2048, 512);
+    const data = ctx.getImageData(0,0,4096,1024).data;
+    const pts = [];
+    for(let y=0;y<1024;y+=4){
+      for(let x=0;x<4096;x+=4){
+        if(data[(y*4096+x)*4]>128){
+          pts.push([(x-2048)/2048*spread, (512-y)/1024*spread*0.5, 0]);
+        }
+      }
+    }
+    const result = [];
+    for(let i=0;i<count;i++){
+      if(pts.length>0){
+        result.push(pts[Math.floor(Math.random()*pts.length)]);
+      } else {
+        result.push([(Math.random()-0.5)*spread,(Math.random()-0.5)*spread*0.5,0]);
+      }
+    }
+    return result;
+  }
+
+  // === 自定义着色器(碎片重组) ===
+  const vertexShader = `
+    attribute float aSize;
+    attribute vec3 aColor;
+    attribute float aRandom;
+    varying vec3 vColor;
+    varying float vAlpha;
+    uniform float uProgress;
+    uniform float uPixelRatio;
+    uniform float uTime;
+    void main(){
+      vColor = aColor;
+      // 透明度随重组进度增加
+      vAlpha = smoothstep(0.0, 0.3, uProgress) * (0.7 + 0.3*sin(aRandom*6.28+uTime*2.0));
+      vec4 mvPos = modelViewMatrix * vec4(position, 1.0);
+      gl_PointSize = aSize * uPixelRatio * (70.0 / -mvPos.z);
+      gl_Position = projectionMatrix * mvPos;
+    }
+  `;
+  const fragmentShader = `
+    varying vec3 vColor;
+    varying float vAlpha;
+    uniform sampler2D uTexture;
+    void main(){
+      vec4 tex = texture2D(uTexture, gl_PointCoord);
+      gl_FragColor = vec4(vColor, vAlpha * tex.a);
+    }
+  `;
+
+  // === 入场动画: 碎片重组 ===
+  const introCanvas = document.getElementById('intro-canvas');
+  const overlay = document.getElementById('intro-overlay');
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(50, window.innerWidth/window.innerHeight, 0.1, 200);
+  camera.position.z = 14;
+  const renderer = new THREE.WebGLRenderer({canvas:introCanvas, alpha:true, antialias:true});
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+  // 生成目标点云("蛋蛋基金"文字)
+  const targetPoints = textToPoints('蛋蛋基金', PARTICLE_COUNT, 16);
+
+  // 粒子属性
+  const startPos = new Float32Array(PARTICLE_COUNT*3);  // 初始位置(飞散)
+  const targetPos = new Float32Array(PARTICLE_COUNT*3); // 目标位置(文字)
+  const currentPos = new Float32Array(PARTICLE_COUNT*3);
+  const sizes = new Float32Array(PARTICLE_COUNT);
+  const randoms = new Float32Array(PARTICLE_COUNT);
+  const pColors = new Float32Array(PARTICLE_COUNT*3);
+
+  const palette = [
+    [0.49,0.36,0.99],[0.65,0.55,0.98],[0.20,0.83,0.60],
+    [0.96,0.62,0.04],[0.40,0.70,0.99],[0.85,0.40,0.95]
+  ];
+
+  for(let i=0;i<PARTICLE_COUNT;i++){
+    // 初始位置: 球形爆炸分布
+    const theta = Math.random()*Math.PI*2;
+    const phi = Math.acos(Math.random()*2-1);
+    const r = 8 + Math.random()*15;
+    startPos[i*3] = r*Math.sin(phi)*Math.cos(theta);
+    startPos[i*3+1] = r*Math.sin(phi)*Math.sin(theta);
+    startPos[i*3+2] = r*Math.cos(phi);
+    // 目标位置
+    targetPos[i*3] = targetPoints[i][0];
+    targetPos[i*3+1] = targetPoints[i][1];
+    targetPos[i*3+2] = targetPoints[i][2] + (Math.random()-0.5)*0.5;
+    // 当前位置初始化为起始位置
+    currentPos[i*3]=startPos[i*3]; currentPos[i*3+1]=startPos[i*3+1]; currentPos[i*3+2]=startPos[i*3+2];
+    sizes[i] = Math.random()*2.0+0.8;
+    randoms[i] = Math.random();
+    const c = palette[Math.floor(Math.random()*palette.length)];
+    pColors[i*3]=c[0]; pColors[i*3+1]=c[1]; pColors[i*3+2]=c[2];
+  }
+
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(currentPos, 3));
+  geo.setAttribute('aSize', new THREE.BufferAttribute(sizes, 1));
+  geo.setAttribute('aRandom', new THREE.BufferAttribute(randoms, 1));
+  geo.setAttribute('aColor', new THREE.BufferAttribute(pColors, 3));
+
+  const mat = new THREE.ShaderMaterial({
+    vertexShader, fragmentShader,
+    uniforms:{
+      uProgress:{value:0},
+      uTime:{value:0},
+      uTexture:{value:glowTexture},
+      uPixelRatio:{value:Math.min(window.devicePixelRatio,2)}
+    },
+    transparent:true, depthWrite:false,
+    blending:THREE.AdditiveBlending
+  });
+  const points = new THREE.Points(geo, mat);
+  scene.add(points);
+
+  // 鼠标交互
+  let mouseX=0, mouseY=0;
+  document.addEventListener('mousemove',(e)=>{
+    mouseX = (e.clientX/window.innerWidth-0.5)*2;
+    mouseY = (e.clientY/window.innerHeight-0.5)*2;
+  });
+
+  // easeInOutCubic
+  function ease(t){ return t<0.5?4*t*t*t:(1-Math.pow(-2*t+2,3)/2); }
+
+  let introActive = true;
+  const startTime = Date.now();
+
+  function animateIntro(){
+    if(!introActive) return;
+    requestAnimationFrame(animateIntro);
+    const elapsed = (Date.now()-startTime)/1000;
+    mat.uniforms.uTime.value = elapsed;
+
+    // 计算重组进度
+    let progress = 0;
+    if(elapsed < SCATTER_DURATION){
+      progress = 0; // 飞散状态
+    } else if(elapsed < SCATTER_DURATION+ASSEMBLE_DURATION){
+      progress = ease((elapsed-SCATTER_DURATION)/ASSEMBLE_DURATION);
+    } else {
+      progress = 1; // 完成重组
+    }
+    mat.uniforms.uProgress.value = progress;
+
+    // lerp 插值位置
+    const pos = geo.attributes.position.array;
+    for(let i=0;i<PARTICLE_COUNT;i++){
+      const idx = i*3;
+      // 每个粒子有不同的延迟(波浪扩散效果)
+      const delay = randoms[i]*0.3;
+      const localProgress = Math.max(0, Math.min(1, (progress-delay)/(1-delay)));
+      pos[idx] = startPos[idx]+(targetPos[idx]-startPos[idx])*localProgress;
+      pos[idx+1] = startPos[idx+1]+(targetPos[idx+1]-startPos[idx+1])*localProgress;
+      pos[idx+2] = startPos[idx+2]+(targetPos[idx+2]-startPos[idx+2])*localProgress;
+      // 飞行中微小扰动
+      if(localProgress<1){
+        pos[idx] += Math.sin(elapsed*3+randoms[i]*10)*0.02;
+        pos[idx+1] += Math.cos(elapsed*2+randoms[i]*8)*0.02;
+      }
+    }
+    geo.attributes.position.needsUpdate = true;
+
+    // 鼠标微小影响视角
+    camera.position.x = mouseX*1.5;
+    camera.position.y = -mouseY*1.0;
+    camera.lookAt(0,0,0);
+    renderer.render(scene, camera);
+  }
+  animateIntro();
+
+  // 淡出
+  const fadeStart = (SCATTER_DURATION+ASSEMBLE_DURATION+HOLD_DURATION)*1000;
+  setTimeout(()=>{
+    overlay.classList.add('fade-out');
+    setTimeout(()=>{ introActive=false; overlay.remove(); renderer.dispose(); }, FADE_DURATION*1000);
+  }, fadeStart);
+
+})();
+</script>
+
+<!-- 独立的背景粒子(确保不被入场动画报错影响) -->
+<script>
+(function(){
+  const canvas = document.getElementById('bg-canvas');
+  if(!canvas) return;
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 200);
+  camera.position.z = 40;
+  const renderer = new THREE.WebGLRenderer({canvas:canvas, alpha:true});
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+  const count = 500;
+  const positions = new Float32Array(count*3);
+  const velocities = new Float32Array(count*3);
+  for(let i=0;i<count;i++){
+    positions[i*3]=(Math.random()-0.5)*60;
+    positions[i*3+1]=(Math.random()-0.5)*40;
+    positions[i*3+2]=(Math.random()-0.5)*20;
+    velocities[i*3]=(Math.random()-0.5)*0.01;
+    velocities[i*3+1]=-Math.random()*0.02-0.01;
+    velocities[i*3+2]=0;
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+
+  // 简单的发光纹理
+  const c2 = document.createElement('canvas'); c2.width=32; c2.height=32;
+  const ctx = c2.getContext('2d');
+  const g = ctx.createRadialGradient(16,16,0,16,16,16);
+  g.addColorStop(0,'rgba(255,255,255,1)');
+  g.addColorStop(0.3,'rgba(255,255,255,0.5)');
+  g.addColorStop(1,'rgba(255,255,255,0)');
+  ctx.fillStyle=g; ctx.fillRect(0,0,32,32);
+  const tex = new THREE.CanvasTexture(c2);
+
+  const mat = new THREE.PointsMaterial({
+    size:1.2, color:0x7c5cfc, transparent:true, opacity:0.5,
+    map:tex, blending:THREE.AdditiveBlending, depthWrite:false, sizeAttenuation:true
+  });
+  const points = new THREE.Points(geo, mat);
+  scene.add(points);
+
+  function animate(){
+    requestAnimationFrame(animate);
+    const pos = geo.attributes.position.array;
+    for(let i=0;i<count;i++){
+      pos[i*3]+=velocities[i*3];
+      pos[i*3+1]+=velocities[i*3+1];
+      if(pos[i*3+1]<-20){pos[i*3+1]=20;pos[i*3]=(Math.random()-0.5)*60;}
+    }
+    geo.attributes.position.needsUpdate=true;
+    renderer.render(scene, camera);
+  }
+  animate();
+
+  window.addEventListener('resize',()=>{
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    camera.aspect=window.innerWidth/window.innerHeight;
+    camera.updateProjectionMatrix();
+  });
+})();
 </script>
 </body>
 </html>
