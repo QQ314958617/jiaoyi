@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <title>🥚 蛋蛋基金 · 量化交易系统</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
@@ -219,7 +221,7 @@ tr:hover td { background: rgba(255,255,255,0.015); color: var(--text-primary); }
       <div x-show="loading" class="skeleton" style="height:160px;width:100%"></div>
       <div id="eqChart" :style="loading?'height:0;overflow:hidden':'height:160px;width:100%'"></div>
       <!-- 关键统计 -->
-      <div x-show="!loading" style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
+      <div :style="loading?'display:none':'display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)'">
         <div><div style="font-size:10px;color:var(--text-muted);margin-bottom:3px">总交易</div><div class="mono" style="font-size:14px;font-weight:700" x-text="data.stats.total_trades||0"></div></div>
         <div><div style="font-size:10px;color:var(--text-muted);margin-bottom:3px">盈利笔数</div><div class="mono up" style="font-size:14px;font-weight:700" x-text="data.stats.win_trades||0"></div></div>
         <div><div style="font-size:10px;color:var(--text-muted);margin-bottom:3px">亏损笔数</div><div class="mono down" style="font-size:14px;font-weight:700" x-text="data.stats.loss_trades||0"></div></div>
