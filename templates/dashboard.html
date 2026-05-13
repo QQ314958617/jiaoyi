@@ -302,7 +302,7 @@ tr:hover td { background: rgba(255,255,255,0.015); color: var(--text-primary); }
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
         <div class="s-line" style="background:var(--accent)"></div>
         <span style="font-size:13px;font-weight:600">交易记录</span>
-        <span class="badge badge-neutral" x-text="filteredTrades.length+'笔'"></span>
+        <span class="badge badge-neutral" x-text="data.trades.length+'笔'+(tradeHasMore?'+':'')"></span>
         <span style="flex:1"></span>
         <div style="display:flex;gap:3px">
           <button class="tab" :class="tradeRange==='7d'&&'active'" @click="tradeRange='7d'">7天</button>
@@ -310,11 +310,11 @@ tr:hover td { background: rgba(255,255,255,0.015); color: var(--text-primary); }
           <button class="tab" :class="tradeRange==='all'&&'active'" @click="tradeRange='all'">全部</button>
         </div>
       </div>
-      <div style="overflow:auto;flex:1">
+      <div style="overflow:auto;flex:1" @scroll="if($event.target.scrollHeight-$event.target.scrollTop-$event.target.clientHeight<50)loadMoreTrades()">
         <table>
           <thead><tr><th>时间</th><th>操作</th><th>股票</th><th>价格</th><th>数量</th><th>盈亏</th></tr></thead>
           <tbody>
-            <template x-for="t in filteredTrades.slice(0,30)" :key="t.id">
+            <template x-for="t in filteredTrades" :key="t.id">
               <tr class="fi">
                 <td class="mono" style="font-size:10px" x-text="t.timestamp?.slice(5,16)||''"></td>
                 <td><span class="badge" :class="t.action==='buy'?'badge-down':'badge-up'" x-text="t.action==='buy'?'买入':'卖出'"></span></td>
@@ -326,7 +326,9 @@ tr:hover td { background: rgba(255,255,255,0.015); color: var(--text-primary); }
             </template>
           </tbody>
         </table>
-        <div x-show="filteredTrades.length===0" style="text-align:center;padding:20px;color:var(--text-muted);font-size:12px">暂无交易记录</div>
+        <div x-show="tradeLoading" style="text-align:center;padding:12px;color:var(--text-muted);font-size:11px">加载中...</div>
+        <div x-show="!tradeHasMore && data.trades.length>0" style="text-align:center;padding:12px;color:var(--text-muted);font-size:11px">— 已加载全部 —</div>
+        <div x-show="data.trades.length===0 && !tradeLoading" style="text-align:center;padding:20px;color:var(--text-muted);font-size:12px">暂无交易记录</div>
       </div>
     </div>
   </div>
@@ -431,6 +433,9 @@ function app(){
     currentStrategy: 0,
     eqRange: 30,
     tradeRange: '30d',
+    tradePage: 1,
+    tradeHasMore: true,
+    tradeLoading: false,
     chart: null,
     lastUpdate: '',
     // Trade panel
@@ -475,20 +480,24 @@ function app(){
     async load(){
       try{
         const qs = this.currentStrategy>0 ? '?strategy_id='+this.currentStrategy : '';
-        const [pRes,tRes,sRes,eRes,iRes,dRes] = await Promise.all([
-          fetch('/api/portfolio'+qs), fetch('/api/trades'+qs),
+        const [pRes,sRes,eRes,iRes,dRes] = await Promise.all([
+          fetch('/api/portfolio'+qs),
           fetch('/api/stats'+qs), fetch('/api/equity'+qs),
           fetch('/api/index'), fetch('/api/daily')
         ]);
-        const [p,t,s,e,i,d] = await Promise.all([pRes.json(),tRes.json(),sRes.json(),eRes.json(),iRes.json(),dRes.json()]);
+        const [p,s,e,i,d] = await Promise.all([pRes.json(),sRes.json(),eRes.json(),iRes.json(),dRes.json()]);
 
         this.data.account = p || {cash:0,total_value:300000,total_profit:0};
         this.data.positions = p.positions || {};
-        this.data.trades = Array.isArray(t) ? t : [];
         this.data.stats = s || {};
         this.data.equity = Array.isArray(e) ? e : [];
         this.data.index = i || {};
         this.data.reviews = (d?.reviews) ? d.reviews : (Array.isArray(d) ? d : []);
+
+        // 加载交易记录（分页）
+        this.tradePage = 1;
+        this.tradeHasMore = true;
+        await this.loadTrades(true);
 
         this.renderChart();
         this.lastUpdate = new Date().toLocaleTimeString('zh-CN',{hour12:false});
@@ -557,6 +566,25 @@ function app(){
     async searchStocks(kw){
       if(!kw||kw.length<1){this.suggestions=[];return}
       try{const r=await fetch('/api/search?q='+encodeURIComponent(kw));this.suggestions=await r.json()}catch(e){this.suggestions=[]}
+    },
+    async loadTrades(reset){
+      if(this.tradeLoading) return;
+      this.tradeLoading = true;
+      try{
+        const qs = this.currentStrategy>0 ? '&strategy_id='+this.currentStrategy : '';
+        const r = await fetch('/api/trades?page='+this.tradePage+'&page_size=20'+qs);
+        const d = await r.json();
+        const trades = d.trades || (Array.isArray(d) ? d : []);
+        if(reset) this.data.trades = trades;
+        else this.data.trades = [...this.data.trades, ...trades];
+        this.tradeHasMore = d.has_more !== false && trades.length >= 20;
+        this.tradePage++;
+      }catch(e){ console.error('loadTrades error:', e); }
+      finally{ this.tradeLoading = false; }
+    },
+    async loadMoreTrades(){
+      if(!this.tradeHasMore || this.tradeLoading) return;
+      await this.loadTrades(false);
     }
   };
 }
