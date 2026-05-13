@@ -10,6 +10,7 @@
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
 <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.160/build/three.min.js"></script>
 <style>
 :root {
   --bg-deep: #07070d;
@@ -45,6 +46,41 @@ body {
 ::-webkit-scrollbar { width: 4px; height: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--border-light); border-radius: 4px; }
+
+/* Three.js 入场动画 */
+#intro-overlay {
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 9999;
+  display: flex; align-items: center; justify-content: center; flex-direction: column;
+  transition: opacity 0.8s ease-out;
+}
+#intro-overlay.fade-out { opacity: 0; pointer-events: none; }
+#intro-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+#intro-text {
+  position: relative; z-index: 1; text-align: center;
+  animation: introFloat 2s ease-in-out infinite;
+}
+#intro-text h1 {
+  font-size: 32px; font-weight: 800; color: #fff;
+  text-shadow: 0 0 40px rgba(124,92,252,0.6), 0 0 80px rgba(124,92,252,0.3);
+  margin-bottom: 8px;
+}
+#intro-text p {
+  font-size: 13px; color: var(--accent-light); letter-spacing: 3px;
+  opacity: 0; animation: introFadeIn 0.6s 0.5s forwards;
+}
+@keyframes introFloat {
+  0%,100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+@keyframes introFadeIn {
+  to { opacity: 1; }
+}
+
+/* 背景粒子(主界面) */
+#bg-canvas {
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  z-index: 0; pointer-events: none; opacity: 0.3;
+}
 .up { color: var(--up); }
 .down { color: var(--down); }
 
@@ -138,7 +174,19 @@ tr:hover td { background: rgba(255,255,255,0.015); color: var(--text-primary); }
 </head>
 <body>
 
-<div x-data="app()" x-init="init()">
+<!-- Three.js 入场动画覆盖层 -->
+<div id="intro-overlay">
+  <canvas id="intro-canvas"></canvas>
+  <div id="intro-text">
+    <h1>🥚 蛋蛋基金</h1>
+    <p>QUANTITATIVE TRADING SYSTEM</p>
+  </div>
+</div>
+
+<!-- 背景粒子画布 -->
+<canvas id="bg-canvas"></canvas>
+
+<div x-data="app()" x-init="init()" style="position:relative;z-index:1">
 
 <!-- ═══ TOP BAR ═══ -->
 <header style="background:var(--bg-surface);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:50;">
@@ -661,6 +709,159 @@ function app(){
   };
 }
 window.addEventListener('resize',()=>{const el=document.getElementById('eqChart');if(el){const c=echarts.getInstanceByDom(el);if(c)c.resize()}});
+</script>
+
+<!-- Three.js 入场 + 背景粒子 -->
+<script>
+(function(){
+  // === 入场动画 ===
+  const introCanvas = document.getElementById('intro-canvas');
+  const overlay = document.getElementById('intro-overlay');
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+  const renderer = new THREE.WebGLRenderer({canvas:introCanvas, alpha:true, antialias:true});
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+  // 粒子系统 - 数据流风格
+  const particleCount = 2000;
+  const positions = new Float32Array(particleCount * 3);
+  const velocities = new Float32Array(particleCount * 3);
+  const colors = new Float32Array(particleCount * 3);
+  const sizes = new Float32Array(particleCount);
+
+  const palette = [
+    [0.486, 0.361, 0.988],  // accent purple
+    [0.204, 0.827, 0.600],  // green (up)
+    [0.961, 0.620, 0.043],  // gold
+    [0.655, 0.545, 0.980],  // light purple
+  ];
+
+  for(let i=0; i<particleCount; i++){
+    positions[i*3] = (Math.random()-0.5)*20;
+    positions[i*3+1] = (Math.random()-0.5)*20;
+    positions[i*3+2] = (Math.random()-0.5)*20;
+    velocities[i*3] = (Math.random()-0.5)*0.02;
+    velocities[i*3+1] = (Math.random()-0.5)*0.02;
+    velocities[i*3+2] = (Math.random()-0.5)*0.02;
+    const c = palette[Math.floor(Math.random()*palette.length)];
+    colors[i*3]=c[0]; colors[i*3+1]=c[1]; colors[i*3+2]=c[2];
+    sizes[i] = Math.random()*3+1;
+  }
+
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+  geo.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+
+  const mat = new THREE.PointsMaterial({
+    size: 2, vertexColors: true, transparent: true, opacity: 0.8,
+    blending: THREE.AdditiveBlending, sizeAttenuation: true
+  });
+  const points = new THREE.Points(geo, mat);
+  scene.add(points);
+
+  // 连接线(数据网络感)
+  const lineGeo = new THREE.BufferGeometry();
+  const linePositions = new Float32Array(300 * 6);
+  lineGeo.setAttribute('position', new THREE.BufferAttribute(linePositions, 3));
+  const lineMat = new THREE.LineBasicMaterial({color:0x7c5cfc, transparent:true, opacity:0.15});
+  const lines = new THREE.LineSegments(lineGeo, lineMat);
+  scene.add(lines);
+
+  camera.position.z = 8;
+  let introActive = true;
+  let startTime = Date.now();
+
+  function updateLines(){
+    const pos = geo.attributes.position.array;
+    let li = 0;
+    for(let i=0; i<Math.min(particleCount,100) && li<300; i++){
+      for(let j=i+1; j<Math.min(particleCount,100) && li<300; j++){
+        const dx=pos[i*3]-pos[j*3], dy=pos[i*3+1]-pos[j*3+1], dz=pos[i*3+2]-pos[j*3+2];
+        const dist = dx*dx+dy*dy+dz*dz;
+        if(dist < 4){
+          linePositions[li*6]=pos[i*3]; linePositions[li*6+1]=pos[i*3+1]; linePositions[li*6+2]=pos[i*3+2];
+          linePositions[li*6+3]=pos[j*3]; linePositions[li*6+4]=pos[j*3+1]; linePositions[li*6+5]=pos[j*3+2];
+          li++;
+        }
+      }
+    }
+    for(let k=li*6;k<300*6;k++) linePositions[k]=0;
+    lineGeo.attributes.position.needsUpdate = true;
+  }
+
+  function animateIntro(){
+    if(!introActive) return;
+    requestAnimationFrame(animateIntro);
+    const elapsed = (Date.now()-startTime)/1000;
+    const pos = geo.attributes.position.array;
+    for(let i=0;i<particleCount;i++){
+      pos[i*3]+=velocities[i*3]; pos[i*3+1]+=velocities[i*3+1]; pos[i*3+2]+=velocities[i*3+2];
+      if(Math.abs(pos[i*3])>10) velocities[i*3]*=-1;
+      if(Math.abs(pos[i*3+1])>10) velocities[i*3+1]*=-1;
+      if(Math.abs(pos[i*3+2])>10) velocities[i*3+2]*=-1;
+    }
+    geo.attributes.position.needsUpdate = true;
+    updateLines();
+    points.rotation.y += 0.003;
+    points.rotation.x += 0.001;
+    camera.position.z = 8 - elapsed*0.5;
+    renderer.render(scene, camera);
+  }
+  animateIntro();
+
+  // 2.5秒后淡出
+  setTimeout(()=>{
+    overlay.classList.add('fade-out');
+    setTimeout(()=>{ introActive=false; overlay.remove(); renderer.dispose(); }, 800);
+  }, 2500);
+
+  // === 背景粒子(微弱流动) ===
+  const bgCanvas = document.getElementById('bg-canvas');
+  const bgScene = new THREE.Scene();
+  const bgCamera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 500);
+  const bgRenderer = new THREE.WebGLRenderer({canvas:bgCanvas, alpha:true});
+  bgRenderer.setSize(window.innerWidth, window.innerHeight);
+  bgRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+
+  const bgCount = 500;
+  const bgPos = new Float32Array(bgCount*3);
+  const bgVel = new Float32Array(bgCount*3);
+  for(let i=0;i<bgCount;i++){
+    bgPos[i*3]=(Math.random()-0.5)*40;
+    bgPos[i*3+1]=(Math.random()-0.5)*40;
+    bgPos[i*3+2]=(Math.random()-0.5)*20-10;
+    bgVel[i*3]=(Math.random()-0.5)*0.005;
+    bgVel[i*3+1]=-Math.random()*0.01-0.005;
+    bgVel[i*3+2]=0;
+  }
+  const bgGeo = new THREE.BufferGeometry();
+  bgGeo.setAttribute('position', new THREE.BufferAttribute(bgPos, 3));
+  const bgMat = new THREE.PointsMaterial({color:0x7c5cfc, size:1.5, transparent:true, opacity:0.4, blending:THREE.AdditiveBlending});
+  const bgPoints = new THREE.Points(bgGeo, bgMat);
+  bgScene.add(bgPoints);
+  bgCamera.position.z = 15;
+
+  function animateBg(){
+    requestAnimationFrame(animateBg);
+    const pos = bgGeo.attributes.position.array;
+    for(let i=0;i<bgCount;i++){
+      pos[i*3]+=bgVel[i*3]; pos[i*3+1]+=bgVel[i*3+1];
+      if(pos[i*3+1]<-20){pos[i*3+1]=20; pos[i*3]=(Math.random()-0.5)*40;}
+    }
+    bgGeo.attributes.position.needsUpdate=true;
+    bgPoints.rotation.y+=0.0003;
+    bgRenderer.render(bgScene, bgCamera);
+  }
+  animateBg();
+
+  window.addEventListener('resize',()=>{
+    bgRenderer.setSize(window.innerWidth, window.innerHeight);
+    bgCamera.aspect=window.innerWidth/window.innerHeight;
+    bgCamera.updateProjectionMatrix();
+  });
+})();
 </script>
 </body>
 </html>
