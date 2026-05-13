@@ -57,15 +57,18 @@ def get_trades():
     """获取历史交易记录（支持分页+策略过滤）"""
     strategy_id = request.args.get('strategy_id', type=int)
     page = request.args.get('page', 1, type=int)
-    page_size = request.args.get('page_size', 20, type=int)
-    page_size = min(page_size, 100)  # 防止请求过大
+    page_size = request.args.get('page_size', 10, type=int)
+    page_size = min(page_size, 100)
     offset = (page - 1) * page_size
     trades = db.get_trades(limit=page_size, offset=offset, strategy_id=strategy_id)
+    total = db.get_trades_count(strategy_id=strategy_id)
     return jsonify({
         'trades': trades,
         'page': page,
         'page_size': page_size,
-        'has_more': len(trades) == page_size
+        'total': total,
+        'total_pages': (total + page_size - 1) // page_size,
+        'has_more': page * page_size < total
     })
 
 

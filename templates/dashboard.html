@@ -310,7 +310,7 @@ tr:hover td { background: rgba(255,255,255,0.015); color: var(--text-primary); }
           <button class="tab" :class="tradeRange==='all'&&'active'" @click="tradeRange='all'">全部</button>
         </div>
       </div>
-      <div style="overflow:auto;flex:1" @scroll="if($event.target.scrollHeight-$event.target.scrollTop-$event.target.clientHeight<50)loadMoreTrades()">
+      <div style="overflow:auto;flex:1">
         <table>
           <thead><tr><th>时间</th><th>操作</th><th>股票</th><th>价格</th><th>数量</th><th>盈亏</th></tr></thead>
           <tbody>
@@ -327,8 +327,21 @@ tr:hover td { background: rgba(255,255,255,0.015); color: var(--text-primary); }
           </tbody>
         </table>
         <div x-show="tradeLoading" style="text-align:center;padding:12px;color:var(--text-muted);font-size:11px">加载中...</div>
-        <div x-show="!tradeHasMore && data.trades.length>0" style="text-align:center;padding:12px;color:var(--text-muted);font-size:11px">— 已加载全部 —</div>
         <div x-show="data.trades.length===0 && !tradeLoading" style="text-align:center;padding:20px;color:var(--text-muted);font-size:12px">暂无交易记录</div>
+      </div>
+      <!-- 分页器 -->
+      <div x-show="tradeTotal>tradePageSize" style="display:flex;align-items:center;justify-content:center;gap:4px;padding:10px 0;border-top:1px solid var(--border);margin-top:8px">
+        <button class="btn btn-ghost" style="padding:4px 8px;font-size:11px" :disabled="tradePage<=1" @click="gotoPage(tradePage-1)">←</button>
+        <template x-for="p in Array.from({length:Math.min(totalPages,7)},(_,i)=>{
+          if(totalPages<=7) return i+1;
+          if(tradePage<=4) return i+1;
+          if(tradePage>=totalPages-3) return totalPages-6+i;
+          return tradePage-3+i;
+        })" :key="p">
+          <button class="btn" :class="p===tradePage?'btn-accent':'btn-ghost'" style="padding:4px 10px;font-size:11px;min-width:28px" @click="gotoPage(p)" x-text="p"></button>
+        </template>
+        <button class="btn btn-ghost" style="padding:4px 8px;font-size:11px" :disabled="tradePage>=totalPages" @click="gotoPage(tradePage+1)">→</button>
+        <span style="font-size:10px;color:var(--text-muted);margin-left:8px" x-text="'共'+tradeTotal+'笔'"></span>
       </div>
     </div>
   </div>
@@ -436,6 +449,8 @@ function app(){
     tradePage: 1,
     tradeHasMore: true,
     tradeLoading: false,
+    tradeTotal: 0,
+    tradePageSize: 10,
     chart: null,
     lastUpdate: '',
     // Trade panel
@@ -572,20 +587,28 @@ function app(){
       this.tradeLoading = true;
       try{
         const qs = this.currentStrategy>0 ? '&strategy_id='+this.currentStrategy : '';
-        const r = await fetch('/api/trades?page='+this.tradePage+'&page_size=20'+qs);
+        const r = await fetch('/api/trades?page='+this.tradePage+'&page_size='+this.tradePageSize+qs);
         const d = await r.json();
         const trades = d.trades || (Array.isArray(d) ? d : []);
-        if(reset) this.data.trades = trades;
-        else this.data.trades = [...this.data.trades, ...trades];
-        this.tradeHasMore = d.has_more !== false && trades.length >= 20;
-        this.tradePage++;
+        this.data.trades = trades;
+        this.tradeHasMore = d.has_more !== false;
+        this.tradeTotal = d.total || 0;
       }catch(e){ console.error('loadTrades error:', e); }
       finally{ this.tradeLoading = false; }
     },
     async loadMoreTrades(){
       if(!this.tradeHasMore || this.tradeLoading) return;
+      this.tradePage++;
       await this.loadTrades(false);
-    }
+    },
+    async gotoPage(p){
+      if(p<1) p=1;
+      const maxPage = Math.ceil(this.tradeTotal/this.tradePageSize)||1;
+      if(p>maxPage) p=maxPage;
+      this.tradePage = p;
+      await this.loadTrades(true);
+    },
+    get totalPages(){ return Math.ceil(this.tradeTotal/this.tradePageSize)||1; }
   };
 }
 window.addEventListener('resize',()=>{const el=document.getElementById('eqChart');if(el){const c=echarts.getInstanceByDom(el);if(c)c.resize()}});
