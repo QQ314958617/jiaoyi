@@ -72,12 +72,12 @@ body {
 /* 背景粒子(主界面) */
 #bg-canvas {
   position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-  z-index: 100; pointer-events: none; opacity: 1;
+  z-index: 0; pointer-events: none; opacity: 0.6;
 }
 .up { color: var(--up); }
 .down { color: var(--down); }
 
-.card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px; padding: 16px; }
+.card { background: rgba(20,20,31,0.85); border: 1px solid var(--border); border-radius: 14px; padding: 16px; }
 .badge {
   display: inline-flex; align-items: center;
   padding: 2px 8px; border-radius: 999px;
@@ -181,7 +181,7 @@ tr:hover td { background: rgba(255,255,255,0.015); color: var(--text-primary); }
 <div x-data="app()" x-init="init()" style="position:relative;z-index:1;background:transparent">
 
 <!-- ═══ TOP BAR ═══ -->
-<header style="background:var(--bg-surface);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:50;">
+<header style="background:rgba(14,14,22,0.9);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:50;">
   <div style="display:flex;align-items:center;min-height:44px;padding:8px 16px;flex-wrap:wrap;gap:8px" class="header-stats">
     <div style="display:flex;align-items:center;gap:8px;margin-right:12px">
       <div style="width:26px;height:26px;border-radius:8px;background:linear-gradient(135deg,#7c5cfc,#a78bfa);display:flex;align-items:center;justify-content:center;font-size:14px">🥚</div>
