@@ -416,21 +416,37 @@ tr:hover td { background: rgba(255,255,255,0.015); color: var(--text-primary); }
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
         <div class="s-line" style="background:#60a5fa"></div>
         <span style="font-size:13px;font-weight:600">📝 复盘日志</span>
-        <span class="badge badge-neutral" x-text="data.reviews.length+'条'"></span>
+        <span class="badge badge-neutral" x-text="reviewTotal+'条'"></span>
       </div>
       <div style="overflow:auto;flex:1">
-        <template x-for="r in data.reviews.slice(0,10)" :key="r.id||r.timestamp">
-          <div class="fi" style="padding:10px;background:var(--bg-deep);border-radius:8px;margin-bottom:6px">
+        <template x-for="(r,idx) in data.reviews" :key="r.id||r.timestamp">
+          <div class="fi" style="padding:10px;background:var(--bg-deep);border-radius:8px;margin-bottom:6px;cursor:pointer" @click="expandedReview===idx?expandedReview=null:expandedReview=idx">
             <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
               <span style="font-size:10px;color:var(--text-muted)" x-text="r.timestamp?.slice(0,16)||r.date||''"></span>
               <template x-for="tag in parseTags(r.tags)" :key="tag">
                 <span class="badge badge-accent" style="font-size:8px" x-text="tag"></span>
               </template>
+              <span style="margin-left:auto;font-size:9px;color:var(--text-muted)" x-text="expandedReview===idx?'▲ 收起':'▼ 展开'"></span>
             </div>
-            <div style="font-size:11px;color:var(--text-secondary);line-height:1.5;max-height:48px;overflow:hidden" x-text="fmtReview(r.content||r.summary||'')"></div>
+            <div :style="expandedReview===idx?'white-space:pre-wrap;font-size:11px;color:var(--text-secondary);line-height:1.6':'font-size:11px;color:var(--text-secondary);line-height:1.5;max-height:36px;overflow:hidden'" x-text="r.content||r.summary||''"></div>
           </div>
         </template>
-        <div x-show="data.reviews.length===0" style="text-align:center;padding:20px;color:var(--text-muted);font-size:12px">暂无复盘记录</div>
+        <div x-show="reviewLoading" style="text-align:center;padding:12px;color:var(--text-muted);font-size:11px">加载中...</div>
+        <div x-show="data.reviews.length===0 && !reviewLoading" style="text-align:center;padding:20px;color:var(--text-muted);font-size:12px">暂无复盘记录</div>
+      </div>
+      <!-- 复盘分页器 -->
+      <div x-show="reviewTotal>reviewPageSize" style="display:flex;align-items:center;justify-content:center;gap:4px;padding:8px 0;border-top:1px solid var(--border);margin-top:6px">
+        <button class="btn btn-ghost" style="padding:3px 7px;font-size:10px" :disabled="reviewPage<=1" @click="gotoReviewPage(reviewPage-1)">←</button>
+        <template x-for="p in Array.from({length:Math.min(reviewTotalPages,5)},(_,i)=>{
+          if(reviewTotalPages<=5) return i+1;
+          if(reviewPage<=3) return i+1;
+          if(reviewPage>=reviewTotalPages-2) return reviewTotalPages-4+i;
+          return reviewPage-2+i;
+        })" :key="p">
+          <button class="btn" :class="p===reviewPage?'btn-accent':'btn-ghost'" style="padding:3px 8px;font-size:10px;min-width:24px" @click="gotoReviewPage(p)" x-text="p"></button>
+        </template>
+        <button class="btn btn-ghost" style="padding:3px 7px;font-size:10px" :disabled="reviewPage>=reviewTotalPages" @click="gotoReviewPage(reviewPage+1)">→</button>
+        <span style="font-size:9px;color:var(--text-muted);margin-left:6px" x-text="'共'+reviewTotal+'条'"></span>
       </div>
     </div>
   </div>
@@ -456,6 +472,12 @@ function app(){
     // Trade panel
     mode: 'buy', code: '', shares: 100, reason: '', msg: '', msgOk: false,
     suggestions: [],
+    // Review pagination
+    reviewPage: 1,
+    reviewTotal: 0,
+    reviewPageSize: 5,
+    reviewLoading: false,
+    expandedReview: null,
     // Analysis
     queryCode: '', analyzing: false, analyzeResult: null,
 
@@ -495,24 +517,26 @@ function app(){
     async load(){
       try{
         const qs = this.currentStrategy>0 ? '?strategy_id='+this.currentStrategy : '';
-        const [pRes,sRes,eRes,iRes,dRes] = await Promise.all([
+        const [pRes,sRes,eRes,iRes] = await Promise.all([
           fetch('/api/portfolio'+qs),
           fetch('/api/stats'+qs), fetch('/api/equity'+qs),
-          fetch('/api/index'), fetch('/api/daily')
+          fetch('/api/index')
         ]);
-        const [p,s,e,i,d] = await Promise.all([pRes.json(),sRes.json(),eRes.json(),iRes.json(),dRes.json()]);
+        const [p,s,e,i] = await Promise.all([pRes.json(),sRes.json(),eRes.json(),iRes.json()]);
 
         this.data.account = p || {cash:0,total_value:300000,total_profit:0};
         this.data.positions = p.positions || {};
         this.data.stats = s || {};
         this.data.equity = Array.isArray(e) ? e : [];
         this.data.index = i || {};
-        this.data.reviews = (d?.reviews) ? d.reviews : (Array.isArray(d) ? d : []);
 
         // 加载交易记录（分页）
         this.tradePage = 1;
         this.tradeHasMore = true;
         await this.loadTrades(true);
+
+        // 加载复盘日志（分页）
+        await this.loadReviews();
 
         this.renderChart();
         this.lastUpdate = new Date().toLocaleTimeString('zh-CN',{hour12:false});
@@ -613,7 +637,27 @@ function app(){
       this.tradePage = p;
       await this.loadTrades(true);
     },
-    get totalPages(){ return Math.ceil(this.tradeTotal/this.tradePageSize)||1; }
+    get totalPages(){ return Math.ceil(this.tradeTotal/this.tradePageSize)||1; },
+
+    // 复盘分页
+    async loadReviews(){
+      this.reviewLoading = true;
+      try{
+        const r = await fetch('/api/daily?page='+this.reviewPage+'&page_size='+this.reviewPageSize);
+        const d = await r.json();
+        this.data.reviews = d.reviews || [];
+        this.reviewTotal = d.total || 0;
+      }catch(e){ console.error('loadReviews error:', e); }
+      finally{ this.reviewLoading = false; }
+    },
+    async gotoReviewPage(p){
+      const maxP = Math.ceil(this.reviewTotal/this.reviewPageSize)||1;
+      if(p<1) p=1; if(p>maxP) p=maxP;
+      this.reviewPage = p;
+      this.expandedReview = null;
+      await this.loadReviews();
+    },
+    get reviewTotalPages(){ return Math.ceil(this.reviewTotal/this.reviewPageSize)||1; }
   };
 }
 window.addEventListener('resize',()=>{const el=document.getElementById('eqChart');if(el){const c=echarts.getInstanceByDom(el);if(c)c.resize()}});
