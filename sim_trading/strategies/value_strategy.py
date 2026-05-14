@@ -35,8 +35,8 @@ class ValueInvestingStrategy(BaseStrategy):
         super().__init__(strategy_id, config)
         self.config = {
             # 买入门槛（必须全部满足）
-            'pe_max': 15,                  # PE上限（巴菲特标准）
-            'peg_max': 1.0,                # PEG上限（PE/Growth < 1）
+            'pe_max': 20,                  # PE上限（放宽覆盖更多优质股）
+            'peg_max': 1.5,                # PEG上限（PE/Growth < 1.5）
             'roe_min': 12.0,               # ROE下限%
             'roe_years': 4,                # ROE连续达标年数
             'revenue_growth_min': 0,       # 营收增长最低（排除衰退）
@@ -45,7 +45,7 @@ class ValueInvestingStrategy(BaseStrategy):
             
             # 卖出规则
             'stop_loss': -8.0,             # 中线止损（比短炒宽松）
-            'target_pe': 22,               # 目标PE止盈
+            'target_pe': 28,               # 目标PE止盈（买入PE上限放宽后相应调高）
             'max_hold_days': 90,           # 最长持有天数
             'recheck_interval_days': 14,   # 每两周重新评估
             
@@ -93,11 +93,13 @@ class ValueInvestingStrategy(BaseStrategy):
         if pe_val <= 8:
             return 30, f"PE={pe_val:.1f} ⭐ 极度低估"
         elif pe_val <= 10:
-            return 25, f"PE={pe_val:.1f} ✅ 明显低估"
-        elif pe_val <= 12:
-            return 20, f"PE={pe_val:.1f} ✅ 合理偏低"
-        elif pe_val <= 15:
-            return 15, f"PE={pe_val:.1f} ⚠️ 接近上限"
+            return 27, f"PE={pe_val:.1f} ✅ 明显低估"
+        elif pe_val <= 13:
+            return 23, f"PE={pe_val:.1f} ✅ 合理偏低"
+        elif pe_val <= 16:
+            return 18, f"PE={pe_val:.1f} ✅ 合理估值"
+        elif pe_val <= 20:
+            return 12, f"PE={pe_val:.1f} ⚠️ 接近上限"
         else:
             return 0, f"PE={pe_val:.1f} ❌ 超过{self.config['pe_max']}倍"
     
