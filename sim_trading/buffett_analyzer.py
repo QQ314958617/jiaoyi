@@ -167,6 +167,11 @@ def get_financial_data(code: str) -> dict:
     if len(eps_hist) >= 4:
         result['ttm_eps'] = round(sum(eps_hist), 3)
         result['eps'] = result['ttm_eps']
+    # 计算TTM ROE（近4季度之和，单季度ROE不能直接用于价值判断）
+    roe_hist = result.get('roe_history', [])
+    if len(roe_hist) >= 4:
+        result['roe_ttm'] = round(sum(roe_hist), 2)
+        result['roe_latest'] = result['roe_ttm']
 
     return result
 

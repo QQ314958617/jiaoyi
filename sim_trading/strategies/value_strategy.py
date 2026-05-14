@@ -41,7 +41,7 @@ class ValueInvestingStrategy(BaseStrategy):
             'roe_years': 4,                # ROE连续达标年数
             'revenue_growth_min': 0,       # 营收增长最低（排除衰退）
             'profit_growth_min': 0,        # 利润增长最低
-            'debt_ratio_max': 55.0,        # 负债率上限%
+            'debt_ratio_max': 65.0,        # 负债率上限%（放宽至65%覆盖制造业/电力）
             
             # 卖出规则
             'stop_loss': -8.0,             # 中线止损（比短炒宽松）
@@ -241,7 +241,8 @@ class ValueInvestingStrategy(BaseStrategy):
             growth_avg = rev_growth
         
         peg = pe_val / growth_avg if growth_avg > 0 else 999
-        peg_pass = peg <= self.config['peg_max'] if growth_avg > 0 else False
+        # PE≤10的极度低估股免PEG检查（低估值本身就是安全边际）
+        peg_pass = True if pe_val <= 10 else (peg <= self.config['peg_max'] if growth_avg > 0 else False)
         
         # 5. 各维度评分
         pe_score, pe_desc = self._score_pe(pe_val)
