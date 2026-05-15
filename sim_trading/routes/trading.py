@@ -163,6 +163,15 @@ def execute_trade():
         if cost > account['cash']:
             return jsonify({"error": "资金不足"}), 400
 
+        # === 策略资金隔离检查 ===
+        strategy_positions = db.get_positions(strategy_id=strategy_id)
+        strategy_used = sum(p['avg_cost'] * p['shares'] for p in strategy_positions)
+        strategy_capital = strategy.get('capital', 100000)
+        if strategy_used + cost > strategy_capital:
+            return jsonify({
+                "error": f"策略[{strategy['name']}]资金超限：已用¥{strategy_used:.0f} + 本次¥{cost:.0f} = ¥{strategy_used+cost:.0f}，上限¥{strategy_capital:.0f}"
+            }), 400
+
         new_cash = account['cash'] - cost
         bj_tz = timezone(timedelta(hours=8))
         now_bj = datetime.now(bj_tz).strftime('%Y-%m-%d %H:%M:%S')
