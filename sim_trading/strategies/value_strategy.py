@@ -1,16 +1,16 @@
 """
-价值投资策略 v2.0 — 深度进化版
+价值投资策略 v3.0 — 分批建仓+仓位管理版
 ================================
-核心框架：多因子价值评分体系（满分100）
-因子权重：估值30% + 盈利质量25% + 成长性20% + 财务健康15% + 股息/现金流10%
+核心框架：多因子价值评分体系（满分85）
+因子权重：估值30 + 盈利质量20 + 成长性20 + 财务健康15
 
-v2.0 升级:
-- PEG估值判断（PE/Growth < 1，避免估值陷阱）
+v3.0 升级:
+- 分批建仓：首次50% → 加仓25% → 满仓25%
+- 分批减仓：涨+15%卖半 → 涨+25%清仓
+- 加仓条件：回调-5%且基本面不变
+- PEG估值判断（PE/Growth < 1.5，避免估值陷阱）
 - ROE连续4年 > 10%稳定性检查
 - 营收/利润双增长（排除衰退型低PE股）
-- 股息率验证（有分红更好）
-- 行业PE对比（相对估值更合理）
-- 护城河持续性判断
 """
 import sys
 import os
@@ -25,27 +25,35 @@ import buffett_analyzer as ba
 
 
 class ValueInvestingStrategy(BaseStrategy):
-    """价值投资策略 v2.0 — 多因子深度价值评分"""
+    """价值投资策略 v3.0 — 分批建仓+仓位管理"""
     
     name = "价值投资"
     strategy_type = "value"
-    description = "多因子价值评分体系，PEG+ROE+成长+财务健康，中线持有"
+    description = "多因子价值评分+分批建仓/加仓/减仓，中线持有"
     
     def __init__(self, strategy_id: int, config: dict = None):
         super().__init__(strategy_id, config)
         self.config = {
             # 买入门槛（必须全部满足）
-            'pe_max': 20,                  # PE上限（放宽覆盖更多优质股）
-            'peg_max': 1.5,                # PEG上限（PE/Growth < 1.5）
+            'pe_max': 20,                  # PE上限
+            'peg_max': 1.5,                # PEG上限
             'roe_min': 12.0,               # ROE下限%
             'roe_years': 4,                # ROE连续达标年数
             'revenue_growth_min': 0,       # 营收增长最低（排除衰退）
             'profit_growth_min': 0,        # 利润增长最低
-            'debt_ratio_max': 65.0,        # 负债率上限%（放宽至65%覆盖制造业/电力）
+            'debt_ratio_max': 65.0,        # 负债率上限%
+            
+            # === 仓位管理（v3.0新增）===
+            'initial_position_pct': 50,    # 首次建仓：50%目标仓位
+            'add_position_pct': 25,        # 每次加仓：25%目标仓位
+            'add_trigger_drop': -5.0,      # 加仓触发：回调-5%
+            'max_position_phases': 3,      # 最多加仓次数（含首次）
+            'reduce_trigger_gain': 15.0,   # 减仓触发：涨+15%卖一半
+            'clear_trigger_gain': 25.0,    # 清仓触发：涨+25%全卖
             
             # 卖出规则
-            'stop_loss': -8.0,             # 中线止损（比短炒宽松）
-            'target_pe': 28,               # 目标PE止盈（买入PE上限放宽后相应调高）
+            'stop_loss': -8.0,             # 中线止损
+            'target_pe': 28,               # 目标PE止盈
             'max_hold_days': 90,           # 最长持有天数
             'recheck_interval_days': 14,   # 每两周重新评估
             
@@ -55,13 +63,96 @@ class ValueInvestingStrategy(BaseStrategy):
             'weight_growth': 20,
             'weight_financial': 15,
             'weight_moat': 15,
-            ** (config or {})
+            **(config or {})
         }
     
     def is_trading_time(self) -> bool:
         bj = self.get_bj_time()
         now = bj.time()
         return t_time(9, 30) <= now <= t_time(15, 0)
+    
+    # ─── 仓位管理（v3.0核心）───
+    
+    def calc_position_size(self, per_stock_capital: float, phase: int = 1) -> float:
+        """计算当前阶段应买入的金额
+        
+        Args:
+            per_stock_capital: 单只股票的总目标资金（如¥100,000）
+            phase: 当前阶段 1=首次建仓, 2=第一次加仓, 3=第二次加仓
+        
+        Returns:
+            本次应买入的金额
+        """
+        cfg = self.config
+        if phase == 1:
+            return per_stock_capital * cfg['initial_position_pct'] / 100
+        elif phase <= cfg['max_position_phases']:
+            return per_stock_capital * cfg['add_position_pct'] / 100
+        return 0  # 已满仓
+    
+    def should_add_position(self, code: str, avg_cost: float, current_price: float,
+                            current_phase: int) -> dict:
+        """判断是否应该加仓
+        
+        Returns:
+            {'add': True/False, 'reason': str, 'next_phase': int}
+        """
+        cfg = self.config
+        
+        # 已满仓
+        if current_phase >= cfg['max_position_phases']:
+            return {'add': False, 'reason': '已满仓，不再加仓'}
+        
+        # 计算回调幅度
+        drop_pct = (current_price - avg_cost) / avg_cost * 100
+        
+        # 回调未达标
+        if drop_pct > cfg['add_trigger_drop']:
+            return {'add': False, 'reason': f'回调{drop_pct:.1f}%，未达{cfg["add_trigger_drop"]}%加仓线'}
+        
+        # 基本面检查（加仓前必须确认基本面没恶化）
+        eval_result = self.evaluate_stock(code)
+        if eval_result.get('score', 0) < 40:
+            return {'add': False, 'reason': f'基本面恶化（评分{eval_result.get("score", 0)}），不加仓'}
+        
+        return {
+            'add': True,
+            'reason': f'回调{drop_pct:.1f}%触发加仓，基本面评分{eval_result["score"]}分正常',
+            'next_phase': current_phase + 1
+        }
+    
+    def should_reduce_position(self, code: str, avg_cost: float, current_price: float,
+                               current_shares: int) -> dict:
+        """判断是否应该减仓
+        
+        Returns:
+            {'reduce': True/False, 'action': 'reduce'/'clear'/'hold', 'sell_shares': int, 'reason': str}
+        """
+        cfg = self.config
+        gain_pct = (current_price - avg_cost) / avg_cost * 100
+        
+        # 涨+25%清仓
+        if gain_pct >= cfg['clear_trigger_gain']:
+            return {
+                'reduce': True,
+                'action': 'clear',
+                'sell_shares': current_shares,
+                'reason': f'涨幅{gain_pct:.1f}% ≥ {cfg["clear_trigger_gain"]}%，触发清仓'
+            }
+        
+        # 涨+15%减半
+        if gain_pct >= cfg['reduce_trigger_gain']:
+            sell_shares = (current_shares // 200) * 100  # 卖一半，取整百
+            if sell_shares < 100:
+                sell_shares = current_shares  # 不足200股就全卖
+            return {
+                'reduce': True,
+                'action': 'reduce',
+                'sell_shares': sell_shares,
+                'reason': f'涨幅{gain_pct:.1f}% ≥ {cfg["reduce_trigger_gain"]}%，减仓一半'
+            }
+        
+        return {'reduce': False, 'action': 'hold', 'sell_shares': 0, 'reason': ''}
     
     # ─── 腾讯额外数据 ───
     
@@ -108,7 +199,6 @@ class ValueInvestingStrategy(BaseStrategy):
         cfg = self.config
         current = roe_val
         
-        # 当前ROE评分
         if current >= 20:
             base = 12
             desc = f"当前ROE={current:.1f}% ⭐ 优秀"
@@ -121,7 +211,6 @@ class ValueInvestingStrategy(BaseStrategy):
         else:
             return 0, f"当前ROE={current:.1f}% ❌ 低于{cfg['roe_min']}%"
         
-        # 稳定性加分（连续N年ROE>10%）
         stable_count = sum(1 for r in roe_history if r is not None and r >= 10)
         if stable_count >= cfg['roe_years']:
             base += 8
@@ -135,7 +224,7 @@ class ValueInvestingStrategy(BaseStrategy):
         return min(base, 20), desc
     
     def _score_growth(self, rev_growth, prof_growth) -> tuple:
-        """成长性评分（满分20），含PEG检查"""
+        """成长性评分（满分20）"""
         cfg = self.config
         
         if rev_growth is None and prof_growth is None:
@@ -145,12 +234,10 @@ class ValueInvestingStrategy(BaseStrategy):
         prof = prof_growth if prof_growth else 0
         avg_growth = (rev + prof) / 2
         
-        # 增长方向检查
         if (rev_growth is not None and rev_growth < cfg['revenue_growth_min']) or \
            (prof_growth is not None and prof_growth < cfg['profit_growth_min']):
             return 0, f"营收{rev_growth:.1f}%/利润{prof_growth:.1f}% ❌ 衰退，排除"
         
-        # 增长质量评分
         if avg_growth >= 25:
             score = 20
             desc = f"高增长✅ 营收+{rev:.1f}%/利润+{prof:.1f}%"
@@ -174,7 +261,6 @@ class ValueInvestingStrategy(BaseStrategy):
         score = 0
         items = []
         
-        # 负债率
         if debt_ratio is not None:
             if debt_ratio <= 30:
                 score += 8; items.append(f"负债率{debt_ratio:.1f}% ⭐ 低杠杆")
@@ -185,7 +271,6 @@ class ValueInvestingStrategy(BaseStrategy):
             else:
                 items.append(f"负债率{debt_ratio:.1f}% ❌ 过高")
         
-        # 毛利率（护城河信号）
         if gross_margin is not None:
             if gross_margin >= 60:
                 score += 7; items.append(f"毛利率{gross_margin:.1f}% ⭐ 强护城河")
@@ -202,15 +287,12 @@ class ValueInvestingStrategy(BaseStrategy):
     
     def evaluate_stock(self, code: str) -> dict:
         """完整价值评估流程"""
-        # 1. 获取巴菲特分析报告
         report = ba.build_report(code)
         if 'error' in report:
             return {'pass': False, 'error': report['error']}
         
-        # 2. 获取腾讯扩展数据（股息率等）
         ext = self._get_tencent_extended(code)
         
-        # 3. 提取指标
         indicators = report.get('indicators', {})
         pe_val = indicators.get('PE', {}).get('value', 999)
         roe_val = 0
@@ -221,7 +303,6 @@ class ValueInvestingStrategy(BaseStrategy):
                 roe_history = v.get('history', [])
                 break
         
-        # 从财务函数获取详细信息（report里没有financial键）
         fin = ba.get_financial_data(code)
         rev_growth = fin.get('revenue_growth')
         prof_growth = fin.get('profit_growth')
@@ -233,7 +314,7 @@ class ValueInvestingStrategy(BaseStrategy):
             if '毛利' in k:
                 gross_margin = v.get('value')
         
-        # 4. PEG计算（核心升级！）
+        # PEG计算
         growth_avg = 0
         if rev_growth is not None and prof_growth is not None:
             growth_avg = (rev_growth + prof_growth) / 2
@@ -241,10 +322,9 @@ class ValueInvestingStrategy(BaseStrategy):
             growth_avg = rev_growth
         
         peg = pe_val / growth_avg if growth_avg > 0 else 999
-        # PE≤10的极度低估股免PEG检查（低估值本身就是安全边际）
         peg_pass = True if pe_val <= 10 else (peg <= self.config['peg_max'] if growth_avg > 0 else False)
         
-        # 5. 各维度评分
+        # 各维度评分
         pe_score, pe_desc = self._score_pe(pe_val)
         roe_score, roe_desc = self._score_roe(roe_val, roe_history)
         growth_score, growth_desc = self._score_growth(rev_growth, prof_growth)
@@ -252,7 +332,7 @@ class ValueInvestingStrategy(BaseStrategy):
         
         total_score = pe_score + roe_score + growth_score + fin_score
         
-        # 6. 买入判断
+        # 买入判断
         failures = []
         if pe_val > self.config['pe_max']:
             failures.append(f"PE={pe_val:.1f} > {self.config['pe_max']}")
@@ -265,22 +345,19 @@ class ValueInvestingStrategy(BaseStrategy):
         if debt_ratio is not None and debt_ratio > self.config['debt_ratio_max']:
             failures.append(f"负债率{debt_ratio:.1f}% > {self.config['debt_ratio_max']}%")
         
-        # 检查安全边际（现价 vs 目标价）
         current_price = report.get('current_price', 0)
         target_price = report.get('target_price', 0)
-        price_safe = True
         if target_price and current_price:
             safety_margin = (target_price - current_price) / current_price * 100
             if safety_margin <= 0:
                 failures.append(f"现价¥{current_price} ≥ 目标价¥{target_price}，无安全边际")
-                price_safe = False
         
         buy_signal = len(failures) == 0 and total_score >= 50
         
         return {
             'pass': buy_signal,
             'score': total_score,
-            'max_score': 80,
+            'max_score': 85,
             'score_breakdown': {
                 'pe': {'score': pe_score, 'max': 30, 'desc': pe_desc},
                 'roe': {'score': roe_score, 'max': 20, 'desc': roe_desc},
@@ -300,36 +377,48 @@ class ValueInvestingStrategy(BaseStrategy):
             'action': '买入' if buy_signal else '不符合条件：' + '；'.join(failures[:3]),
         }
     
-    # ─── 退出决策 ───
+    # ─── 退出决策（v3.0 分批减仓）───
     
     def should_sell(self, code: str, cost_price: float, current_price: float,
-                    highest_since_buy: float, hold_days: int) -> tuple:
-        """多维度卖出判断"""
+                    highest_since_buy: float, hold_days: int,
+                    current_shares: int = 0) -> tuple:
+        """多维度卖出判断（v3.0支持分批减仓）
+        
+        Returns:
+            (should_sell: bool, reason: str, sell_shares: int or None)
+            sell_shares=None表示全卖，具体数字表示部分卖出
+        """
         cfg = self.config
         loss_pct = (current_price - cost_price) / cost_price * 100
         
-        # 止损（无条件）
-        if loss_pct <= -cfg['stop_loss']:
-            return True, f"止损触发：亏损{loss_pct:.1f}%（≤{cfg['stop_loss']}%）"
+        # 止损（无条件，全卖）
+        if loss_pct <= cfg['stop_loss']:
+            return True, f"止损触发：亏损{loss_pct:.1f}%（≤{cfg['stop_loss']}%）", None
         
-        # 超时卖出（最长持有线）
+        # 超时卖出（全卖）
         if hold_days >= cfg['max_hold_days']:
-            return True, f"超时卖出：已持有{hold_days}天（上限{cfg['max_hold_days']}天）"
+            return True, f"超时卖出：已持有{hold_days}天（上限{cfg['max_hold_days']}天）", None
+        
+        # 分批减仓逻辑
+        if current_shares > 0:
+            reduce_result = self.should_reduce_position(code, cost_price, current_price, current_shares)
+            if reduce_result['reduce']:
+                return True, reduce_result['reason'], reduce_result['sell_shares']
         
         # 重新估值检查（每两周）
-        if hold_days % cfg['recheck_interval_days'] == 0:
+        if hold_days > 0 and hold_days % cfg['recheck_interval_days'] == 0:
             eval_result = self.evaluate_stock(code)
             if eval_result.get('score', 0) < 30:
-                return True, f"基本面恶化：评分{eval_result['score']}分，建议退出"
+                return True, f"基本面恶化：评分{eval_result['score']}分，建议退出", None
         
-        # 目标PE止盈
+        # 目标PE止盈（全卖）
         report = ba.build_report(code)
         if 'error' not in report:
             pe_val = report.get('indicators', {}).get('PE', {}).get('value', 999)
             if pe_val >= cfg['target_pe']:
-                return True, f"目标PE到达：PE={pe_val:.1f} ≥ {cfg['target_pe']}"
+                return True, f"目标PE到达：PE={pe_val:.1f} ≥ {cfg['target_pe']}", None
         
-        return False, ""
+        return False, "", 0
 
 
 # 注册策略

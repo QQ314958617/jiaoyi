@@ -54,6 +54,8 @@ def init_database():
                 buy_date TEXT,
                 created_at TEXT DEFAULT CURRENT_TIMESTAMP,
                 strategy_id INTEGER DEFAULT 1,
+                position_phase INTEGER DEFAULT 3,
+                target_shares INTEGER DEFAULT 0,
                 UNIQUE(stock_code)
             )
         ''')
@@ -126,6 +128,10 @@ def init_database():
         cols_positions = [r[1] for r in c.fetchall()]
         if 'strategy_id' not in cols_positions:
             c.execute('ALTER TABLE positions ADD COLUMN strategy_id INTEGER DEFAULT 1')
+        if 'position_phase' not in cols_positions:
+            c.execute('ALTER TABLE positions ADD COLUMN position_phase INTEGER DEFAULT 3')
+        if 'target_shares' not in cols_positions:
+            c.execute('ALTER TABLE positions ADD COLUMN target_shares INTEGER DEFAULT 0')
         c.execute('PRAGMA table_info(equity_curve)')
         cols_equity = [r[1] for r in c.fetchall()]
         if 'strategy_id' not in cols_equity:
@@ -287,7 +293,7 @@ def get_position(stock_code):
         row = c.fetchone()
         return dict(row) if row else None
 
-def upsert_position(stock_code, stock_name, shares, avg_cost, buy_date=None, strategy_id=1):
+def upsert_position(stock_code, stock_name, shares, avg_cost, buy_date=None, strategy_id=1, position_phase=None, target_shares=None):
     """更新持仓"""
     bj_tz = timezone(timedelta(hours=8))
     now_bj = datetime.now(bj_tz).strftime('%Y-%m-%d %H:%M:%S')
@@ -295,14 +301,17 @@ def upsert_position(stock_code, stock_name, shares, avg_cost, buy_date=None, str
     with get_connection() as conn:
         c = conn.cursor()
         c.execute('''
-            INSERT INTO positions (stock_code, stock_name, shares, avg_cost, buy_date, created_at, strategy_id)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO positions (stock_code, stock_name, shares, avg_cost, buy_date, created_at, strategy_id, position_phase, target_shares)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(stock_code) DO UPDATE SET
                 stock_name = excluded.stock_name,
                 shares = excluded.shares,
                 avg_cost = excluded.avg_cost,
-                strategy_id = excluded.strategy_id
-        ''', (stock_code, stock_name, shares, round(avg_cost, 2), buy_date or now_bj, now_bj, strategy_id))
+                strategy_id = excluded.strategy_id,
+                position_phase = COALESCE(excluded.position_phase, positions.position_phase),
+                target_shares = COALESCE(excluded.target_shares, positions.target_shares)
+        ''', (stock_code, stock_name, shares, round(avg_cost, 2), buy_date or now_bj, now_bj, strategy_id,
+              position_phase, target_shares))
         conn.commit()
 
 def delete_position(stock_code):

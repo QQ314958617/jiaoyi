@@ -180,13 +180,23 @@ def execute_trade():
         now_bj = datetime.now(bj_tz).strftime('%Y-%m-%d %H:%M:%S')
         position = db.get_position(stock_code)
 
+        # 仓位阶段支持（v3.0）
+        position_phase = data.get('position_phase')
+        target_shares = data.get('target_shares')
+
         if position:
             total_shares = position['shares'] + shares
             total_cost = position['avg_cost'] * position['shares'] + amount
             new_avg_cost = total_cost / total_shares
-            db.upsert_position(stock_code, name, total_shares, new_avg_cost, strategy_id=strategy_id)
+            # 加仓时更新phase
+            new_phase = position_phase if position_phase else position.get('position_phase')
+            db.upsert_position(stock_code, name, total_shares, new_avg_cost,
+                             strategy_id=strategy_id, position_phase=new_phase,
+                             target_shares=target_shares)
         else:
-            db.upsert_position(stock_code, name, shares, price, buy_date=now_bj, strategy_id=strategy_id)
+            db.upsert_position(stock_code, name, shares, price, buy_date=now_bj,
+                             strategy_id=strategy_id, position_phase=position_phase or 1,
+                             target_shares=target_shares)
 
     elif action == 'sell':
         position = db.get_position(stock_code)
@@ -265,5 +275,83 @@ def execute_trade():
             "cash": round(new_cash, 2),
             "total_value": round(total_value, 2),
             "total_profit": round(total_value - account.get('initial_capital', 500000.0), 2)
+        }
+    })
+
+
+@trading_bp.route('/api/position/manage', methods=['GET'])
+def position_manage():
+    """价值投资仓位管理建议（加仓/减仓判断）"""
+    strategy_id = int(request.args.get('strategy_id', 2))
+    positions = db.get_positions(strategy_id=strategy_id)
+    
+    if not positions:
+        return jsonify({'positions': [], 'suggestions': []})
+    
+    # 获取实时行情
+    codes = [p['stock_code'] for p in positions]
+    try:
+        quotes = get_tencent_quote(codes)
+    except Exception:
+        return jsonify({'error': '获取行情失败'}), 500
+    
+    # 加载策略
+    from strategies.value_strategy import ValueInvestingStrategy
+    strategy = ValueInvestingStrategy(strategy_id)
+    
+    suggestions = []
+    for pos in positions:
+        code = pos['stock_code']
+        quote = quotes.get(code, {})
+        current_price = quote.get('price', 0)
+        if current_price == 0:
+            continue
+        
+        avg_cost = pos['avg_cost']
+        shares = pos['shares']
+        phase = pos.get('position_phase', 3)  # 旧数据默认满仓
+        gain_pct = (current_price - avg_cost) / avg_cost * 100
+        
+        suggestion = {
+            'stock_code': code,
+            'stock_name': pos['stock_name'],
+            'shares': shares,
+            'avg_cost': avg_cost,
+            'current_price': current_price,
+            'gain_pct': round(gain_pct, 2),
+            'phase': phase,
+            'phase_desc': ['未建仓', '首次建仓50%', '加仓75%', '满仓100%'][min(phase, 3)],
+            'action': 'hold',
+            'reason': ''
+        }
+        
+        # 检查加仓
+        if phase < 3:
+            add_result = strategy.should_add_position(code, avg_cost, current_price, phase)
+            if add_result['add']:
+                suggestion['action'] = 'add'
+                suggestion['reason'] = add_result['reason']
+                suggestion['next_phase'] = add_result['next_phase']
+        
+        # 检查减仓
+        reduce_result = strategy.should_reduce_position(code, avg_cost, current_price, shares)
+        if reduce_result['reduce']:
+            suggestion['action'] = reduce_result['action']
+            suggestion['reason'] = reduce_result['reason']
+            suggestion['sell_shares'] = reduce_result['sell_shares']
+        
+        # 检查止损
+        if gain_pct <= -8.0:
+            suggestion['action'] = 'stop_loss'
+            suggestion['reason'] = f'止损触发：亏损{gain_pct:.1f}%'
+        
+        suggestions.append(suggestion)
+    
+    return jsonify({
+        'strategy_id': strategy_id,
+        'positions': suggestions,
+        'summary': {
+            'total_positions': len(positions),
+            'need_action': sum(1 for s in suggestions if s['action'] != 'hold')
         }
     })
