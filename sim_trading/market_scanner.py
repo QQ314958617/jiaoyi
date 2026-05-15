@@ -79,10 +79,10 @@ def _batch_tencent_quotes(codes: list) -> dict:
                     'amount': float(fields[37]) if len(fields) > 37 and fields[37] != '-' else 0,  # 万
                     'change_pct': float(fields[32]) if len(fields) > 32 and fields[32] != '-' else 0,
                     'turnover': float(fields[38]) if len(fields) > 38 and fields[38] != '-' else 0,  # 换手率%
-                    'volume_ratio': float(fields[39]) if len(fields) > 39 and fields[39] != '-' else 1.0,
+                    'volume_ratio': float(fields[49]) if len(fields) > 49 and fields[49] and fields[49] != '-' else 1.0,  # 量比
                     'pe': float(fields[39]) if len(fields) > 39 and fields[39] != '-' else 0,
                     'amplitude': float(fields[43]) if len(fields) > 43 and fields[43] != '-' else 0,
-                    'circulate_mv': float(fields[44]) if len(fields) > 44 and fields[44] != '-' else 0,  # 流通市值
+                    'circulate_mv': float(fields[44]) if len(fields) > 44 and fields[44] != '-' else 0,  # 流通市值（亿元）
                     'total_mv': float(fields[45]) if len(fields) > 45 and fields[45] != '-' else 0,
                     'dividend_yield': float(fields[42]) if len(fields) > 42 and fields[42] != '-' else None,
                 }
@@ -181,12 +181,11 @@ def filter_overnight_candidates(df: pd.DataFrame, config: dict = None) -> pd.Dat
             (filtered['turnover'] <= cfg['turnover_max'])
         ]
     
-    # 流通市值过滤（腾讯返回的是万元，需转为亿元）
+    # 流通市值过滤（腾讯返回的已经是亿元）
     if 'circulate_mv' in filtered.columns:
-        filtered['circulate_mv_yi'] = filtered['circulate_mv'] / 10000
         filtered = filtered[
-            (filtered['circulate_mv_yi'] >= cfg['mv_min']) &
-            (filtered['circulate_mv_yi'] <= cfg['mv_max'])
+            (filtered['circulate_mv'] >= cfg['mv_min']) &
+            (filtered['circulate_mv'] <= cfg['mv_max'])
         ]
     
     # 量比过滤
