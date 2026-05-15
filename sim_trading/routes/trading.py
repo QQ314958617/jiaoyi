@@ -89,27 +89,30 @@ def get_equity():
 
 @trading_bp.route('/api/risk/check', methods=['POST'])
 def risk_check():
-    """风控检查：下单前验证"""
+    """风控检查：下单前验证（策略级资金隔离）"""
     data = request.json
     action = data.get('action')
     stock_code = data.get('stock_code')
     shares = int(data.get('shares', 0))
     price = float(data.get('price', 0))
+    strategy_id = int(data.get('strategy_id', 1))
 
     errors = []
     account = db.get_account()
 
     if action == 'buy':
         cost = price * shares * 1.0003
-        if cost > 10000:
-            errors.append(f'单票金额 ¥{cost:.0f} 超过 ¥10,000 上限')
-        positions = db.get_positions()
-        pos_value = sum(p['avg_cost'] * p['shares'] for p in positions)
-        new_total = pos_value + cost
-        if account['total_value'] > 0 and new_total / account['total_value'] > 0.20:
-            errors.append(f'仓位将达 {(new_total/account["total_value"]*100):.1f}%，超过 20% 上限')
+        # 全局现金检查
         if cost > account['cash']:
             errors.append(f'资金不足，需要 ¥{cost:.0f}，可用 ¥{account["cash"]:.0f}')
+        # 策略级资金隔离检查
+        strategy = db.get_strategy(strategy_id)
+        if strategy:
+            strategy_positions = db.get_positions(strategy_id=strategy_id)
+            strategy_used = sum(p['avg_cost'] * p['shares'] for p in strategy_positions)
+            strategy_capital = strategy.get('capital', 100000)
+            if strategy_used + cost > strategy_capital:
+                errors.append(f'策略[{strategy["name"]}]资金超限：已用¥{strategy_used:.0f} + 本次¥{cost:.0f} = ¥{strategy_used+cost:.0f}，上限¥{strategy_capital:.0f}')
     elif action == 'sell':
         position = db.get_position(stock_code)
         if not position:
@@ -261,6 +264,6 @@ def execute_trade():
         "portfolio": {
             "cash": round(new_cash, 2),
             "total_value": round(total_value, 2),
-            "total_profit": round(total_value - account.get('initial_capital', 300000.0), 2)
+            "total_profit": round(total_value - account.get('initial_capital', 500000.0), 2)
         }
     })
