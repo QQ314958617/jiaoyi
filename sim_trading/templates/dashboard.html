@@ -326,7 +326,7 @@ tr:hover td { background: rgba(255,255,255,0.015); color: var(--text-primary); }
             <div style="display:flex;gap:14px;margin-top:4px;flex-wrap:wrap">
               <span style="font-size:11px;color:var(--text-secondary)"><span style="color:var(--text-muted)">数量</span> <span class="mono" style="font-weight:600" x-text="pos.shares+'股'"></span></span>
               <span style="font-size:11px;color:var(--text-secondary)"><span style="color:var(--text-muted)">成本</span> <span class="mono" style="font-weight:600" x-text="'¥'+Number(pos.avg_cost).toFixed(2)"></span></span>
-              <span style="font-size:11px;color:var(--text-secondary)"><span style="color:var(--text-muted)">市值</span> <span class="mono" style="font-weight:600" x-text="'¥'+(pos.shares*pos.avg_cost).toFixed(0)"></span></span>
+              <span style="font-size:11px;color:var(--text-secondary)"><span style="color:var(--text-muted)">市值</span> <span class="mono" style="font-weight:600" x-text="'¥'+(pos.shares*(pos.current_price||pos.avg_cost)).toFixed(0)"></span></span>
             </div>
           </div>
           <div style="text-align:right">
@@ -437,14 +437,14 @@ tr:hover td { background: rgba(255,255,255,0.015); color: var(--text-primary); }
         <div class="fi" style="background:var(--bg-deep);border-radius:10px;padding:12px">
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
             <span style="font-size:14px;font-weight:700" x-text="analyzeResult.name||analyzeResult.stock_code"></span>
-            <span class="badge" :class="(analyzeResult.score||0)>=70?'badge-up':(analyzeResult.score||0)>=40?'badge-neutral':'badge-down'" x-text="'评分 '+(analyzeResult.score||0)"></span>
-            <span class="badge badge-accent" x-show="analyzeResult.rating" x-text="'⭐'.repeat(analyzeResult.rating||0)"></span>
+            <span class="badge" :class="(analyzeResult.total_score||analyzeResult.score||0)>=70?'badge-up':(analyzeResult.total_score||analyzeResult.score||0)>=40?'badge-neutral':'badge-down'" x-text="'评分 '+(analyzeResult.total_score||analyzeResult.score||0)"></span>
+            <span class="badge badge-accent" x-show="analyzeResult.stars||analyzeResult.rating" x-text="'⭐'.repeat(analyzeResult.stars||(typeof analyzeResult.rating==='number'?analyzeResult.rating:0))"></span>
           </div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:11px">
-            <div><span style="color:var(--text-muted)">PE(TTM)</span> <span class="mono" style="font-weight:600" x-text="analyzeResult.pe||'N/A'"></span></div>
-            <div><span style="color:var(--text-muted)">ROE</span> <span class="mono" style="font-weight:600" x-text="analyzeResult.roe?analyzeResult.roe+'%':'N/A'"></span></div>
+            <div><span style="color:var(--text-muted)">PE(TTM)</span> <span class="mono" style="font-weight:600" x-text="(analyzeResult.pe||analyzeResult.valuation?.current_pe||analyzeResult.indicators?.PE?.value)||'N/A'"></span></div>
+            <div><span style="color:var(--text-muted)">ROE</span> <span class="mono" style="font-weight:600" x-text="(analyzeResult.roe||analyzeResult.indicators?.ROE?.value)?((analyzeResult.roe||analyzeResult.indicators?.ROE?.value)+'%'):'N/A'"></span></div>
             <div><span style="color:var(--text-muted)">目标价</span> <span class="mono up" style="font-weight:600" x-text="analyzeResult.target_price?'¥'+analyzeResult.target_price:'N/A'"></span></div>
-            <div><span style="color:var(--text-muted)">止损价</span> <span class="mono down" style="font-weight:600" x-text="analyzeResult.stop_loss?'¥'+analyzeResult.stop_loss:'N/A'"></span></div>
+            <div><span style="color:var(--text-muted)">止损价</span> <span class="mono down" style="font-weight:600" x-text="(analyzeResult.stop_loss||analyzeResult.stop_price)?'¥'+(analyzeResult.stop_loss||analyzeResult.stop_price):'N/A'"></span></div>
           </div>
           <div x-show="analyzeResult.summary" style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);font-size:11px;color:var(--text-secondary);line-height:1.5" x-text="analyzeResult.summary"></div>
         </div>
@@ -522,7 +522,7 @@ function app(){
     queryCode: '', analyzing: false, analyzeResult: null,
 
     get roi(){
-      const init = 300000;
+      const init = this.data.account.initial_capital || 500000;
       return ((this.data.account.total_value||init) - init) / init * 100;
     },
     get filteredPositions(){
@@ -569,6 +569,29 @@ function app(){
         this.data.stats = s || {};
         this.data.equity = Array.isArray(e) ? e : [];
         this.data.index = i || {};
+
+        // 获取实时行情计算持仓盈亏
+        const posCodes = Object.keys(this.data.positions);
+        if(posCodes.length){
+          try{
+            const qRes = await fetch('/api/quotes/batch');
+            const quotes = await qRes.json();
+            const qMap = {};
+            (Array.isArray(quotes)?quotes:[]).forEach(q=>{ qMap[q.code]=q; });
+            for(const code of posCodes){
+              const pos = this.data.positions[code];
+              const q = qMap[code];
+              if(q && q.price && pos.avg_cost){
+                pos.current_price = q.price;
+                pos.profit_pct = ((q.price - pos.avg_cost) / pos.avg_cost * 100);
+                pos.profit_amt = (q.price - pos.avg_cost) * pos.shares;
+              } else {
+                pos.profit_pct = 0;
+                pos.profit_amt = 0;
+              }
+            }
+          }catch(e){ console.error('Quotes error:', e); }
+        }
 
         // 加载交易记录（分页）
         this.tradePage = 1;

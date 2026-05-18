@@ -484,7 +484,19 @@ def get_trade_stats(strategy_id=None):
         else:
             c.execute('SELECT SUM(ABS(profit)) FROM trades WHERE profit < 0')
         total_loss = round(c.fetchone()[0] or 0, 2)
-        
+        # 单笔最大盈利
+        if strategy_id:
+            c.execute('SELECT MAX(profit) FROM trades WHERE action = "sell" AND strategy_id = ?', (strategy_id,))
+        else:
+            c.execute('SELECT MAX(profit) FROM trades WHERE action = "sell"')
+        max_profit = round(c.fetchone()[0] or 0, 2)
+        # 单笔最大亏损
+        if strategy_id:
+            c.execute('SELECT MIN(profit) FROM trades WHERE action = "sell" AND strategy_id = ?', (strategy_id,))
+        else:
+            c.execute('SELECT MIN(profit) FROM trades WHERE action = "sell"')
+        max_loss = round(c.fetchone()[0] or 0, 2)
+
         return {
             'total_trades': total_closed,
             'win_trades': win_trades,
@@ -492,5 +504,7 @@ def get_trade_stats(strategy_id=None):
             'win_rate': round(win_trades / total_closed * 100, 2) if total_closed > 0 else 0,
             'total_profit': total_profit,
             'total_loss': total_loss,
-            'net_profit': round(total_profit - total_loss, 2)
+            'net_profit': round(total_profit - total_loss, 2),
+            'max_profit': max_profit,
+            'max_loss': max_loss
         }
